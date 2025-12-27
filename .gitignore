@@ -29,4 +29,7 @@ repo
 libs/*.jar
 !libs/.gitkeep
 
+# dynamic doll models (generated at runtime)
+src/main/resources/assets/player_doll_addon/models/item/dynamic/
+
 
