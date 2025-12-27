@@ -53,8 +53,16 @@ public class SteveDollItemRenderer extends BlockEntityWithoutLevelRenderer {
             poseStack.translate(0.5, 0.5, 0.5);
             poseStack.scale(0.5F, 0.5F, 0.5F);
             // 玩家模型原点在脚部，向上移动使模型居中
-            // 缩放0.5后，模型高度0.9，中心在0.45，需要向上移动0.9使中心对齐（在缩放后的坐标系中）
-            poseStack.translate(0.0, 0.9, 0.0);
+            // 缩放0.5后，模型高度0.9，中心在0.45，需要向上移动1.1使中心对齐（在缩放后的坐标系中）
+            poseStack.translate(0.0, 1.1, 0.0);
+            // 前后反转（Z轴反转）
+            poseStack.scale(1.0F, 1.0F, -1.0F);
+            // 相对镜头向前移动0.5（Z轴正方向）
+            poseStack.translate(0.0, 0.0, 0.5);
+            // 顺时针旋转15度（Y轴顺时针为正值）
+            poseStack.mulPose(Axis.YP.rotationDegrees(15.0F));
+            // 向右移动0.5（X轴正方向，在翻转模型前）
+            poseStack.translate(0.5, 0.0, 0.0);
         } else if (transformType == ItemDisplayContext.THIRD_PERSON_LEFT_HAND || 
                    transformType == ItemDisplayContext.THIRD_PERSON_RIGHT_HAND) {
             // 第三人称：调整位置和大小
