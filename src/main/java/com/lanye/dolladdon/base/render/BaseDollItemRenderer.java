@@ -97,11 +97,10 @@ public abstract class BaseDollItemRenderer extends BlockEntityWithoutLevelRender
         if (transformType == ItemDisplayContext.GUI) {
             // GUI 中：居中显示
             // 先应用基础缩放和模型缩放
-            poseStack.scale(0.8F * modelScale, 0.8F * modelScale, 0.8F * modelScale);
+            poseStack.scale(0.75F * modelScale, 0.75F * modelScale, 0.75F * modelScale);
             // 移动到物品槽中心并向上移动使模型居中
-            // 原始模型高度1.8，缩放后为1.125，scale(0.8*0.625)后最终高度约为0.9
-            // 所以Y位置需要相应调整：1.5 * (modelScale) ≈ 0.9375，但考虑到视觉居中效果，使用1.17
-            poseStack.translate(0.641, 1.17, 0.359);
+            // 注意：模型以脚部为中心，缩放时不需要调整Y位置
+            poseStack.translate(1, 1.5, 0.0);
             // 逆时针旋转135度（Y轴逆时针为负值）
             poseStack.mulPose(Axis.YP.rotationDegrees(-135.0F));
         } else if (transformType == ItemDisplayContext.FIRST_PERSON_LEFT_HAND || 
@@ -109,13 +108,13 @@ public abstract class BaseDollItemRenderer extends BlockEntityWithoutLevelRender
             // 第一人称：左手和右手使用相同的初始变换
             // 原始模型高度1.8，缩放后为1.125，scale(0.5*0.625)后最终高度约为0.5625
             // 所以Y位置需要相应调整：1.25 * modelScale ≈ 0.78
-            poseStack.translate(0.5, 0.78, 0.5);
+            poseStack.translate(0.5, 1, 0.5);
             // 缩放并前后反转（应用模型缩放）
             poseStack.scale(0.5F * modelScale, 0.5F * modelScale, -0.5F * modelScale);
             // 旋转
             if (transformType == ItemDisplayContext.FIRST_PERSON_LEFT_HAND) {
                 // 第一人称左手
-                poseStack.mulPose(Axis.YP.rotationDegrees(-15.0F));
+                poseStack.mulPose(Axis.YP.rotationDegrees(-45.0F));
             } else{
                 // 第一人称右手
                 poseStack.mulPose(Axis.YP.rotationDegrees(15.0F));
@@ -125,7 +124,7 @@ public abstract class BaseDollItemRenderer extends BlockEntityWithoutLevelRender
             // 第三人称：调整位置和大小
             // 原始模型高度1.8，缩放后为1.125，scale(0.375*0.625)后最终高度约为0.421875
             // 所以Y位置需要相应调整：1.075 * modelScale ≈ 0.67
-            poseStack.translate(0.5, 0.67, 0.5);
+            poseStack.translate(0.5, 1, 0.5);
             // 缩放并前后反转（应用模型缩放）
             poseStack.scale(0.375F * modelScale, 0.375F * modelScale, -0.375F * modelScale);
         } else {
