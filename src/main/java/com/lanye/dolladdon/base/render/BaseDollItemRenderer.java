@@ -50,8 +50,8 @@ public abstract class BaseDollItemRenderer extends BlockEntityWithoutLevelRender
         playerModel.head.setRotation(0.0F, 0.0F, 0.0F);
         playerModel.hat.setRotation(0.0F, 0.0F, 0.0F);
         playerModel.body.setRotation(0.0F, 0.0F, 0.0F);
-        playerModel.rightArm.setRotation(-0.6981317F, 0.0F, 0.0F);
-        playerModel.leftArm.setRotation(0.6981317F, 0.0F, 0.0F);
+        playerModel.rightArm.setRotation(0F, 0.0F, 0.0F);
+        playerModel.leftArm.setRotation(0F, 0.0F, 0.0F);
         playerModel.rightLeg.setRotation(0.0F, 0.0F, 0.0F);
         playerModel.leftLeg.setRotation(0.0F, 0.0F, 0.0F);
         
@@ -91,25 +91,17 @@ public abstract class BaseDollItemRenderer extends BlockEntityWithoutLevelRender
      * @param transformType 显示上下文类型
      */
     protected void applyPlayerModelTransform(PoseStack poseStack, ItemDisplayContext transformType) {
-        // 模型缩放比例，与实体渲染器保持一致（使模型高度为1.125）
-        float modelScale = 1.125F / 1.8F; // 约 0.625F
+        // 模型缩放比例，与实体渲染器保持一致
+        float modelScale = 1F;
         
         if (transformType == ItemDisplayContext.GUI) {
             // GUI 中：居中显示
-            // 先应用基础缩放和模型缩放
-            poseStack.scale(0.75F * modelScale, 0.75F * modelScale, 0.75F * modelScale);
-            // 移动到物品槽中心并向上移动使模型居中
-            // 注意：模型以脚部为中心，缩放时不需要调整Y位置
-            poseStack.translate(1, 1.5, 0.0);
-            // 逆时针旋转135度（Y轴逆时针为负值）
-            poseStack.mulPose(Axis.YP.rotationDegrees(-135.0F));
+            poseStack.translate(0.5, 0.75, 0.0);
+            poseStack.scale(0.5F * modelScale, 0.5F * modelScale, 0.5F * modelScale);
+            poseStack.mulPose(Axis.YP.rotationDegrees(-155.0F));
         } else if (transformType == ItemDisplayContext.FIRST_PERSON_LEFT_HAND || 
                    transformType == ItemDisplayContext.FIRST_PERSON_RIGHT_HAND) {
-            // 第一人称：左手和右手使用相同的初始变换
-            // 原始模型高度1.8，缩放后为1.125，scale(0.5*0.625)后最终高度约为0.5625
-            // 所以Y位置需要相应调整：1.25 * modelScale ≈ 0.78
             poseStack.translate(0.5, 1, 0.5);
-            // 缩放并前后反转（应用模型缩放）
             poseStack.scale(0.5F * modelScale, 0.5F * modelScale, -0.5F * modelScale);
             // 旋转
             if (transformType == ItemDisplayContext.FIRST_PERSON_LEFT_HAND) {
@@ -122,23 +114,16 @@ public abstract class BaseDollItemRenderer extends BlockEntityWithoutLevelRender
         } else if (transformType == ItemDisplayContext.THIRD_PERSON_LEFT_HAND || 
                    transformType == ItemDisplayContext.THIRD_PERSON_RIGHT_HAND) {
             // 第三人称：调整位置和大小
-            // 原始模型高度1.8，缩放后为1.125，scale(0.375*0.625)后最终高度约为0.421875
-            // 所以Y位置需要相应调整：1.075 * modelScale ≈ 0.67
             poseStack.translate(0.5, 1, 0.5);
             // 缩放并前后反转（应用模型缩放）
-            poseStack.scale(0.375F * modelScale, 0.375F * modelScale, -0.375F * modelScale);
+            poseStack.scale(0.25F * modelScale, 0.25F * modelScale, -0.25F * modelScale);
         } else {
             // 其他情况（地面、框架等）
-            // 原始模型高度1.8，缩放后为1.125，scale(0.5*0.625)后最终高度约为0.5625
-            // 所以Y位置需要相应调整：1.4 * modelScale ≈ 0.875
-            poseStack.translate(0.5, 0.875, 0.5);
+            poseStack.translate(0.0, 0.0, 0.0);
             poseStack.scale(0.5F * modelScale, 0.5F * modelScale, 0.5F * modelScale);
         }
         
         // 翻转模型（玩家模型需要翻转才能正确显示）
-        // 原因：Minecraft的玩家模型在渲染时，默认朝向与物品渲染的坐标系不匹配
-        // 实体渲染器（SteveDollRenderer）也使用 scale(-1.0F, -1.0F, 1.0F) 来翻转模型
-        // 这是Minecraft渲染系统的约定，翻转后模型才能正确显示（正面朝向玩家）
         poseStack.scale(-1.0F, -1.0F, 1.0F);
         
     }

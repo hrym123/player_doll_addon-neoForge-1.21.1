@@ -20,7 +20,7 @@ public class DollEntityFactory {
     public static <T extends BaseDollEntity> EntityType<T> createDollEntityType(
             String name, EntityType.EntityFactory<T> entityFactory) {
         return EntityType.Builder.<T>of(entityFactory, MobCategory.MISC)
-                .sized(0.6f, 1.125f) // 玩偶碰撞箱大小：宽0.6，高1.125（保持不变）
+                .sized(0.6f, 1f) // 玩偶碰撞箱大小：宽0.6，高1.125（保持不变）
                 .clientTrackingRange(10)
                 .updateInterval(20)
                 .build(name);

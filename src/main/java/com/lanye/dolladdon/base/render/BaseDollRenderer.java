@@ -43,11 +43,9 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
         poseStack.mulPose(Axis.XP.rotationDegrees(xRot));
         
         // 缩小模型大小，使高度为1.125（玩家模型高度约1.8，缩放比例 = 1.125 / 1.8 = 0.625）
-        float modelScale = 1.125F / 1.8F; // 约 0.625F
+        float modelScale = 0.5F; // 约 0.625F
         
-        // 调整位置，使玩家模型底部对齐实体位置
-        // 缩放后模型高度为1.125，需要向上移动相应的距离使底部对齐
-        poseStack.translate(0.0, 1.125F, 0.0);
+        poseStack.translate(0.0, 0.75, 0.0);
         
         // 应用缩放和翻转
         poseStack.scale(-modelScale, -modelScale, modelScale);
@@ -61,8 +59,8 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
         playerModel.body.setRotation(0.0F, 0.0F, 0.0F);
         playerModel.rightArm.setRotation(-0.6981317F, 0.0F, 0.0F); // 约 -40 度
         playerModel.leftArm.setRotation(0.6981317F, 0.0F, 0.0F);   // 约 40 度
-        playerModel.rightLeg.setRotation(0.0F, 0.0F, 0.0F);
-        playerModel.leftLeg.setRotation(0.0F, 0.0F, 0.0F);
+        playerModel.rightLeg.setRotation(0F, 0.0F, 0.0F);
+        playerModel.leftLeg.setRotation(0F, 0.0F, 0.0F);
         
         // 获取渲染类型
         var cutoutRenderType = net.minecraft.client.renderer.RenderType.entityCutoutNoCull(skinLocation);
