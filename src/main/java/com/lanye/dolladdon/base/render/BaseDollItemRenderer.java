@@ -129,7 +129,7 @@ public abstract class BaseDollItemRenderer extends BlockEntityWithoutLevelRender
         } else if (transformType == ItemDisplayContext.THIRD_PERSON_LEFT_HAND || 
                    transformType == ItemDisplayContext.THIRD_PERSON_RIGHT_HAND) {
             // 第三人称：调整位置和大小
-            poseStack.translate(0.5, 1, 0.5);
+            poseStack.translate(0.5, 0.9, 0.5);
             // 缩放并前后反转（应用模型缩放）
             poseStack.scale(0.25F * modelScale, 0.25F * modelScale, -0.25F * modelScale);
         } else {
