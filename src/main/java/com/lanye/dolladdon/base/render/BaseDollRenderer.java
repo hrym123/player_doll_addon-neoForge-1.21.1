@@ -58,10 +58,20 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
         playerModel.rightLeg.setRotation(0.0F, 0.0F, 0.0F);
         playerModel.leftLeg.setRotation(0.0F, 0.0F, 0.0F);
         
-        // 渲染玩家模型
-        var vertexConsumer = bufferSource.getBuffer(net.minecraft.client.renderer.RenderType.entityCutoutNoCull(skinLocation));
-        playerModel.renderToBuffer(poseStack, vertexConsumer, packedLight, 
+        // 渲染玩家模型基础层（主要皮肤纹理，包括身体、头部、手臂、腿部等）
+        var baseVertexConsumer = bufferSource.getBuffer(net.minecraft.client.renderer.RenderType.entityCutoutNoCull(skinLocation));
+        playerModel.renderToBuffer(poseStack, baseVertexConsumer, packedLight, 
                 net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY);
+        
+        // 渲染玩家模型外层（头发、袖子等细节层，使用半透明渲染以显示叠加层）
+        // 在Minecraft中，皮肤纹理包含基础层和外层信息，外层部分（如hat、袖子外层）需要使用entityTranslucent渲染
+        var overlayVertexConsumer = bufferSource.getBuffer(net.minecraft.client.renderer.RenderType.entityTranslucent(skinLocation));
+        // 渲染hat层（头发外层）
+        playerModel.hat.render(poseStack, overlayVertexConsumer, packedLight, 
+                net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY);
+        // 注意：PlayerModel的袖子外层部分通常包含在rightArm和leftArm中
+        // 但由于PlayerModel的实现，外层信息已经在皮肤纹理中，使用entityTranslucent会自动处理
+        // 如果需要单独渲染袖子外层，可能需要访问模型的内部结构，这里先渲染hat层
         
         poseStack.popPose();
         
