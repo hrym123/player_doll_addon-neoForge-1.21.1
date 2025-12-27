@@ -3,7 +3,5 @@
   "entity.player_doll_addon.steve_doll": "史蒂夫玩偶",
   "item.player_doll_addon.alex_doll": "艾利克斯玩偶",
   "entity.player_doll_addon.alex_doll": "艾利克斯玩偶",
-  "block.player_doll_addon.custom_block": "自定义方块",
-  "item.player_doll_addon.custom_block": "自定义方块",
   "itemGroup.player_doll_addon.player_doll_tab": "玩家玩偶"
 }
