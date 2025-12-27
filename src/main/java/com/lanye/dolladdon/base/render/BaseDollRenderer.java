@@ -1,6 +1,6 @@
-package com.lanye.dolladdon.client.render;
+package com.lanye.dolladdon.base.render;
 
-import com.lanye.dolladdon.entity.BaseDollEntity;
+import com.lanye.dolladdon.base.entity.BaseDollEntity;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import net.minecraft.client.model.PlayerModel;

@@ -1,7 +1,7 @@
 package com.lanye.dolladdon;
 
-import com.lanye.dolladdon.client.render.AlexDollRenderer;
-import com.lanye.dolladdon.client.render.SteveDollRenderer;
+import com.lanye.dolladdon.impl.render.AlexDollRenderer;
+import com.lanye.dolladdon.impl.render.SteveDollRenderer;
 import com.lanye.dolladdon.init.ModEntities;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;

@@ -1,5 +1,6 @@
-package com.lanye.dolladdon.entity;
+package com.lanye.dolladdon.impl.entity;
 
+import com.lanye.dolladdon.base.entity.BaseDollEntity;
 import com.lanye.dolladdon.init.ModEntities;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.level.Level;

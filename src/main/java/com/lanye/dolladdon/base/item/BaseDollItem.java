@@ -1,6 +1,6 @@
-package com.lanye.dolladdon.item;
+package com.lanye.dolladdon.base.item;
 
-import com.lanye.dolladdon.entity.BaseDollEntity;
+import com.lanye.dolladdon.base.entity.BaseDollEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.sounds.SoundEvents;

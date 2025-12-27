@@ -1,8 +1,8 @@
 package com.lanye.dolladdon.init;
 
 import com.lanye.dolladdon.PlayerDollAddon;
-import com.lanye.dolladdon.entity.AlexDollEntity;
-import com.lanye.dolladdon.entity.SteveDollEntity;
+import com.lanye.dolladdon.impl.entity.AlexDollEntity;
+import com.lanye.dolladdon.impl.entity.SteveDollEntity;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;

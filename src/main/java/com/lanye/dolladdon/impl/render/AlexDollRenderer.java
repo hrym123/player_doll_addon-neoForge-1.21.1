@@ -1,12 +1,12 @@
-package com.lanye.dolladdon.client.render;
+package com.lanye.dolladdon.impl.render;
 
-import com.lanye.dolladdon.entity.AlexDollEntity;
+import com.lanye.dolladdon.base.render.BaseDollRenderer;
+import com.lanye.dolladdon.impl.entity.AlexDollEntity;
 import com.lanye.dolladdon.util.PlayerSkinUtil;
 import net.minecraft.client.model.PlayerModel;
 import net.minecraft.client.model.geom.ModelLayers;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.entity.player.Player;
 
 /**
  * 艾利克斯玩偶实体渲染器

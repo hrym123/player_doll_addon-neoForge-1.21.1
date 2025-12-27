@@ -1,8 +1,8 @@
 package com.lanye.dolladdon.init;
 
 import com.lanye.dolladdon.PlayerDollAddon;
-import com.lanye.dolladdon.item.AlexDollItem;
-import com.lanye.dolladdon.item.SteveDollItem;
+import com.lanye.dolladdon.impl.item.AlexDollItem;
+import com.lanye.dolladdon.impl.item.SteveDollItem;
 import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
 

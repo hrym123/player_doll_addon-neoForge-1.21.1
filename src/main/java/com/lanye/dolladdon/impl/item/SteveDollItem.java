@@ -1,11 +1,10 @@
-package com.lanye.dolladdon.item;
+package com.lanye.dolladdon.impl.item;
 
-import com.lanye.dolladdon.PlayerDollAddon;
-import com.lanye.dolladdon.client.render.SteveDollItemRenderer;
-import com.lanye.dolladdon.entity.BaseDollEntity;
-import com.lanye.dolladdon.entity.SteveDollEntity;
+import com.lanye.dolladdon.base.item.BaseDollItem;
+import com.lanye.dolladdon.impl.render.SteveDollItemRenderer;
+import com.lanye.dolladdon.base.entity.BaseDollEntity;
+import com.lanye.dolladdon.impl.entity.SteveDollEntity;
 import net.minecraft.client.Minecraft;
-import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.client.extensions.common.IClientItemExtensions;
 

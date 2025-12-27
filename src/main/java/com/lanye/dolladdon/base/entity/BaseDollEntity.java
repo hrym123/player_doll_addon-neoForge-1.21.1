@@ -1,4 +1,4 @@
-package com.lanye.dolladdon.entity;
+package com.lanye.dolladdon.base.entity;
 
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
