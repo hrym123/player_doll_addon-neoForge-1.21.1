@@ -1,9 +1,5 @@
 package com.lanye.dolladdon;
 
-import com.lanye.dolladdon.command.PlayerDollCommand;
-import com.lanye.dolladdon.config.ModConfig;
-import com.lanye.dolladdon.event.PlayerDollEvents;
-import com.lanye.dolladdon.init.ModDataComponents;
 import com.lanye.dolladdon.init.ModEntities;
 import com.lanye.dolladdon.init.ModItems;
 import net.minecraft.core.registries.Registries;
@@ -35,15 +31,6 @@ public class PlayerDollAddon {
         LOGGER.info("玩家玩偶附属模组已加载！");
         LOGGER.info("Player Doll Addon loaded!");
         
-        // 注册配置
-        // 注意：配置值只能在配置加载后才能访问，不能在构造函数中立即访问
-        modContainer.registerConfig(net.neoforged.fml.config.ModConfig.Type.COMMON, ModConfig.SPEC);
-        
-        // 注册配置加载事件，在配置加载后检查测试模式状态
-        modEventBus.addListener(this::onConfigLoad);
-        
-        // 注册数据组件
-        ModDataComponents.DATA_COMPONENTS.register(modEventBus);
         // 注册物品
         ModItems.ITEMS.register(modEventBus);
         // 注册实体
@@ -57,22 +44,6 @@ public class PlayerDollAddon {
         
         // 注册命令事件（需要在通用事件总线上注册）
         NeoForge.EVENT_BUS.register(this);
-        // 注册玩家玩偶事件处理器
-        NeoForge.EVENT_BUS.register(PlayerDollEvents.class);
-    }
-    
-    /**
-     * 配置加载事件处理
-     * 在配置加载后检查测试模式状态
-     */
-    private void onConfigLoad(net.neoforged.fml.event.config.ModConfigEvent.Loading event) {
-        if (event.getConfig().getModId().equals(MODID)) {
-            // 配置已加载，现在可以安全地访问配置值
-            if (ModConfig.isTestMode()) {
-                LOGGER.info("测试模式已启用 - 将输出详细的调试日志");
-                LOGGER.info("Test Mode enabled - Detailed debug logs will be output");
-            }
-        }
     }
     
     // 创建玩家玩偶物品栏
@@ -101,12 +72,5 @@ public class PlayerDollAddon {
         // 它们有自己的物品栏（PLAYER_DOLL_TAB）
     }
     
-    /**
-     * 注册命令
-     */
-    @SubscribeEvent
-    public void onRegisterCommands(RegisterCommandsEvent event) {
-        PlayerDollCommand.register(event.getDispatcher());
-    }
 }
 

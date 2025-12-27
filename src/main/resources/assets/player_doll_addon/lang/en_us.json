@@ -1,13 +1,8 @@
 {
-  "item.player_doll_addon.player_doll": "Player Doll",
-  "entity.player_doll_addon.player_doll": "Player Doll",
   "item.player_doll_addon.steve_doll": "Steve Doll",
   "entity.player_doll_addon.steve_doll": "Steve Doll",
   "item.player_doll_addon.alex_doll": "Alex Doll",
   "entity.player_doll_addon.alex_doll": "Alex Doll",
-  "itemGroup.player_doll_addon.player_doll_tab": "Player Dolls",
-  "command.player_doll_addon.success": "Successfully created doll item for %s",
-  "command.player_doll_addon.success_dropped": "Successfully created doll item for %s (inventory full, dropped)",
-  "command.player_doll_addon.error": "Failed to create doll: %s"
+  "itemGroup.player_doll_addon.player_doll_tab": "Player Dolls"
 }
 
