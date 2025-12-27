@@ -18,6 +18,11 @@ public class DynamicModelGenerator {
     private static final Logger LOGGER = PlayerDollAddon.LOGGER;
     
     /**
+     * 动态模型文件存放的子目录名称
+     */
+    private static final String DYNAMIC_MODELS_SUBDIR = "dynamic";
+    
+    /**
      * 所有动态玩偶使用的模型文件内容（所有动态玩偶都使用相同的模型）
      */
     private static final String MODEL_CONTENT = "{\n" +
@@ -43,7 +48,9 @@ public class DynamicModelGenerator {
             // 在生产环境中，这个目录不存在，会跳过（这是正常的）
             Path buildResourcesDir = getBuildResourcesDirectory();
             if (buildResourcesDir != null) {
-                Path buildResourcesModelFile = buildResourcesDir.resolve("item").resolve(registryName + ".json");
+                Path buildResourcesModelFile = buildResourcesDir.resolve("item")
+                        .resolve(DYNAMIC_MODELS_SUBDIR)
+                        .resolve(registryName + ".json");
                 if (writeModelFileIfNeeded(buildResourcesModelFile, "build/resources/main")) {
                     success = true;
                     LOGGER.debug("模型文件已写入 build/resources/main（开发环境）");
@@ -57,7 +64,9 @@ public class DynamicModelGenerator {
             // 但模型文件应该已经在编译时被打包到 JAR 中了
             Path modResourcesDir = getModResourcesDirectory();
             if (modResourcesDir != null) {
-                Path modResourcesModelFile = modResourcesDir.resolve("item").resolve(registryName + ".json");
+                Path modResourcesModelFile = modResourcesDir.resolve("item")
+                        .resolve(DYNAMIC_MODELS_SUBDIR)
+                        .resolve(registryName + ".json");
                 if (writeModelFileIfNeeded(modResourcesModelFile, "src/main/resources")) {
                     success = true;
                     LOGGER.debug("模型文件已写入 src/main/resources（开发环境）");
@@ -110,35 +119,31 @@ public class DynamicModelGenerator {
     }
     
     /**
-     * 清理旧的动态模型文件（保留 alex_doll.json 和 steve_doll.json）
-     * 在生成新模型文件之前调用，确保只保留当前需要的模型文件
+     * 清理旧的动态模型文件
+     * 直接清空 dynamic 子目录，简化清理逻辑
      */
     public static void cleanupOldModelFiles() {
-        // 需要保留的文件名
-        Set<String> preservedFiles = Set.of("alex_doll.json", "steve_doll.json");
-        
-        // 清理 src/main/resources 目录
+        // 清理 src/main/resources 目录下的 dynamic 子目录
         Path modResourcesDir = getModResourcesDirectory();
         if (modResourcesDir != null) {
-            Path itemModelsDir = modResourcesDir.resolve("item");
-            cleanupDirectory(itemModelsDir, preservedFiles, "src/main/resources");
+            Path dynamicModelsDir = modResourcesDir.resolve("item").resolve(DYNAMIC_MODELS_SUBDIR);
+            cleanupDynamicDirectory(dynamicModelsDir, "src/main/resources");
         }
         
-        // 清理 build/resources/main 目录
+        // 清理 build/resources/main 目录下的 dynamic 子目录
         Path buildResourcesDir = getBuildResourcesDirectory();
         if (buildResourcesDir != null) {
-            Path itemModelsDir = buildResourcesDir.resolve("item");
-            cleanupDirectory(itemModelsDir, preservedFiles, "build/resources/main");
+            Path dynamicModelsDir = buildResourcesDir.resolve("item").resolve(DYNAMIC_MODELS_SUBDIR);
+            cleanupDynamicDirectory(dynamicModelsDir, "build/resources/main");
         }
     }
     
     /**
-     * 清理指定目录中的 JSON 文件（保留指定的文件）
-     * @param directory 要清理的目录
-     * @param preservedFiles 需要保留的文件名集合
+     * 清理 dynamic 子目录中的所有文件
+     * @param directory 要清理的目录（应该是 item/dynamic 目录）
      * @param locationName 位置名称（用于日志）
      */
-    private static void cleanupDirectory(Path directory, Set<String> preservedFiles, String locationName) {
+    private static void cleanupDynamicDirectory(Path directory, String locationName) {
         if (directory == null || !Files.exists(directory) || !Files.isDirectory(directory)) {
             return;
         }
@@ -147,24 +152,20 @@ public class DynamicModelGenerator {
             int deletedCount = 0;
             for (Path filePath : paths.collect(java.util.stream.Collectors.toList())) {
                 if (Files.isRegularFile(filePath)) {
-                    String fileName = filePath.getFileName().toString();
-                    // 只删除 JSON 文件，并且不在保留列表中
-                    if (fileName.endsWith(".json") && !preservedFiles.contains(fileName)) {
-                        try {
-                            Files.delete(filePath);
-                            deletedCount++;
-                            LOGGER.debug("已删除旧模型文件: {} ({})", filePath, locationName);
-                        } catch (IOException e) {
-                            LOGGER.warn("删除旧模型文件失败: {} ({})", filePath, locationName, e);
-                        }
+                    try {
+                        Files.delete(filePath);
+                        deletedCount++;
+                        LOGGER.debug("已删除动态模型文件: {} ({})", filePath, locationName);
+                    } catch (IOException e) {
+                        LOGGER.warn("删除动态模型文件失败: {} ({})", filePath, locationName, e);
                     }
                 }
             }
             if (deletedCount > 0) {
-                LOGGER.info("已清理 {} 个旧模型文件 ({})", deletedCount, locationName);
+                LOGGER.info("已清理 {} 个动态模型文件 ({})", deletedCount, locationName);
             }
         } catch (IOException e) {
-            LOGGER.error("清理模型文件目录失败: {} ({})", directory, locationName, e);
+            LOGGER.error("清理动态模型文件目录失败: {} ({})", directory, locationName, e);
         }
     }
     

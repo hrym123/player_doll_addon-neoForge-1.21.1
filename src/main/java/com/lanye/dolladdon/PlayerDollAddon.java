@@ -1,5 +1,6 @@
 package com.lanye.dolladdon;
 
+import com.lanye.dolladdon.init.ModBlocks;
 import com.lanye.dolladdon.init.ModEntities;
 import com.lanye.dolladdon.init.ModItems;
 import com.lanye.dolladdon.util.DynamicDollLoader;
@@ -31,6 +32,8 @@ public class PlayerDollAddon {
         // 先扫描目录并注册动态玩偶（必须在注册器注册之前）
         registerDynamicDolls();
         
+        // 注册方块
+        ModBlocks.BLOCKS.register(modEventBus);
         // 注册物品
         ModItems.ITEMS.register(modEventBus);
         // 注册实体

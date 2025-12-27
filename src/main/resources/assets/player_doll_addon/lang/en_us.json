@@ -3,6 +3,8 @@
   "entity.player_doll_addon.steve_doll": "Steve Doll",
   "item.player_doll_addon.alex_doll": "Alex Doll",
   "entity.player_doll_addon.alex_doll": "Alex Doll",
+  "block.player_doll_addon.custom_block": "Custom Block",
+  "item.player_doll_addon.custom_block": "Custom Block",
   "itemGroup.player_doll_addon.player_doll_tab": "Player Dolls"
 }
 
