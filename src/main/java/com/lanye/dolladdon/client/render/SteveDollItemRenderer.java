@@ -36,34 +36,39 @@ public class SteveDollItemRenderer extends BlockEntityWithoutLevelRenderer {
         
         // 根据显示上下文调整缩放和位置
         // 注意：玩家模型的原点在脚部（Y=0），模型高度约1.8，中心在Y=0.9处
+        // 参考实体渲染器：translate(0.0, 1.5, 0.0) 使模型底部对齐实体位置
         if (transformType == ItemDisplayContext.GUI) {
             // GUI 中：居中显示
+            // 参考参考项目：先移动到中心，缩放，再移动到中心
             poseStack.translate(0.5, 0.5, 0.0);
             poseStack.scale(0.625F, 0.625F, 0.625F);
-            // 调整玩家模型位置：缩放后模型中心在Y=0.5625，需要向下移动到Y=0.5
-            // 所以需要向下移动 -0.0625（在缩放后的坐标系中）
+            // 玩家模型原点在脚部，需要向上移动使模型居中
+            // 模型高度1.8，中心在0.9，缩放后高度1.125，中心在0.5625
+            // 物品槽中心在0.5，所以需要向下移动-0.0625（在缩放后的坐标系中）
             poseStack.translate(0.0, -0.0625, 0.0);
             poseStack.mulPose(Axis.YP.rotationDegrees(45.0F));
         } else if (transformType == ItemDisplayContext.FIRST_PERSON_LEFT_HAND || 
                    transformType == ItemDisplayContext.FIRST_PERSON_RIGHT_HAND) {
             // 第一人称：调整位置和大小
             poseStack.translate(0.5, 0.5, 0.5);
-            // 玩家模型原点在脚部，向上移动到中心（缩放0.5后高度0.9，所以移动1.8）
-            poseStack.translate(0.0, 1.8, 0.0);
             poseStack.scale(0.5F, 0.5F, 0.5F);
+            // 玩家模型原点在脚部，向上移动使模型居中（参考实体渲染器的1.5，但这里是缩放后的）
+            // 缩放0.5后，模型高度0.9，中心在0.45，需要向上移动0.45使中心对齐
+            poseStack.translate(0.0, 0.9, 0.0);
         } else if (transformType == ItemDisplayContext.THIRD_PERSON_LEFT_HAND || 
                    transformType == ItemDisplayContext.THIRD_PERSON_RIGHT_HAND) {
             // 第三人称：调整位置和大小
             poseStack.translate(0.5, 1.0, 0.5);
-            // 玩家模型原点在脚部，向上移动到中心（缩放0.375后高度0.675，所以移动1.8）
-            poseStack.translate(0.0, 1.8, 0.0);
             poseStack.scale(0.375F, 0.375F, 0.375F);
+            // 玩家模型原点在脚部，向上移动使模型居中
+            // 缩放0.375后，模型高度0.675，中心在0.3375，需要向上移动0.3375使中心对齐
+            poseStack.translate(0.0, 0.675, 0.0);
         } else {
             // 其他情况（地面、框架等）
             poseStack.translate(0.5, 0.5, 0.5);
-            // 玩家模型原点在脚部，向上移动到中心（缩放0.5后高度0.9，所以移动1.8）
-            poseStack.translate(0.0, 1.8, 0.0);
             poseStack.scale(0.5F, 0.5F, 0.5F);
+            // 玩家模型原点在脚部，向上移动使模型居中
+            poseStack.translate(0.0, 0.9, 0.0);
         }
         
         // 翻转模型（玩家模型需要翻转才能正确显示）
