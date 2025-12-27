@@ -5,15 +5,11 @@ import com.lanye.dolladdon.init.ModItems;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.CreativeModeTab;
-import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.bus.api.IEventBus;
-import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
-import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.BuildCreativeModeTabContentsEvent;
-import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
 import org.slf4j.Logger;
@@ -28,9 +24,6 @@ public class PlayerDollAddon {
     public static final DeferredRegister<CreativeModeTab> CREATIVE_MODE_TABS = DeferredRegister.create(Registries.CREATIVE_MODE_TAB, MODID);
 
     public PlayerDollAddon(IEventBus modEventBus, ModContainer modContainer) {
-        LOGGER.info("玩家玩偶附属模组已加载！");
-        LOGGER.info("Player Doll Addon loaded!");
-        
         // 注册物品
         ModItems.ITEMS.register(modEventBus);
         // 注册实体
@@ -41,9 +34,6 @@ public class PlayerDollAddon {
         // 注册物品到创造模式物品栏的事件
         // 注意：BuildCreativeModeTabContentsEvent 是 mod 事件，必须通过 modEventBus 注册
         modEventBus.addListener(this::addCreative);
-        
-        // 注册命令事件（需要在通用事件总线上注册）
-        NeoForge.EVENT_BUS.register(this);
     }
     
     // 创建玩家玩偶物品栏

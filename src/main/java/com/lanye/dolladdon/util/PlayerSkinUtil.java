@@ -41,7 +41,6 @@ public class PlayerSkinUtil {
                 skinUrlField = userProfileClass.getField("skinUrl");
                 modelField = userProfileClass.getField("model");
                 customSkinLoaderChecked = true;
-                PlayerDollAddon.LOGGER.info("MCCustomSkinLoader 已检测到，将优先使用它来获取玩家皮肤");
             } catch (Exception e) {
                 // MCCustomSkinLoader 不存在或不可用
                 customSkinLoaderClass = null;
@@ -83,7 +82,7 @@ public class PlayerSkinUtil {
                 }
             }
         } catch (Exception e) {
-            PlayerDollAddon.LOGGER.warn("使用 MCCustomSkinLoader 加载皮肤时出错: {}", e.getMessage());
+            // 忽略错误
         }
         
         return false;
@@ -157,8 +156,6 @@ public class PlayerSkinUtil {
                 false, // 固定：粗手臂
                 steveTexture
             );
-            PlayerDollAddon.LOGGER.info("[PlayerSkinUtil] 初始化Steve模型（固定粗手臂）- UUID: {}, 纹理: {}", 
-                    STEVE_UUID, steveTexture);
         }
         
         if (alexModelInfo == null) {
@@ -173,8 +170,6 @@ public class PlayerSkinUtil {
                 true, // 固定：细手臂
                 alexTexture
             );
-            PlayerDollAddon.LOGGER.info("[PlayerSkinUtil] 初始化Alex模型（固定细手臂）- UUID: {}, 纹理: {}", 
-                    ALEX_UUID, alexTexture);
         }
     }
     
@@ -274,26 +269,19 @@ public class PlayerSkinUtil {
             // UUID为null是正常情况（某些实体可能没有设置玩家信息），使用Steve默认皮肤
             return getSteveSkin();
         }
-        PlayerDollAddon.LOGGER.info("[PlayerSkinUtil] getSkinLocation - 开始获取 - UUID: {}, STEVE_UUID: {}, ALEX_UUID: {}", 
-                playerUUID, STEVE_UUID, ALEX_UUID);
         
         try {
             // 首先检查是否是固定的默认模型UUID
             // Steve和Alex是固定的模型，直接通过UUID判断，不需要通过DefaultPlayerSkin
             boolean isSteve = playerUUID.equals(STEVE_UUID);
             boolean isAlex = playerUUID.equals(ALEX_UUID);
-            PlayerDollAddon.LOGGER.info("[PlayerSkinUtil] getSkinLocation - UUID比较结果 - 是Steve: {}, 是Alex: {}", isSteve, isAlex);
             
             if (isSteve) {
                 initializeDefaultModels();
-                PlayerDollAddon.LOGGER.info("[PlayerSkinUtil] 使用固定Steve模型（粗手臂）- UUID: {}, 纹理: {}", 
-                        STEVE_UUID, steveModelInfo.getSkinTexture());
                 return steveModelInfo.getSkinTexture();
             }
             if (isAlex) {
                 initializeDefaultModels();
-                PlayerDollAddon.LOGGER.info("[PlayerSkinUtil] 使用固定Alex模型（细手臂）- UUID: {}, 纹理: {}", 
-                        ALEX_UUID, alexModelInfo.getSkinTexture());
                 return alexModelInfo.getSkinTexture();
             }
             
@@ -350,9 +338,6 @@ public class PlayerSkinUtil {
                     // 如果默认皮肤是Alex类型但玩家是Steve模型，强制使用Steve默认皮肤
                     // 或者如果没有自定义皮肤，也使用Steve默认皮肤（更安全）
                     ResourceLocation steveTexture = getSteveSkin();
-                    if (skinIsAlex) {
-                        PlayerDollAddon.LOGGER.warn("[PlayerSkinUtil] 警告：玩家是Steve模型但获取到Alex皮肤，已强制使用Steve默认皮肤");
-                    }
                     return steveTexture;
                 }
                 // 如果默认皮肤已经是Steve类型，且可能有自定义皮肤，可以使用它
@@ -391,22 +376,17 @@ public class PlayerSkinUtil {
             // UUID为null时默认返回false（Steve模型），这是正常情况
             return false;
         }
-        PlayerDollAddon.LOGGER.info("[PlayerSkinUtil] isAlexModel - 开始检测 - UUID: {}, STEVE_UUID: {}, ALEX_UUID: {}", 
-                playerUUID, STEVE_UUID, ALEX_UUID);
         
         try {
             // 首先检查是否是固定的默认模型UUID
             // Steve和Alex是固定的模型，直接通过UUID判断，不需要通过DefaultPlayerSkin
             boolean isSteve = playerUUID.equals(STEVE_UUID);
             boolean isAlex = playerUUID.equals(ALEX_UUID);
-            PlayerDollAddon.LOGGER.info("[PlayerSkinUtil] isAlexModel - UUID比较结果 - 是Steve: {}, 是Alex: {}", isSteve, isAlex);
             
             if (isSteve) {
-                PlayerDollAddon.LOGGER.info("[PlayerSkinUtil] isAlexModel - 检测到Steve固定UUID，固定返回false (粗手臂)");
                 return false;
             }
             if (isAlex) {
-                PlayerDollAddon.LOGGER.info("[PlayerSkinUtil] isAlexModel - 检测到Alex固定UUID，固定返回true (细手臂)");
                 return true;
             }
             
@@ -441,7 +421,6 @@ public class PlayerSkinUtil {
             return "slim".equals(defaultModel);
         } catch (Exception e) {
             // 如果检测过程中出现任何错误，默认返回false（Steve模型）
-            PlayerDollAddon.LOGGER.warn("[PlayerSkinUtil] isAlexModel - 检测模型类型时出错，默认返回Steve模型: {}", e.getMessage());
             return false;
         }
     }

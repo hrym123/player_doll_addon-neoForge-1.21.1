@@ -15,8 +15,6 @@ import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 public class PlayerDollAddonClient {
     
     public PlayerDollAddonClient(ModContainer container) {
-        PlayerDollAddon.LOGGER.info("玩家玩偶附属模组客户端已加载！");
-        PlayerDollAddon.LOGGER.info("Player Doll Addon Client loaded!");
     }
     
     @SubscribeEvent
