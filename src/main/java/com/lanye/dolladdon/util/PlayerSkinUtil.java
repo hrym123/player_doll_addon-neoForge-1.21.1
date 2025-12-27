@@ -183,27 +183,21 @@ public class PlayerSkinUtil {
         }
         
         if (alexModelInfo == null) {
-            // Alex是固定的细手臂模型，直接使用ALEX_UUID获取纹理
-            // 注意：不依赖DefaultPlayerSkin返回的模型类型，因为Alex固定是细手臂
-            var alexSkin = DefaultPlayerSkin.get(ALEX_UUID);
+            // Alex是固定的细手臂模型
+            // 直接使用Alex的默认皮肤资源路径
+            // Minecraft 1.19+ 中，Alex的默认皮肤路径是 minecraft:textures/entity/player/slim/alex.png
+            ResourceLocation alexTexture = ResourceLocation.fromNamespaceAndPath("minecraft", "textures/entity/player/slim/alex.png");
+            
             alexModelInfo = new DefaultModelInfo(
                 "Alex",
                 ALEX_UUID,
                 true, // 固定：细手臂
-                alexSkin.texture()
+                alexTexture
             );
             PlayerDollAddon.LOGGER.info("[PlayerSkinUtil] 初始化Alex模型（固定细手臂）- UUID: {}, 纹理: {}", 
-                    ALEX_UUID, alexSkin.texture());
+                    ALEX_UUID, alexTexture);
             debugLog("[PlayerSkinUtil] 初始化Alex模型（固定细手臂）- UUID: {}, 纹理: {}", 
-                    ALEX_UUID, alexSkin.texture());
-            
-            // 验证纹理是否与Steve相同（这是正常的）
-            if (steveModelInfo != null && !steveModelInfo.getSkinTexture().equals(alexSkin.texture())) {
-                debugLog("[PlayerSkinUtil] 注意：Alex和Steve的默认皮肤纹理不同 - Steve: {}, Alex: {}", 
-                        steveModelInfo.getSkinTexture(), alexSkin.texture());
-            } else if (steveModelInfo != null) {
-                debugLog("[PlayerSkinUtil] 注意：Alex和Steve的默认皮肤纹理相同（这是正常的）: {}", alexSkin.texture());
-            }
+                    ALEX_UUID, alexTexture);
         }
     }
     

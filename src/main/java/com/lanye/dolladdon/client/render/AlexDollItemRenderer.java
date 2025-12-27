@@ -2,7 +2,6 @@ package com.lanye.dolladdon.client.render;
 
 import com.lanye.dolladdon.util.PlayerSkinUtil;
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.math.Axis;
 import net.minecraft.client.model.PlayerModel;
 import net.minecraft.client.model.geom.EntityModelSet;
 import net.minecraft.client.model.geom.ModelLayers;
@@ -31,28 +30,15 @@ public class AlexDollItemRenderer extends BlockEntityWithoutLevelRenderer {
                              MultiBufferSource bufferSource, int packedLight, int packedOverlay) {
         poseStack.pushPose();
         
-        // 根据显示上下文调整缩放和位置
-        if (transformType == ItemDisplayContext.GUI) {
-            poseStack.translate(0.5, 0.5, 0.0);
-            poseStack.scale(0.625F, 0.625F, 0.625F);
-            poseStack.mulPose(Axis.YP.rotationDegrees(45.0F));
-        } else if (transformType == ItemDisplayContext.FIRST_PERSON_LEFT_HAND || 
-                   transformType == ItemDisplayContext.FIRST_PERSON_RIGHT_HAND) {
-            poseStack.translate(0.5, 0.5, 0.5);
-            poseStack.scale(0.5F, 0.5F, 0.5F);
-        } else if (transformType == ItemDisplayContext.THIRD_PERSON_LEFT_HAND || 
-                   transformType == ItemDisplayContext.THIRD_PERSON_RIGHT_HAND) {
-            poseStack.translate(0.5, 1.0, 0.5);
-            poseStack.scale(0.375F, 0.375F, 0.375F);
-        } else {
-            poseStack.translate(0.5, 0.5, 0.5);
-            poseStack.scale(0.5F, 0.5F, 0.5F);
-        }
+        // 添加调试日志（使用 INFO 级别以确保能看到）
+        com.lanye.dolladdon.PlayerDollAddon.LOGGER.info("[AlexDollItemRenderer] 渲染物品 - 显示上下文: {}", transformType);
         
-        poseStack.scale(-1.0F, -1.0F, 1.0F);
+        // 根据显示上下文调整模型的位置、缩放和旋转
+        PlayerDollRenderHelper.applyPlayerModelTransform(poseStack, transformType);
         
         // 固定使用Alex默认皮肤
         ResourceLocation skinLocation = PlayerSkinUtil.getAlexSkin();
+        com.lanye.dolladdon.PlayerDollAddon.LOGGER.info("[AlexDollItemRenderer] 使用皮肤: {}", skinLocation);
         
         // 设置模型姿态（站立姿态）
         playerModelSlim.head.setRotation(0.0F, 0.0F, 0.0F);

@@ -81,14 +81,8 @@ public class PlayerDollAddon {
             () -> CreativeModeTab.builder()
                     .title(Component.translatable("itemGroup.player_doll_addon.player_doll_tab"))
                     .icon(() -> {
-                        // 使用史蒂夫模型作为图标
-                        var steveModel = com.lanye.dolladdon.util.PlayerSkinUtil.getSteveModel();
-                        var stack = new ItemStack(ModItems.PLAYER_DOLL.get());
-                        net.minecraft.nbt.CompoundTag playerData = new net.minecraft.nbt.CompoundTag();
-                        playerData.putUUID("player_uuid", steveModel.getUuid());
-                        playerData.putString("player_name", steveModel.getModelName());
-                        stack.set(ModDataComponents.PLAYER_DATA.get(), playerData);
-                        return stack;
+                        // 使用史蒂夫玩偶物品作为图标
+                        return new ItemStack(ModItems.STEVE_DOLL.get());
                     })
                     .displayItems((parameters, output) -> {
                         // 添加史蒂夫玩偶物品（固定模型：粗手臂 + Steve默认皮肤）

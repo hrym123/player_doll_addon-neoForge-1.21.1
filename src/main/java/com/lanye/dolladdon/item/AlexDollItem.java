@@ -1,5 +1,6 @@
 package com.lanye.dolladdon.item;
 
+import com.lanye.dolladdon.PlayerDollAddon;
 import com.lanye.dolladdon.client.render.AlexDollItemRenderer;
 import com.lanye.dolladdon.entity.AlexDollEntity;
 import com.lanye.dolladdon.init.ModEntities;
@@ -33,13 +34,16 @@ public class AlexDollItem extends Item {
     @Override
     @SuppressWarnings("removal")
     public void initializeClient(Consumer<IClientItemExtensions> consumer) {
+        PlayerDollAddon.LOGGER.info("[AlexDollItem] initializeClient 被调用");
         consumer.accept(new IClientItemExtensions() {
             private AlexDollItemRenderer renderer = null;
             
             @Override
             public net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer getCustomRenderer() {
+                PlayerDollAddon.LOGGER.info("[AlexDollItem] getCustomRenderer 被调用");
                 Minecraft minecraft = Minecraft.getInstance();
                 if (renderer == null) {
+                    PlayerDollAddon.LOGGER.info("[AlexDollItem] 创建新的 AlexDollItemRenderer");
                     renderer = new AlexDollItemRenderer(
                             minecraft.getBlockEntityRenderDispatcher(),
                             minecraft.getEntityModels()
