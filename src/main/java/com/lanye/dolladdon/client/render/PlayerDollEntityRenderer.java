@@ -2,6 +2,7 @@ package com.lanye.dolladdon.client.render;
 
 import com.github.ysbbbbbb.kaleidoscopedoll.entity.DollEntity;
 import com.lanye.dolladdon.util.PlayerDollUtil;
+import com.lanye.dolladdon.util.PlayerSkinUtil;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
@@ -21,6 +22,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.client.model.data.ModelData;
+import org.jetbrains.annotations.Nullable;
 import org.joml.Vector3f;
 
 import java.util.UUID;
@@ -33,12 +35,17 @@ public class PlayerDollEntityRenderer extends EntityRenderer<DollEntity> {
     private static final ResourceLocation EMPTY = ResourceLocation.fromNamespaceAndPath("minecraft", "textures/misc/empty.png");
     
     private final BlockRenderDispatcher blockRenderer;
-    private final PlayerModel<Player> playerModel;
+    private final PlayerModel<Player> playerModelDefault;  // 粗手臂（Steve）
+    private final PlayerModel<Player> playerModelSlim;     // 细手臂（Alex）
 
     public PlayerDollEntityRenderer(EntityRendererProvider.Context context) {
         super(context);
         this.blockRenderer = Minecraft.getInstance().getBlockRenderer();
-        this.playerModel = new PlayerModel<>(context.bakeLayer(ModelLayers.PLAYER), false);
+        // 创建两个模型：粗手臂和细手臂
+        // 粗手臂模型使用 ModelLayers.PLAYER
+        this.playerModelDefault = new PlayerModel<>(context.bakeLayer(ModelLayers.PLAYER), false);
+        // 细手臂模型使用 ModelLayers.PLAYER_SLIM
+        this.playerModelSlim = new PlayerModel<>(context.bakeLayer(ModelLayers.PLAYER_SLIM), true);
     }
 
     @Override
@@ -53,8 +60,9 @@ public class PlayerDollEntityRenderer extends EntityRenderer<DollEntity> {
         
         // 如果有玩家 UUID 且 BlockState 是空气，渲染玩家模型
         // 如果 BlockState 不是空气，说明是方块玩偶，渲染方块模型
-        if (playerUUID != null && dollEntity.getDisplayBlockState().isAir()) {
-            // 渲染玩家模型
+        // 注意：即使playerUUID为null，如果BlockState是空气，也会渲染玩家模型（使用默认皮肤）
+        if (dollEntity.getDisplayBlockState().isAir()) {
+            // 渲染玩家模型（playerUUID可能为null，会使用默认皮肤）
             renderPlayerModel(dollEntity, playerUUID, entityYaw, partialTick, poseStack, bufferSource, packedLight);
         } else {
             // 渲染方块模型（默认行为）
@@ -64,8 +72,9 @@ public class PlayerDollEntityRenderer extends EntityRenderer<DollEntity> {
     
     /**
      * 渲染玩家模型
+     * @param playerUUID 玩家UUID，可以为null（将使用默认皮肤）
      */
-    private void renderPlayerModel(DollEntity dollEntity, UUID playerUUID, float entityYaw, float partialTick, 
+    private void renderPlayerModel(DollEntity dollEntity, @Nullable UUID playerUUID, float entityYaw, float partialTick, 
                                    PoseStack poseStack, MultiBufferSource bufferSource, int packedLight) {
         poseStack.pushPose();
         
@@ -104,23 +113,26 @@ public class PlayerDollEntityRenderer extends EntityRenderer<DollEntity> {
             poseStack.scale(scaleXZ, scaleY, scaleXZ);
         }
         
-        // 获取玩家皮肤
-        // 使用 DefaultPlayerSkin 获取基于 UUID 的默认皮肤
-        ResourceLocation skinLocation = DefaultPlayerSkin.get(playerUUID).texture();
+        // 获取玩家名称（如果有）
+        String playerName = PlayerDollUtil.getPlayerName(dollEntity);
         
-        // 注意：如果需要获取在线玩家的自定义皮肤，需要额外的网络请求
-        // 这里先使用基于 UUID 的默认皮肤，它已经能够区分 Steve 和 Alex 模型
+        // 获取玩家皮肤
+        ResourceLocation skinLocation = PlayerSkinUtil.getSkinLocation(playerUUID, playerName);
+        
+        // 根据玩家模型类型选择使用粗手臂还是细手臂模型
+        boolean isAlexModel = PlayerSkinUtil.isAlexModel(playerUUID, playerName);
+        PlayerModel<Player> playerModel = isAlexModel ? this.playerModelSlim : this.playerModelDefault;
         
         // 渲染玩家模型
         poseStack.translate(0, 1.5, 0); // 调整位置，使玩家模型居中
         poseStack.scale(-1, -1, 1); // 翻转模型
         
         // 设置模型姿态（站立姿态）
-        this.playerModel.setupAnim(null, 0, 0, 0, 0, 0);
+        playerModel.setupAnim(null, 0, 0, 0, 0, 0);
         
         // 渲染玩家模型
         VertexConsumer vertexConsumer = bufferSource.getBuffer(RenderType.entityCutoutNoCull(skinLocation));
-        this.playerModel.renderToBuffer(poseStack, vertexConsumer, packedLight, 
+        playerModel.renderToBuffer(poseStack, vertexConsumer, packedLight, 
                 net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY);
         
         poseStack.popPose();

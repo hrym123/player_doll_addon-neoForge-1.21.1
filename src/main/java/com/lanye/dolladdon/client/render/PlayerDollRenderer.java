@@ -29,8 +29,10 @@ public class PlayerDollRenderer extends EntityRenderer<PlayerDollEntity> {
     public PlayerDollRenderer(EntityRendererProvider.Context context) {
         super(context);
         // 创建两个模型：粗手臂和细手臂
+        // 粗手臂模型使用 ModelLayers.PLAYER
         this.playerModelDefault = new PlayerModel<>(context.bakeLayer(ModelLayers.PLAYER), false);
-        this.playerModelSlim = new PlayerModel<>(context.bakeLayer(ModelLayers.PLAYER), true);
+        // 细手臂模型使用 ModelLayers.PLAYER_SLIM
+        this.playerModelSlim = new PlayerModel<>(context.bakeLayer(ModelLayers.PLAYER_SLIM), true);
     }
     
     @Override
@@ -49,13 +51,38 @@ public class PlayerDollRenderer extends EntityRenderer<PlayerDollEntity> {
         poseStack.translate(0.0, 1.5, 0.0);
         poseStack.scale(-1.0F, -1.0F, 1.0F);
         
-        // 获取玩家皮肤
+        // 获取玩家UUID
         UUID playerUUID = entity.getPlayerUUID();
-        String playerName = entity.getPlayerName();
-        ResourceLocation skinLocation = getSkinLocation(playerUUID, playerName);
         
-        // 根据玩家模型类型选择使用粗手臂还是细手臂模型
-        boolean isAlexModel = PlayerSkinUtil.isAlexModel(playerUUID, playerName);
+        // 判断是否是固定模型（Steve或Alex）
+        // Steve和Alex是固定模型，直接通过UUID判断，使用固定的皮肤和模型
+        boolean isAlexModel = false;
+        ResourceLocation skinLocation;
+        
+        if (playerUUID != null) {
+            if (playerUUID.equals(PlayerSkinUtil.STEVE_UUID)) {
+                // Steve固定模型：粗手臂 + Steve默认皮肤
+                isAlexModel = false;
+                skinLocation = PlayerSkinUtil.getSteveSkin();
+                com.lanye.dolladdon.PlayerDollAddon.LOGGER.info("[PlayerDollRenderer] 使用固定Steve模型（粗手臂）");
+            } else if (playerUUID.equals(PlayerSkinUtil.ALEX_UUID)) {
+                // Alex固定模型：细手臂 + Alex默认皮肤
+                isAlexModel = true;
+                skinLocation = PlayerSkinUtil.getAlexSkin();
+                com.lanye.dolladdon.PlayerDollAddon.LOGGER.info("[PlayerDollRenderer] 使用固定Alex模型（细手臂）");
+            } else {
+                // 其他UUID：使用动态判断
+                String playerName = entity.getPlayerName();
+                skinLocation = PlayerSkinUtil.getSkinLocation(playerUUID, playerName);
+                isAlexModel = PlayerSkinUtil.isAlexModel(playerUUID, playerName);
+            }
+        } else {
+            // UUID为null：使用Steve默认模型
+            skinLocation = PlayerSkinUtil.getSteveSkin();
+            isAlexModel = false;
+        }
+        
+        // 选择模型
         PlayerModel<Player> playerModel = isAlexModel ? this.playerModelSlim : this.playerModelDefault;
         
         // 设置模型姿态（站立姿态）
@@ -79,16 +106,18 @@ public class PlayerDollRenderer extends EntityRenderer<PlayerDollEntity> {
         super.render(entity, entityYaw, partialTick, poseStack, bufferSource, packedLight);
     }
     
-    /**
-     * 获取玩家皮肤纹理
-     */
-    private ResourceLocation getSkinLocation(@Nullable UUID playerUUID, @Nullable String playerName) {
-        return PlayerSkinUtil.getSkinLocation(playerUUID, playerName);
-    }
-    
     @Override
     public ResourceLocation getTextureLocation(PlayerDollEntity entity) {
-        return PlayerSkinUtil.getSkinLocation(entity.getPlayerUUID(), entity.getPlayerName());
+        UUID playerUUID = entity.getPlayerUUID();
+        if (playerUUID != null) {
+            if (playerUUID.equals(PlayerSkinUtil.STEVE_UUID)) {
+                return PlayerSkinUtil.getSteveSkin();
+            } else if (playerUUID.equals(PlayerSkinUtil.ALEX_UUID)) {
+                return PlayerSkinUtil.getAlexSkin();
+            }
+        }
+        // 其他情况使用默认方法
+        return PlayerSkinUtil.getSkinLocation(playerUUID, entity.getPlayerName());
     }
 }
 

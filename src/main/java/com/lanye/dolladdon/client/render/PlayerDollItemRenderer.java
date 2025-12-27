@@ -31,8 +31,10 @@ public class PlayerDollItemRenderer extends BlockEntityWithoutLevelRenderer {
     public PlayerDollItemRenderer(BlockEntityRenderDispatcher dispatcher, EntityModelSet modelSet) {
         super(dispatcher, modelSet);
         // 创建两个模型：粗手臂和细手臂
+        // 粗手臂模型使用 ModelLayers.PLAYER
         this.playerModelDefault = new PlayerModel<>(modelSet.bakeLayer(ModelLayers.PLAYER), false);
-        this.playerModelSlim = new PlayerModel<>(modelSet.bakeLayer(ModelLayers.PLAYER), true);
+        // 细手臂模型使用 ModelLayers.PLAYER_SLIM
+        this.playerModelSlim = new PlayerModel<>(modelSet.bakeLayer(ModelLayers.PLAYER_SLIM), true);
     }
     
     @Override
@@ -68,11 +70,26 @@ public class PlayerDollItemRenderer extends BlockEntityWithoutLevelRenderer {
         // 从物品获取玩家信息
         UUID playerUUID = getPlayerUUID(stack);
         String playerName = getPlayerName(stack);
+        
+        // 如果UUID为null，尝试使用当前玩家的信息作为回退
+        // 这有助于在开发环境中正确显示皮肤，或者当物品没有设置玩家信息时
+        if (playerUUID == null && Minecraft.getInstance().player != null) {
+            playerUUID = Minecraft.getInstance().player.getUUID();
+            if (playerName == null) {
+                playerName = Minecraft.getInstance().player.getName().getString();
+            }
+        }
+        
+        // 获取皮肤位置（如果UUID仍为null，会返回Steve默认皮肤）
         ResourceLocation skinLocation = getSkinLocation(playerUUID, playerName);
         
         // 根据玩家模型类型选择使用粗手臂还是细手臂模型
         boolean isAlexModel = PlayerSkinUtil.isAlexModel(playerUUID, playerName);
         PlayerModel<net.minecraft.world.entity.player.Player> playerModel = isAlexModel ? this.playerModelSlim : this.playerModelDefault;
+        
+        // 记录使用的模型类型（用于调试）
+        com.lanye.dolladdon.PlayerDollAddon.LOGGER.info("[PlayerDollItemRenderer] 渲染物品 - UUID: {}, 名称: {}, 使用模型: {}", 
+                playerUUID, playerName, isAlexModel ? "Alex(细手臂)" : "Steve(粗手臂)");
         
         // 设置模型姿态（站立姿态）
         playerModel.head.setRotation(0.0F, 0.0F, 0.0F);

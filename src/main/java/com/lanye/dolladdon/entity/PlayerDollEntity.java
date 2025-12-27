@@ -22,6 +22,8 @@ import java.util.UUID;
  */
 public class PlayerDollEntity extends Entity {
     private static final EntityDataAccessor<Byte> DATA_CLIENT_FLAGS = SynchedEntityData.defineId(PlayerDollEntity.class, EntityDataSerializers.BYTE);
+    private static final EntityDataAccessor<String> DATA_PLAYER_UUID = SynchedEntityData.defineId(PlayerDollEntity.class, EntityDataSerializers.STRING);
+    private static final EntityDataAccessor<String> DATA_PLAYER_NAME = SynchedEntityData.defineId(PlayerDollEntity.class, EntityDataSerializers.STRING);
     
     private static final String TAG_PLAYER_UUID = "player_uuid";
     private static final String TAG_PLAYER_NAME = "player_name";
@@ -44,6 +46,8 @@ public class PlayerDollEntity extends Entity {
     @Override
     protected void defineSynchedData(SynchedEntityData.Builder builder) {
         builder.define(DATA_CLIENT_FLAGS, (byte) 0);
+        builder.define(DATA_PLAYER_UUID, "");
+        builder.define(DATA_PLAYER_NAME, "");
     }
     
     @Override
@@ -70,8 +74,7 @@ public class PlayerDollEntity extends Entity {
      * 设置玩家信息
      */
     public void setPlayer(Player player) {
-        this.playerUUID = player.getUUID();
-        this.playerName = player.getName().getString();
+        setPlayer(player.getUUID(), player.getName().getString());
     }
     
     /**
@@ -80,6 +83,9 @@ public class PlayerDollEntity extends Entity {
     public void setPlayer(UUID uuid, String name) {
         this.playerUUID = uuid;
         this.playerName = name;
+        // 同步到客户端
+        this.entityData.set(DATA_PLAYER_UUID, uuid != null ? uuid.toString() : "");
+        this.entityData.set(DATA_PLAYER_NAME, name != null ? name : "");
     }
     
     /**
@@ -87,6 +93,16 @@ public class PlayerDollEntity extends Entity {
      */
     @Nullable
     public UUID getPlayerUUID() {
+        // 优先从EntityData读取（客户端同步的数据）
+        String uuidStr = this.entityData.get(DATA_PLAYER_UUID);
+        if (uuidStr != null && !uuidStr.isEmpty()) {
+            try {
+                return UUID.fromString(uuidStr);
+            } catch (IllegalArgumentException e) {
+                // 如果解析失败，使用本地字段
+            }
+        }
+        // 如果EntityData中没有，使用本地字段（服务端）
         return this.playerUUID;
     }
     
@@ -95,6 +111,12 @@ public class PlayerDollEntity extends Entity {
      */
     @Nullable
     public String getPlayerName() {
+        // 优先从EntityData读取（客户端同步的数据）
+        String name = this.entityData.get(DATA_PLAYER_NAME);
+        if (name != null && !name.isEmpty()) {
+            return name;
+        }
+        // 如果EntityData中没有，使用本地字段（服务端）
         return this.playerName;
     }
     
