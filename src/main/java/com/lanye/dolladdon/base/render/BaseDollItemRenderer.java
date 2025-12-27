@@ -47,13 +47,28 @@ public abstract class BaseDollItemRenderer extends BlockEntityWithoutLevelRender
         ResourceLocation skinLocation = getSkinLocation();
         
         // 设置模型姿态（站立姿态）
-        playerModel.head.setRotation(0.0F, 0.0F, 0.0F);
-        playerModel.hat.setRotation(0.0F, 0.0F, 0.0F);
-        playerModel.body.setRotation(0.0F, 0.0F, 0.0F);
-        playerModel.rightArm.setRotation(0F, 0.0F, 0.0F);
-        playerModel.leftArm.setRotation(0F, 0.0F, 0.0F);
-        playerModel.rightLeg.setRotation(0.0F, 0.0F, 0.0F);
-        playerModel.leftLeg.setRotation(0.0F, 0.0F, 0.0F);
+        float headRotX = 0.0F, headRotY = 0.0F, headRotZ = 0.0F;
+        float hatRotX = 0.0F, hatRotY = 0.0F, hatRotZ = 0.0F;
+        float bodyRotX = 0.0F, bodyRotY = 0.0F, bodyRotZ = 0.0F;
+        float rightArmRotX = 0F, rightArmRotY = 0.0F, rightArmRotZ = 0.0F;
+        float leftArmRotX = 0F, leftArmRotY = 0.0F, leftArmRotZ = 0.0F;
+        float rightLegRotX = 0.0F, rightLegRotY = 0.0F, rightLegRotZ = 0.0F;
+        float leftLegRotX = 0.0F, leftLegRotY = 0.0F, leftLegRotZ = 0.0F;
+        
+        playerModel.head.setRotation(headRotX, headRotY, headRotZ);
+        playerModel.hat.setRotation(hatRotX, hatRotY, hatRotZ);
+        playerModel.body.setRotation(bodyRotX, bodyRotY, bodyRotZ);
+        playerModel.rightArm.setRotation(rightArmRotX, rightArmRotY, rightArmRotZ);
+        playerModel.leftArm.setRotation(leftArmRotX, leftArmRotY, leftArmRotZ);
+        playerModel.rightLeg.setRotation(rightLegRotX, rightLegRotY, rightLegRotZ);
+        playerModel.leftLeg.setRotation(leftLegRotX, leftLegRotY, leftLegRotZ);
+        
+        // 同时设置外层部分的旋转，使它们跟随基础部分的动作
+        setOverlayPartsRotation(bodyRotX, bodyRotY, bodyRotZ,
+                               leftArmRotX, leftArmRotY, leftArmRotZ,
+                               rightArmRotX, rightArmRotY, rightArmRotZ,
+                               leftLegRotX, leftLegRotY, leftLegRotZ,
+                               rightLegRotX, rightLegRotY, rightLegRotZ);
         
         // 获取渲染类型
         var cutoutRenderType = net.minecraft.client.renderer.RenderType.entityCutoutNoCull(skinLocation);
@@ -129,8 +144,83 @@ public abstract class BaseDollItemRenderer extends BlockEntityWithoutLevelRender
     }
     
     /**
+     * 设置外层部分的旋转，使它们跟随基础部分的动作
+     * 
+     * @param bodyRotX 身体的X旋转
+     * @param bodyRotY 身体的Y旋转
+     * @param bodyRotZ 身体的Z旋转
+     * @param leftArmRotX 左臂的X旋转
+     * @param leftArmRotY 左臂的Y旋转
+     * @param leftArmRotZ 左臂的Z旋转
+     * @param rightArmRotX 右臂的X旋转
+     * @param rightArmRotY 右臂的Y旋转
+     * @param rightArmRotZ 右臂的Z旋转
+     * @param leftLegRotX 左腿的X旋转
+     * @param leftLegRotY 左腿的Y旋转
+     * @param leftLegRotZ 左腿的Z旋转
+     * @param rightLegRotX 右腿的X旋转
+     * @param rightLegRotY 右腿的Y旋转
+     * @param rightLegRotZ 右腿的Z旋转
+     */
+    private void setOverlayPartsRotation(float bodyRotX, float bodyRotY, float bodyRotZ,
+                                        float leftArmRotX, float leftArmRotY, float leftArmRotZ,
+                                        float rightArmRotX, float rightArmRotY, float rightArmRotZ,
+                                        float leftLegRotX, float leftLegRotY, float leftLegRotZ,
+                                        float rightLegRotX, float rightLegRotY, float rightLegRotZ) {
+        try {
+            // 使用反射访问PlayerModel的外层部分并设置旋转
+            java.lang.reflect.Field leftSleeveField = PlayerModel.class.getDeclaredField("leftSleeve");
+            java.lang.reflect.Field rightSleeveField = PlayerModel.class.getDeclaredField("rightSleeve");
+            java.lang.reflect.Field leftPantsField = PlayerModel.class.getDeclaredField("leftPants");
+            java.lang.reflect.Field rightPantsField = PlayerModel.class.getDeclaredField("rightPants");
+            java.lang.reflect.Field jacketField = PlayerModel.class.getDeclaredField("jacket");
+            
+            leftSleeveField.setAccessible(true);
+            rightSleeveField.setAccessible(true);
+            leftPantsField.setAccessible(true);
+            rightPantsField.setAccessible(true);
+            jacketField.setAccessible(true);
+            
+            // leftSleeve应该跟随leftArm的旋转
+            Object leftSleeve = leftSleeveField.get(playerModel);
+            if (leftSleeve instanceof net.minecraft.client.model.geom.ModelPart) {
+                ((net.minecraft.client.model.geom.ModelPart) leftSleeve).setRotation(leftArmRotX, leftArmRotY, leftArmRotZ);
+            }
+            
+            // rightSleeve应该跟随rightArm的旋转
+            Object rightSleeve = rightSleeveField.get(playerModel);
+            if (rightSleeve instanceof net.minecraft.client.model.geom.ModelPart) {
+                ((net.minecraft.client.model.geom.ModelPart) rightSleeve).setRotation(rightArmRotX, rightArmRotY, rightArmRotZ);
+            }
+            
+            // leftPants应该跟随leftLeg的旋转
+            Object leftPants = leftPantsField.get(playerModel);
+            if (leftPants instanceof net.minecraft.client.model.geom.ModelPart) {
+                ((net.minecraft.client.model.geom.ModelPart) leftPants).setRotation(leftLegRotX, leftLegRotY, leftLegRotZ);
+            }
+            
+            // rightPants应该跟随rightLeg的旋转
+            Object rightPants = rightPantsField.get(playerModel);
+            if (rightPants instanceof net.minecraft.client.model.geom.ModelPart) {
+                ((net.minecraft.client.model.geom.ModelPart) rightPants).setRotation(rightLegRotX, rightLegRotY, rightLegRotZ);
+            }
+            
+            // jacket应该跟随body的旋转
+            Object jacket = jacketField.get(playerModel);
+            if (jacket instanceof net.minecraft.client.model.geom.ModelPart) {
+                ((net.minecraft.client.model.geom.ModelPart) jacket).setRotation(bodyRotX, bodyRotY, bodyRotZ);
+            }
+        } catch (NoSuchFieldException | IllegalAccessException e) {
+            // 如果模型不支持这些字段，则忽略
+        }
+    }
+    
+    /**
      * 渲染外层部分（overlay layer）以支持多层皮肤
      * 这些外层部分需要使用半透明渲染类型来正确显示叠加层
+     * 
+     * 注意：外层部分已经通过setOverlayPartsRotation方法设置了与基础部分相同的旋转，
+     * 所以它们现在应该能够跟随基础部分的动作。
      * 
      * @param poseStack 变换矩阵栈
      * @param overlayVertexConsumer 外层顶点消费者
@@ -143,7 +233,6 @@ public abstract class BaseDollItemRenderer extends BlockEntityWithoutLevelRender
                                     int packedOverlay) {
         try {
             // 使用反射访问PlayerModel的外层部分（如果存在）
-            // 这些字段在Minecraft 1.21.1的PlayerModel中应该存在
             java.lang.reflect.Field leftSleeveField = PlayerModel.class.getDeclaredField("leftSleeve");
             java.lang.reflect.Field rightSleeveField = PlayerModel.class.getDeclaredField("rightSleeve");
             java.lang.reflect.Field leftPantsField = PlayerModel.class.getDeclaredField("leftPants");
@@ -186,8 +275,7 @@ public abstract class BaseDollItemRenderer extends BlockEntityWithoutLevelRender
                 ((net.minecraft.client.model.geom.ModelPart) jacket).render(poseStack, overlayVertexConsumer, packedLight, packedOverlay);
             }
         } catch (NoSuchFieldException | IllegalAccessException e) {
-            // 如果模型不支持这些字段（例如某些版本的PlayerModel可能没有这些外层部分），则忽略
-            // 这是正常的，不影响基础渲染
+            // 如果模型不支持这些字段，则忽略
         }
     }
 }
