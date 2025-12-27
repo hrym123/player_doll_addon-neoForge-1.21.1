@@ -37,23 +37,23 @@ public class SteveDollItemRenderer extends BlockEntityWithoutLevelRenderer {
         // 根据显示上下文调整缩放和位置
         // 注意：玩家模型的原点在脚部（Y=0），模型高度约1.8，中心在Y=0.9处
         // 参考实体渲染器：translate(0.0, 1.5, 0.0) 使模型底部对齐实体位置
+        // 参考参考项目：先缩放，再移动到中心（但参考项目渲染的是方块物品，原点在中心）
         if (transformType == ItemDisplayContext.GUI) {
             // GUI 中：居中显示
-            // 参考参考项目：先移动到中心，缩放，再移动到中心
-            poseStack.translate(0.5, 0.5, 0.0);
-            poseStack.scale(0.625F, 0.625F, 0.625F);
-            // 玩家模型原点在脚部，需要向上移动使模型居中
-            // 模型高度1.8，中心在0.9，缩放后高度1.125，中心在0.5625
-            // 物品槽中心在0.5，所以需要向下移动-0.0625（在缩放后的坐标系中）
-            poseStack.translate(0.0, -0.0625, 0.0);
-            poseStack.mulPose(Axis.YP.rotationDegrees(45.0F));
+            // 参考参考项目：先缩放，再移动到中心
+            poseStack.scale(0.8F, 0.8F, 0.8F);  // 先缩放
+            poseStack.translate(0.5, 0.5, 0.5);  // 移动到物品槽中心（参考参考项目）
+            // 玩家模型原点在脚部（Y=0），向上移动1
+            poseStack.translate(0.0, 1.0, 0.0);
+            // 逆时针旋转135度（Y轴逆时针为负值）
+            poseStack.mulPose(Axis.YP.rotationDegrees(-135.0F));
         } else if (transformType == ItemDisplayContext.FIRST_PERSON_LEFT_HAND || 
                    transformType == ItemDisplayContext.FIRST_PERSON_RIGHT_HAND) {
             // 第一人称：调整位置和大小
             poseStack.translate(0.5, 0.5, 0.5);
             poseStack.scale(0.5F, 0.5F, 0.5F);
-            // 玩家模型原点在脚部，向上移动使模型居中（参考实体渲染器的1.5，但这里是缩放后的）
-            // 缩放0.5后，模型高度0.9，中心在0.45，需要向上移动0.45使中心对齐
+            // 玩家模型原点在脚部，向上移动使模型居中
+            // 缩放0.5后，模型高度0.9，中心在0.45，需要向上移动0.9使中心对齐（在缩放后的坐标系中）
             poseStack.translate(0.0, 0.9, 0.0);
         } else if (transformType == ItemDisplayContext.THIRD_PERSON_LEFT_HAND || 
                    transformType == ItemDisplayContext.THIRD_PERSON_RIGHT_HAND) {
@@ -61,7 +61,7 @@ public class SteveDollItemRenderer extends BlockEntityWithoutLevelRenderer {
             poseStack.translate(0.5, 1.0, 0.5);
             poseStack.scale(0.375F, 0.375F, 0.375F);
             // 玩家模型原点在脚部，向上移动使模型居中
-            // 缩放0.375后，模型高度0.675，中心在0.3375，需要向上移动0.3375使中心对齐
+            // 缩放0.375后，模型高度0.675，中心在0.3375，需要向上移动0.675使中心对齐（在缩放后的坐标系中）
             poseStack.translate(0.0, 0.675, 0.0);
         } else {
             // 其他情况（地面、框架等）
@@ -72,7 +72,15 @@ public class SteveDollItemRenderer extends BlockEntityWithoutLevelRenderer {
         }
         
         // 翻转模型（玩家模型需要翻转才能正确显示）
+        // 原因：Minecraft的玩家模型在渲染时，默认朝向与物品渲染的坐标系不匹配
+        // 实体渲染器（SteveDollRenderer）也使用 scale(-1.0F, -1.0F, 1.0F) 来翻转模型
+        // 这是Minecraft渲染系统的约定，翻转后模型才能正确显示（正面朝向玩家）
         poseStack.scale(-1.0F, -1.0F, 1.0F);
+        
+        // 在GUI模式下，翻转后向右移动0.2（X轴正方向）
+        if (transformType == ItemDisplayContext.GUI) {
+            poseStack.translate(0.2, 0.0, 0.0);
+        }
         
         // 固定使用Steve默认皮肤
         ResourceLocation skinLocation = PlayerSkinUtil.getSteveSkin();
