@@ -165,19 +165,21 @@ public class PlayerSkinUtil {
      */
     private static void initializeDefaultModels() {
         if (steveModelInfo == null) {
-            // Steve是固定的粗手臂模型，直接使用STEVE_UUID获取纹理
-            // 注意：不依赖DefaultPlayerSkin返回的模型类型，因为Steve固定是粗手臂
-            var steveSkin = DefaultPlayerSkin.get(STEVE_UUID);
+            // Steve是固定的粗手臂模型
+            // 直接使用Steve的默认皮肤资源路径
+            // Minecraft 1.19+ 中，Steve的默认皮肤路径是 minecraft:textures/entity/player/wide/steve.png
+            ResourceLocation steveTexture = ResourceLocation.fromNamespaceAndPath("minecraft", "textures/entity/player/wide/steve.png");
+            
             steveModelInfo = new DefaultModelInfo(
                 "Steve",
                 STEVE_UUID,
                 false, // 固定：粗手臂
-                steveSkin.texture()
+                steveTexture
             );
             PlayerDollAddon.LOGGER.info("[PlayerSkinUtil] 初始化Steve模型（固定粗手臂）- UUID: {}, 纹理: {}", 
-                    STEVE_UUID, steveSkin.texture());
+                    STEVE_UUID, steveTexture);
             debugLog("[PlayerSkinUtil] 初始化Steve模型（固定粗手臂）- UUID: {}, 纹理: {}", 
-                    STEVE_UUID, steveSkin.texture());
+                    STEVE_UUID, steveTexture);
         }
         
         if (alexModelInfo == null) {
