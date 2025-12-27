@@ -14,7 +14,7 @@ import java.util.Map;
  */
 public class DynamicTextureManager {
     private static final Logger LOGGER = PlayerDollAddon.LOGGER;
-    private static final Map<ResourceLocation, Path> TEXTURE_PATHS = new HashMap<>();
+    public static final Map<ResourceLocation, Path> TEXTURE_PATHS = new HashMap<>();
     
     /**
      * 注册纹理文件路径

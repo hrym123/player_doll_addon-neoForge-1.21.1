@@ -2,9 +2,9 @@ package com.lanye.dolladdon.dynamic.render;
 
 import com.lanye.dolladdon.base.render.BaseDollItemRenderer;
 import net.minecraft.client.model.PlayerModel;
+import net.minecraft.client.model.geom.EntityModelSet;
 import net.minecraft.client.model.geom.ModelLayers;
-import net.minecraft.client.renderer.BlockEntityRenderDispatcher;
-import net.minecraft.client.renderer.entity.EntityModelSet;
+import net.minecraft.client.renderer.blockentity.BlockEntityRenderDispatcher;
 import net.minecraft.resources.ResourceLocation;
 
 /**

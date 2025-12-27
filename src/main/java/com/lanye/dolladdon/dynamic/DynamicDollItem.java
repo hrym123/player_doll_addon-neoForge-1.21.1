@@ -3,10 +3,12 @@ package com.lanye.dolladdon.dynamic;
 import com.lanye.dolladdon.base.entity.BaseDollEntity;
 import com.lanye.dolladdon.dynamic.render.DynamicDollItemRenderer;
 import net.minecraft.client.Minecraft;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.client.extensions.common.IClientItemExtensions;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.item.ItemStack;
 
 import java.util.function.Consumer;
 
@@ -18,12 +20,19 @@ public class DynamicDollItem extends com.lanye.dolladdon.base.item.BaseDollItem 
     private final EntityType<DynamicDollEntity> entityType;
     private final ResourceLocation textureLocation;
     private final boolean isAlexModel;
+    private final String displayName;
     
-    public DynamicDollItem(EntityType<DynamicDollEntity> entityType, ResourceLocation textureLocation, boolean isAlexModel) {
+    public DynamicDollItem(EntityType<DynamicDollEntity> entityType, ResourceLocation textureLocation, boolean isAlexModel, String displayName) {
         super();
         this.entityType = entityType;
         this.textureLocation = textureLocation;
         this.isAlexModel = isAlexModel;
+        this.displayName = displayName;
+    }
+    
+    @Override
+    public Component getName(ItemStack stack) {
+        return Component.literal(displayName);
     }
     
     @Override
