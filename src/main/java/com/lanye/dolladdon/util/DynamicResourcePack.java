@@ -19,7 +19,6 @@ import java.nio.file.Path;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Stream;
 
 /**
  * 动态资源包
@@ -69,54 +68,12 @@ public class DynamicResourcePack implements PackResources {
             }
         }
         
-        // 如果是模型，从 generated_resources 目录加载
-        // 注意：Minecraft 在查找模型时使用的路径是 "models/item/slan_ye.json"，
-        // 但 ResourceLocation 中的 path 是 "models/item/slan_ye"（没有 .json 扩展名）
+        // 如果是模型，不需要通过动态资源包提供
+        // 模型文件应该已经在编译时生成到 src/main/resources 并打包到 JAR 中
+        // Minecraft 会从 JAR 包中加载这些模型文件
         if (path.startsWith("models/")) {
-            LOGGER.error("【关键模型加载】尝试加载模型: location={}, path={}", location, path);
-            
-            // 首先尝试添加 .json 扩展名
-            Path modelPath = gameDir.resolve("generated_resources")
-                    .resolve("assets")
-                    .resolve(namespace)
-                    .resolve(path + ".json");
-            
-            // 尝试不添加 .json 扩展名的路径
-            Path modelPathWithoutExt = gameDir.resolve("generated_resources")
-                    .resolve("assets")
-                    .resolve(namespace)
-                    .resolve(path);
-            
-            LOGGER.warn("【关键】模型路径检查: modelPath={}, exists={}, modelPathWithoutExt={}, exists={}", 
-                modelPath, Files.exists(modelPath), modelPathWithoutExt, Files.exists(modelPathWithoutExt));
-            
-            if (Files.exists(modelPath) && Files.isRegularFile(modelPath)) {
-                LOGGER.warn("【关键】动态资源包提供模型: {} -> {}", location, modelPath);
-                return () -> {
-                    LOGGER.warn("【关键】正在打开模型文件流: {}", modelPath);
-                    try {
-                        return Files.newInputStream(modelPath);
-                    } catch (IOException e) {
-                        LOGGER.error("打开模型文件流失败: {}", modelPath, e);
-                        throw e;
-                    }
-                };
-            } else if (Files.exists(modelPathWithoutExt) && Files.isRegularFile(modelPathWithoutExt)) {
-                LOGGER.warn("【关键】动态资源包提供模型（无扩展名）: {} -> {}", location, modelPathWithoutExt);
-                return () -> {
-                    LOGGER.warn("【关键】正在打开模型文件流（无扩展名）: {}", modelPathWithoutExt);
-                    try {
-                        return Files.newInputStream(modelPathWithoutExt);
-                    } catch (IOException e) {
-                        LOGGER.error("打开模型文件流失败: {}", modelPathWithoutExt, e);
-                        throw e;
-                    }
-                };
-            } else {
-                // 如果都找不到，输出更详细的调试信息
-                LOGGER.warn("【关键】模型文件完全无法找到！location={}, path={}, 尝试的路径: 1) {} (存在: {}), 2) {} (存在: {})", 
-                    location, path, modelPath, Files.exists(modelPath), modelPathWithoutExt, Files.exists(modelPathWithoutExt));
-            }
+            LOGGER.debug("模型文件应该从 JAR 包中加载，不通过动态资源包提供: {}", location);
+            return null;
         }
         
         return null;
@@ -152,74 +109,12 @@ public class DynamicResourcePack implements PackResources {
             }
         }
         
-        // 列出模型资源 - 支持多种路径格式
-        // Minecraft可能使用 "models" 或 "models/item" 来查找模型
+        // 不通过动态资源包列出模型资源
+        // 模型文件应该已经在编译时生成到 src/main/resources 并打包到 JAR 中
+        // Minecraft 会从 JAR 包中自动发现这些模型文件
         if (path.equals("models/item") || path.equals("models")) {
-            Path modelsDir = gameDir.resolve("generated_resources")
-                    .resolve("assets")
-                    .resolve(namespace)
-                    .resolve("models")
-                    .resolve("item");
-            
-            LOGGER.warn("【模型查找】listResources 检查模型目录: {} (存在: {}, 是目录: {})", 
-                modelsDir, Files.exists(modelsDir), Files.exists(modelsDir) && Files.isDirectory(modelsDir));
-            
-            if (Files.exists(modelsDir) && Files.isDirectory(modelsDir)) {
-                LOGGER.info("列出模型资源，目录: {}", modelsDir);
-                try (Stream<Path> paths = Files.list(modelsDir)) {
-                    long count = paths.filter(Files::isRegularFile)
-                         .filter(p -> p.toString().endsWith(".json"))
-                         .peek(filePath -> {
-                             try {
-                                 String fileName = filePath.getFileName().toString();
-                                 String modelName = fileName.substring(0, fileName.length() - 5); // 移除 .json
-                                 ResourceLocation location = ResourceLocation.fromNamespaceAndPath(namespace, "models/item/" + modelName);
-                                 
-                                 // 确保文件存在并可以读取
-                                 if (Files.exists(filePath) && Files.isRegularFile(filePath) && Files.isReadable(filePath)) {
-                                     // 获取文件大小（必须在 lambda 外部完成，使其成为 effectively final）
-                                     long tempFileSize = 0;
-                                     try {
-                                         tempFileSize = Files.size(filePath);
-                                     } catch (IOException e) {
-                                         LOGGER.error("无法获取文件大小: {}", filePath, e);
-                                     }
-                                     final long fileSize = tempFileSize;
-                                     
-                                     // 创建一个包装的 IoSupplier，添加日志
-                                     // 使用 WARN 级别以便更容易看到
-                                     output.accept(location, () -> {
-                                         LOGGER.warn("【重要】listResources 提供的 IoSupplier 被调用，打开文件: {} (大小: {} 字节)", filePath, fileSize);
-                                         try {
-                                             InputStream stream = Files.newInputStream(filePath);
-                                             LOGGER.warn("【重要】成功打开模型文件流: {}", filePath);
-                                             return stream;
-                                         } catch (IOException e) {
-                                             LOGGER.error("打开模型文件失败: {}", filePath, e);
-                                             throw e;
-                                         }
-                                     });
-                                     LOGGER.warn("【重要】列出模型资源到 output: {} -> {} (大小: {} 字节)", location, filePath, fileSize);
-                                 } else {
-                                     LOGGER.warn("模型文件不可访问: {} (存在: {}, 是文件: {}, 可读: {})", 
-                                         filePath, 
-                                         Files.exists(filePath),
-                                         Files.exists(filePath) && Files.isRegularFile(filePath),
-                                         Files.exists(filePath) && Files.isReadable(filePath));
-                                 }
-                             } catch (Exception e) {
-                                 LOGGER.error("列出模型资源失败: {}", filePath, e);
-                             }
-                         })
-                         .count();
-                    LOGGER.warn("【模型查找】共列出 {} 个模型文件", count);
-                } catch (IOException e) {
-                    LOGGER.error("列出模型资源失败", e);
-                }
-            } else {
-                LOGGER.warn("模型目录不存在或不是目录: {} (存在: {}, 是目录: {})", 
-                    modelsDir, Files.exists(modelsDir), Files.exists(modelsDir) && Files.isDirectory(modelsDir));
-            }
+            LOGGER.debug("模型资源应该从 JAR 包中加载，不通过动态资源包列出: {}", path);
+            return;
         }
     }
     

@@ -50,6 +50,9 @@ public class PlayerDollAddon {
     private void registerDynamicDolls() {
         LOGGER.info("开始扫描玩偶材质目录: {}", DOLL_TEXTURES_DIR);
         
+        // 先清理旧的动态模型文件（保留 alex_doll.json 和 steve_doll.json）
+        com.lanye.dolladdon.util.DynamicModelGenerator.cleanupOldModelFiles();
+        
         // 扫描目录
         var dollInfos = DynamicDollLoader.scanDirectory(DOLL_TEXTURES_DIR);
         

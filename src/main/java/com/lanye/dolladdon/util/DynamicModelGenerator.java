@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Set;
 
 /**
  * 动态模型生成器
@@ -28,8 +29,8 @@ public class DynamicModelGenerator {
      * 如果文件已存在且内容相同，则跳过生成
      * 
      * 注意：
-     * - 在开发环境中：会生成到 generated_resources、build/resources/main 和 src/main/resources
-     * - 在生产环境中：只会生成到 generated_resources（资源已被打包到 jar 中，无法修改）
+     * - 在开发环境中：会生成到 build/resources/main 和 src/main/resources
+     * - 在生产环境中：模型文件应该已经在 JAR 包中（通过编译时包含）
      * 
      * @param registryName 注册名称
      * @return 是否成功生成或已存在
@@ -38,43 +39,35 @@ public class DynamicModelGenerator {
         try {
             boolean success = false;
             
-            // 1. 总是生成到 generated_resources 目录（这个目录在生产环境中也可以使用）
-            // 这个目录会被动态资源包使用，所以在开发和生产环境中都需要
-            Path generatedModelsDir = getGeneratedModelsDirectory();
-            if (generatedModelsDir != null) {
-                Path generatedModelFile = generatedModelsDir.resolve("item").resolve(registryName + ".json");
-                if (writeModelFileIfNeeded(generatedModelFile, "generated_resources")) {
-                    success = true;
-                    LOGGER.debug("模型文件已写入 generated_resources，可在开发和生产环境中使用");
-                }
-            }
-            
-            // 2. 尝试生成到 build/resources/main 目录（仅开发环境，当前运行中立即生效）
+            // 1. 生成到 build/resources/main 目录（开发环境，当前运行中立即生效）
             // 在生产环境中，这个目录不存在，会跳过（这是正常的）
             Path buildResourcesDir = getBuildResourcesDirectory();
             if (buildResourcesDir != null) {
                 Path buildResourcesModelFile = buildResourcesDir.resolve("item").resolve(registryName + ".json");
                 if (writeModelFileIfNeeded(buildResourcesModelFile, "build/resources/main")) {
+                    success = true;
                     LOGGER.debug("模型文件已写入 build/resources/main（开发环境）");
                 }
             } else {
                 LOGGER.debug("无法获取 build/resources/main 目录（可能是生产环境，这是正常的）");
             }
             
-            // 3. 尝试生成到 src/main/resources 目录（仅开发环境，下次编译时会被包含）
+            // 2. 生成到 src/main/resources 目录（开发环境，下次编译时会被包含到 JAR）
             // 在生产环境中，这个目录不存在，会跳过（这是正常的）
+            // 但模型文件应该已经在编译时被打包到 JAR 中了
             Path modResourcesDir = getModResourcesDirectory();
             if (modResourcesDir != null) {
                 Path modResourcesModelFile = modResourcesDir.resolve("item").resolve(registryName + ".json");
                 if (writeModelFileIfNeeded(modResourcesModelFile, "src/main/resources")) {
+                    success = true;
                     LOGGER.debug("模型文件已写入 src/main/resources（开发环境）");
                 }
             } else {
                 LOGGER.debug("无法获取 src/main/resources 目录（可能是生产环境，这是正常的）");
             }
             
-            // 只要 generated_resources 写入成功，就返回 true
-            // 在生产环境中，这是唯一可以写入的位置，并且依赖动态资源包来加载
+            // 只要任一目录写入成功，就返回 true
+            // 在生产环境中，模型文件应该已经在 JAR 包中
             return success;
         } catch (Exception e) {
             LOGGER.error("生成模型文件失败: {}", registryName, e);
@@ -117,6 +110,65 @@ public class DynamicModelGenerator {
     }
     
     /**
+     * 清理旧的动态模型文件（保留 alex_doll.json 和 steve_doll.json）
+     * 在生成新模型文件之前调用，确保只保留当前需要的模型文件
+     */
+    public static void cleanupOldModelFiles() {
+        // 需要保留的文件名
+        Set<String> preservedFiles = Set.of("alex_doll.json", "steve_doll.json");
+        
+        // 清理 src/main/resources 目录
+        Path modResourcesDir = getModResourcesDirectory();
+        if (modResourcesDir != null) {
+            Path itemModelsDir = modResourcesDir.resolve("item");
+            cleanupDirectory(itemModelsDir, preservedFiles, "src/main/resources");
+        }
+        
+        // 清理 build/resources/main 目录
+        Path buildResourcesDir = getBuildResourcesDirectory();
+        if (buildResourcesDir != null) {
+            Path itemModelsDir = buildResourcesDir.resolve("item");
+            cleanupDirectory(itemModelsDir, preservedFiles, "build/resources/main");
+        }
+    }
+    
+    /**
+     * 清理指定目录中的 JSON 文件（保留指定的文件）
+     * @param directory 要清理的目录
+     * @param preservedFiles 需要保留的文件名集合
+     * @param locationName 位置名称（用于日志）
+     */
+    private static void cleanupDirectory(Path directory, Set<String> preservedFiles, String locationName) {
+        if (directory == null || !Files.exists(directory) || !Files.isDirectory(directory)) {
+            return;
+        }
+        
+        try (var paths = Files.list(directory)) {
+            int deletedCount = 0;
+            for (Path filePath : paths.collect(java.util.stream.Collectors.toList())) {
+                if (Files.isRegularFile(filePath)) {
+                    String fileName = filePath.getFileName().toString();
+                    // 只删除 JSON 文件，并且不在保留列表中
+                    if (fileName.endsWith(".json") && !preservedFiles.contains(fileName)) {
+                        try {
+                            Files.delete(filePath);
+                            deletedCount++;
+                            LOGGER.debug("已删除旧模型文件: {} ({})", filePath, locationName);
+                        } catch (IOException e) {
+                            LOGGER.warn("删除旧模型文件失败: {} ({})", filePath, locationName, e);
+                        }
+                    }
+                }
+            }
+            if (deletedCount > 0) {
+                LOGGER.info("已清理 {} 个旧模型文件 ({})", deletedCount, locationName);
+            }
+        } catch (IOException e) {
+            LOGGER.error("清理模型文件目录失败: {} ({})", directory, locationName, e);
+        }
+    }
+    
+    /**
      * 批量生成所有动态玩偶的模型文件
      * @param registryNames 注册名称列表
      * @return 成功生成的数量
@@ -133,35 +185,6 @@ public class DynamicModelGenerator {
         
         LOGGER.info("批量生成模型文件完成，成功生成 {}/{} 个", successCount, registryNames.size());
         return successCount;
-    }
-    
-    /**
-     * 获取 generated_resources 目录下的模型目录路径
-     * @return 模型目录路径，如果无法获取返回null
-     */
-    private static Path getGeneratedModelsDirectory() {
-        try {
-            // 获取游戏目录
-            Path gameDir;
-            try {
-                Class<?> fmlPathsClass = Class.forName("net.neoforged.fml.loading.FMLPaths");
-                java.lang.reflect.Method gameDirMethod = fmlPathsClass.getMethod("getGamePath");
-                gameDir = (Path) gameDirMethod.invoke(null);
-            } catch (Exception e) {
-                gameDir = Paths.get(".").toAbsolutePath().normalize();
-            }
-            
-            // 在游戏目录下创建 generated_resources/assets/player_doll_addon/models 目录
-            Path modelsDir = gameDir.resolve("generated_resources")
-                    .resolve("assets")
-                    .resolve(PlayerDollAddon.MODID)
-                    .resolve("models");
-            
-            return modelsDir;
-        } catch (Exception e) {
-            LOGGER.error("获取 generated_resources 模型目录失败", e);
-            return null;
-        }
     }
     
     /**
