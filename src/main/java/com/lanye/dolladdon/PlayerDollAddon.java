@@ -55,6 +55,13 @@ public class PlayerDollAddon {
         
         LOGGER.info("扫描到 {} 个玩偶材质文件", dollInfos.size());
         
+        // 批量生成所有动态玩偶的模型文件（所有动态玩偶都使用相同的模型内容）
+        java.util.List<String> registryNames = new java.util.ArrayList<>();
+        for (var dollInfo : dollInfos) {
+            registryNames.add(dollInfo.getFileName());
+        }
+        com.lanye.dolladdon.util.DynamicModelGenerator.generateAllItemModels(registryNames);
+        
         // 注册每个玩偶
         int successCount = 0;
         for (var dollInfo : dollInfos) {
@@ -62,8 +69,7 @@ public class PlayerDollAddon {
                 // 注册实体
                 var entityHolder = ModEntities.registerDynamicDoll(dollInfo.getFileName());
                 
-                // 生成物品模型文件
-                com.lanye.dolladdon.util.DynamicModelGenerator.generateItemModel(dollInfo.getFileName());
+                // 模型文件已在上面批量生成，这里不需要再生成
                 
                 // 注册物品（传递 DeferredHolder，延迟获取 EntityType）
                 ModItems.registerDynamicDoll(

@@ -101,7 +101,10 @@ public class PlayerDollAddonClient {
                 };
                 Pack.Metadata metadata = new Pack.Metadata(packName, PackCompatibility.COMPATIBLE, FeatureFlagSet.of(), Collections.emptyList());
                 // required=true 确保资源包被自动启用
+                // Pack.Position.TOP 尝试将资源包放在最前面（但实际加载顺序可能仍然在最后）
                 PackSelectionConfig selectionConfig = new PackSelectionConfig(true, Pack.Position.TOP, false);
+                
+                // 尝试在更早的时机添加资源包（在 AddPackFindersEvent 中尽早添加）
                 event.addRepositorySource((packConsumer) -> {
                     Pack pack = new Pack(
                         packLocationInfo,
@@ -109,8 +112,10 @@ public class PlayerDollAddonClient {
                         metadata,
                         selectionConfig
                     );
+                    // 先接受包，确保它被添加到列表的最前面
                     packConsumer.accept(pack);
                     PlayerDollAddon.LOGGER.info("动态资源包已添加到资源管理器，纹理数量: {}", com.lanye.dolladdon.util.DynamicTextureManager.TEXTURE_PATHS.size());
+                    PlayerDollAddon.LOGGER.warn("【资源包注册】动态资源包 packId: {}, 位置: TOP, required: true", packLocationInfo.id());
                 });
                 
                 PlayerDollAddon.LOGGER.info("已注册动态资源包，当前注册的纹理数量: {}", com.lanye.dolladdon.util.DynamicTextureManager.TEXTURE_PATHS.size());

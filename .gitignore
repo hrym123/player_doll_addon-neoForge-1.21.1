@@ -29,3 +29,8 @@ repo
 libs/*.jar
 !libs/.gitkeep
 
+# 动态生成的模型文件（排除 alex_doll.json 和 steve_doll.json）
+src/main/resources/assets/player_doll_addon/models/item/*.json
+!src/main/resources/assets/player_doll_addon/models/item/alex_doll.json
+!src/main/resources/assets/player_doll_addon/models/item/steve_doll.json
+

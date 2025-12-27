@@ -42,9 +42,15 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
         poseStack.mulPose(Axis.YP.rotationDegrees(180.0F - yRot));
         poseStack.mulPose(Axis.XP.rotationDegrees(xRot));
         
+        // 缩小模型大小，使高度为1.125（玩家模型高度约1.8，缩放比例 = 1.125 / 1.8 = 0.625）
+        float modelScale = 1.125F / 1.8F; // 约 0.625F
+        
         // 调整位置，使玩家模型底部对齐实体位置
-        poseStack.translate(0.0, 1.5, 0.0);
-        poseStack.scale(-1.0F, -1.0F, 1.0F);
+        // 缩放后模型高度为1.125，需要向上移动相应的距离使底部对齐
+        poseStack.translate(0.0, 1.125F, 0.0);
+        
+        // 应用缩放和翻转
+        poseStack.scale(-modelScale, -modelScale, modelScale);
         
         // 获取皮肤位置（由子类实现）
         ResourceLocation skinLocation = getSkinLocation(entity);
@@ -58,24 +64,103 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
         playerModel.rightLeg.setRotation(0.0F, 0.0F, 0.0F);
         playerModel.leftLeg.setRotation(0.0F, 0.0F, 0.0F);
         
-        // 渲染玩家模型基础层（主要皮肤纹理，包括身体、头部、手臂、腿部等）
-        var baseVertexConsumer = bufferSource.getBuffer(net.minecraft.client.renderer.RenderType.entityCutoutNoCull(skinLocation));
-        playerModel.renderToBuffer(poseStack, baseVertexConsumer, packedLight, 
-                net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY);
+        // 获取渲染类型
+        var cutoutRenderType = net.minecraft.client.renderer.RenderType.entityCutoutNoCull(skinLocation);
+        var translucentRenderType = net.minecraft.client.renderer.RenderType.entityTranslucent(skinLocation);
+        int overlay = net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY;
         
-        // 渲染玩家模型外层（头发、袖子等细节层，使用半透明渲染以显示叠加层）
-        // 在Minecraft中，皮肤纹理包含基础层和外层信息，外层部分（如hat、袖子外层）需要使用entityTranslucent渲染
-        var overlayVertexConsumer = bufferSource.getBuffer(net.minecraft.client.renderer.RenderType.entityTranslucent(skinLocation));
-        // 渲染hat层（头发外层）
-        playerModel.hat.render(poseStack, overlayVertexConsumer, packedLight, 
-                net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY);
-        // 注意：PlayerModel的袖子外层部分通常包含在rightArm和leftArm中
-        // 但由于PlayerModel的实现，外层信息已经在皮肤纹理中，使用entityTranslucent会自动处理
-        // 如果需要单独渲染袖子外层，可能需要访问模型的内部结构，这里先渲染hat层
+        // 第一步：渲染基础层（base layer）- 所有基础部分
+        var baseVertexConsumer = bufferSource.getBuffer(cutoutRenderType);
+        
+        // 渲染基础身体部分（不包括外层）
+        playerModel.head.render(poseStack, baseVertexConsumer, packedLight, overlay);
+        playerModel.body.render(poseStack, baseVertexConsumer, packedLight, overlay);
+        playerModel.rightArm.render(poseStack, baseVertexConsumer, packedLight, overlay);
+        playerModel.leftArm.render(poseStack, baseVertexConsumer, packedLight, overlay);
+        playerModel.rightLeg.render(poseStack, baseVertexConsumer, packedLight, overlay);
+        playerModel.leftLeg.render(poseStack, baseVertexConsumer, packedLight, overlay);
+        
+        // 第二步：渲染外层（overlay layer）- 使用半透明渲染以正确显示多层皮肤
+        var overlayVertexConsumer = bufferSource.getBuffer(translucentRenderType);
+        
+        // 渲染hat层（头发外层）- 如果皮肤有多层，这会显示头发的外层
+        playerModel.hat.render(poseStack, overlayVertexConsumer, packedLight, overlay);
+        
+        // 渲染外层部分（overlay layer）- 用于多层皮肤
+        // 在Minecraft中，PlayerModel支持多层皮肤渲染，外层部分包括：
+        // - hat: 头发外层
+        // - leftSleeve/rightSleeve: 袖子外层
+        // - leftPants/rightPants: 腿外层
+        // - jacket: 身体外层
+        // 注意：这些字段可能不存在于所有版本的PlayerModel中，因此使用反射访问
+        renderOverlayParts(poseStack, overlayVertexConsumer, packedLight, overlay);
         
         poseStack.popPose();
         
         super.render(entity, entityYaw, partialTick, poseStack, bufferSource, packedLight);
+    }
+    
+    /**
+     * 渲染外层部分（overlay layer）以支持多层皮肤
+     * 这些外层部分需要使用半透明渲染类型来正确显示叠加层
+     * 
+     * @param poseStack 变换矩阵栈
+     * @param overlayVertexConsumer 外层顶点消费者
+     * @param packedLight 光照信息
+     * @param overlay 覆盖纹理
+     */
+    private void renderOverlayParts(PoseStack poseStack, 
+                                    com.mojang.blaze3d.vertex.VertexConsumer overlayVertexConsumer, 
+                                    int packedLight, 
+                                    int overlay) {
+        try {
+            // 使用反射访问PlayerModel的外层部分（如果存在）
+            // 这些字段在Minecraft 1.21.1的PlayerModel中应该存在
+            java.lang.reflect.Field leftSleeveField = PlayerModel.class.getDeclaredField("leftSleeve");
+            java.lang.reflect.Field rightSleeveField = PlayerModel.class.getDeclaredField("rightSleeve");
+            java.lang.reflect.Field leftPantsField = PlayerModel.class.getDeclaredField("leftPants");
+            java.lang.reflect.Field rightPantsField = PlayerModel.class.getDeclaredField("rightPants");
+            java.lang.reflect.Field jacketField = PlayerModel.class.getDeclaredField("jacket");
+            
+            leftSleeveField.setAccessible(true);
+            rightSleeveField.setAccessible(true);
+            leftPantsField.setAccessible(true);
+            rightPantsField.setAccessible(true);
+            jacketField.setAccessible(true);
+            
+            // 渲染左袖子外层
+            Object leftSleeve = leftSleeveField.get(playerModel);
+            if (leftSleeve instanceof net.minecraft.client.model.geom.ModelPart) {
+                ((net.minecraft.client.model.geom.ModelPart) leftSleeve).render(poseStack, overlayVertexConsumer, packedLight, overlay);
+            }
+            
+            // 渲染右袖子外层
+            Object rightSleeve = rightSleeveField.get(playerModel);
+            if (rightSleeve instanceof net.minecraft.client.model.geom.ModelPart) {
+                ((net.minecraft.client.model.geom.ModelPart) rightSleeve).render(poseStack, overlayVertexConsumer, packedLight, overlay);
+            }
+            
+            // 渲染左腿外层
+            Object leftPants = leftPantsField.get(playerModel);
+            if (leftPants instanceof net.minecraft.client.model.geom.ModelPart) {
+                ((net.minecraft.client.model.geom.ModelPart) leftPants).render(poseStack, overlayVertexConsumer, packedLight, overlay);
+            }
+            
+            // 渲染右腿外层
+            Object rightPants = rightPantsField.get(playerModel);
+            if (rightPants instanceof net.minecraft.client.model.geom.ModelPart) {
+                ((net.minecraft.client.model.geom.ModelPart) rightPants).render(poseStack, overlayVertexConsumer, packedLight, overlay);
+            }
+            
+            // 渲染夹克外层（身体外层）
+            Object jacket = jacketField.get(playerModel);
+            if (jacket instanceof net.minecraft.client.model.geom.ModelPart) {
+                ((net.minecraft.client.model.geom.ModelPart) jacket).render(poseStack, overlayVertexConsumer, packedLight, overlay);
+            }
+        } catch (NoSuchFieldException | IllegalAccessException e) {
+            // 如果模型不支持这些字段（例如某些版本的PlayerModel可能没有这些外层部分），则忽略
+            // 这是正常的，不影响基础渲染
+        }
     }
     
     @Override

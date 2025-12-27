@@ -27,14 +27,14 @@ repositories {
         name = 'NeoForge'
         url = 'https://maven.neoforged.net/releases'
     }
-    // Modrinth Maven 仓库（用于 KaleidoscopeDoll 等模组）
+    // Modrinth Maven 仓库
     maven {
         name = 'Modrinth'
         url = 'https://api.modrinth.com/maven'
     }
     // Maven Central 作为备用
     mavenCentral()
-    // 本地Maven仓库（用于本地开发的 KaleidoscopeDoll）
+    // 本地Maven仓库
     mavenLocal()
 }
 
@@ -97,29 +97,7 @@ configurations {
 }
 
 dependencies {
-    // 依赖 KaleidoscopeDoll 模组
-    // 优先使用本地文件依赖（推荐，简单直接）
-    def libsDir = file("libs")
-    def kaleidoscopeDollJar = null
-    
-    // 尝试查找 jar 文件（支持带中文前缀的文件名）
-    if (libsDir.exists() && libsDir.isDirectory()) {
-        libsDir.listFiles().each { file ->
-            if (file.name.endsWith("kaleidoscopedoll-1.2.3-neoforge+mc1.21.1.jar")) {
-                kaleidoscopeDollJar = file
-            }
-        }
-    }
-    
-    if (kaleidoscopeDollJar != null && kaleidoscopeDollJar.exists()) {
-        implementation files(kaleidoscopeDollJar)
-        println "✓ 使用本地文件依赖: ${kaleidoscopeDollJar.name}"
-    } else {
-        // 如果文件不存在，尝试使用 Maven 本地仓库
-        // 需要先运行: cd ../../reference/KaleidoscopeDoll-1.21.1-neoforge && gradlew build publishToMavenLocal
-        println "⚠ 未找到 KaleidoscopeDoll jar 文件，尝试从 Maven 本地仓库加载..."
-        implementation "com.github.ysbbbbbb:kaleidoscopedoll:1.2.3-neoforge+mc1.21.1"
-    }
+    // 不再依赖 KaleidoscopeDoll 模组
 }
 
 // This block of code expands all declared replace properties in the specified resource targets.

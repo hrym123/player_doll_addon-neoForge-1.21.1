@@ -10,6 +10,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
@@ -164,24 +166,32 @@ public class DynamicDollLoader {
         // 处理名称：单个下划线替换为空格，双下划线替换为单个下划线
         String displayName = processDisplayName(namePart);
         
-        // 生成资源位置
-        // 使用文件名作为资源路径（简化处理）
-        // ResourceLocation 只允许小写字母，所以需要将文件名转换为小写
-        String lowerFileName = fileName.toLowerCase();
-        String resourcePath = "textures/entity/" + lowerFileName;
-        ResourceLocation textureLocation = ResourceLocation.fromNamespaceAndPath(
-            PlayerDollAddon.MODID, 
-            resourcePath
-        );
+        // 计算文件哈希值（用于 ResourceLocation，因为 ResourceLocation 不支持中文字符）
+        String fileHash = calculateFileHash(filePath);
+        if (fileHash == null) {
+            LOGGER.error("无法计算文件哈希值，跳过: {}", fileName);
+            return null;
+        }
+        
+        // 使用哈希值作为资源路径（确保符合 ResourceLocation 的要求：只包含 [a-z0-9/._-]）
+        String resourcePath = "textures/entity/" + fileHash;
+        ResourceLocation textureLocation;
+        try {
+            textureLocation = ResourceLocation.fromNamespaceAndPath(
+                PlayerDollAddon.MODID, 
+                resourcePath
+            );
+        } catch (Exception e) {
+            LOGGER.error("创建 ResourceLocation 失败: {} (资源路径: {})", fileName, resourcePath, e);
+            return null;
+        }
         
         // 注册纹理文件路径到管理器
         DynamicTextureManager.registerTexture(textureLocation, filePath);
         
-        // 生成注册名称（使用文件名，但转换为小写并替换特殊字符）
-        String registryName = nameWithoutExt.toLowerCase()
-            .replace(' ', '_')
-            .replace('-', '_')
-            .replaceAll("[^a-z0-9_]", "");
+        // 生成注册名称（使用哈希值，因为它已经符合规范）
+        // 为了可读性，我们也可以尝试从文件名中提取一部分，但主要是用哈希值
+        String registryName = fileHash;
         
         return new DollInfo(registryName, displayName, isAlexModel, textureLocation, filePath);
     }
@@ -200,6 +210,33 @@ public class DynamicDollLoader {
         // 恢复双下划线（替换临时标记为单个下划线）
         result = result.replace("\u0000", "_");
         return result;
+    }
+    
+    /**
+     * 计算文件的 MD5 哈希值
+     * 用于生成符合 ResourceLocation 规范的标识符（只包含 [a-z0-9]）
+     * @param filePath 文件路径
+     * @return 文件的 MD5 哈希值（小写字符串），如果失败返回 null
+     */
+    private static String calculateFileHash(Path filePath) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("MD5");
+            byte[] fileBytes = Files.readAllBytes(filePath);
+            byte[] hashBytes = md.digest(fileBytes);
+            
+            // 将字节数组转换为十六进制字符串
+            StringBuilder sb = new StringBuilder();
+            for (byte b : hashBytes) {
+                sb.append(String.format("%02x", b));
+            }
+            return sb.toString();
+        } catch (NoSuchAlgorithmException e) {
+            LOGGER.error("MD5 算法不可用", e);
+            return null;
+        } catch (IOException e) {
+            LOGGER.error("读取文件失败，无法计算哈希值: {}", filePath, e);
+            return null;
+        }
     }
 }
 
