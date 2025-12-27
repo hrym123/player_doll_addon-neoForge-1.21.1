@@ -71,6 +71,12 @@ public class SteveDollItemRenderer extends BlockEntityWithoutLevelRenderer {
             // 玩家模型原点在脚部，向上移动使模型居中
             // 缩放0.375后，模型高度0.675，中心在0.3375，需要向上移动0.675使中心对齐（在缩放后的坐标系中）
             poseStack.translate(0.0, 0.675, 0.0);
+            // 向下移动0.5（Y轴负方向）
+            poseStack.translate(0.0, -0.5, 0.0);
+            // 再向下移动0.05（Y轴负方向）
+            poseStack.translate(0.0, -0.05, 0.0);
+            // 前后反转（Z轴反转）
+            poseStack.scale(1.0F, 1.0F, -1.0F);
         } else {
             // 其他情况（地面、框架等）
             poseStack.translate(0.5, 0.5, 0.5);
