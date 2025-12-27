@@ -1,0 +1,7 @@
+{
+  "item.player_doll_addon.player_doll": "玩家玩偶",
+  "entity.player_doll_addon.player_doll": "玩家玩偶",
+  "command.player_doll_addon.success": "成功创建 %s 的玩偶物品",
+  "command.player_doll_addon.success_dropped": "成功创建 %s 的玩偶物品（背包已满，已掉落）",
+  "command.player_doll_addon.error": "创建玩偶失败：%s"
+}

@@ -1,0 +1,27 @@
+package com.lanye.dolladdon;
+
+import com.lanye.dolladdon.client.render.PlayerDollRenderer;
+import com.lanye.dolladdon.init.ModEntities;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.ModContainer;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.fml.common.Mod;
+import net.neoforged.neoforge.client.event.EntityRenderersEvent;
+
+@Mod(value = PlayerDollAddon.MODID, dist = Dist.CLIENT)
+@EventBusSubscriber(modid = PlayerDollAddon.MODID, value = Dist.CLIENT)
+public class PlayerDollAddonClient {
+    
+    public PlayerDollAddonClient(ModContainer container) {
+        PlayerDollAddon.LOGGER.info("玩家玩偶附属模组客户端已加载！");
+        PlayerDollAddon.LOGGER.info("Player Doll Addon Client loaded!");
+    }
+    
+    @SubscribeEvent
+    public static void onRegisterRenderers(EntityRenderersEvent.RegisterRenderers event) {
+        // 注册玩家玩偶实体渲染器
+        event.registerEntityRenderer(ModEntities.PLAYER_DOLL.get(), PlayerDollRenderer::new);
+    }
+}
+
