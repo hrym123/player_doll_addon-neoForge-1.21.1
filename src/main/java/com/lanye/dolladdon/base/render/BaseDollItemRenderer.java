@@ -72,6 +72,13 @@ public abstract class BaseDollItemRenderer extends BlockEntityWithoutLevelRender
         float[] headScale = pose.getHeadScale();
         float[] hatPosition = pose.getHatPosition();
         float[] hatScale = pose.getHatScale();
+        
+        // hat 应该跟随 head 的缩放，所以使用 headScale 和 hatScale 的组合
+        float[] hatCombinedScale = new float[]{
+            headScale[0] * hatScale[0],
+            headScale[1] * hatScale[1],
+            headScale[2] * hatScale[2]
+        };
         float[] bodyPosition = pose.getBodyPosition();
         float[] bodyScale = pose.getBodyScale();
         float[] rightArmPosition = pose.getRightArmPosition();
@@ -163,8 +170,8 @@ public abstract class BaseDollItemRenderer extends BlockEntityWithoutLevelRender
             // 移回
             poseStack.translate(0.0, -0.375, 0.0);
             // 在旋转后的坐标系中渲染所有外层部分
-            // hat层（头发外层）
-            renderPartWithTransform(poseStack, playerModel.hat, overlayVertexConsumer, packedLight, overlay, hatPosition, hatScale);
+            // hat层（头发外层），使用 headScale 和 hatScale 的组合
+            renderPartWithTransform(poseStack, playerModel.hat, overlayVertexConsumer, packedLight, overlay, hatPosition, hatCombinedScale);
             // 手臂外层（保持它们自己的旋转值）
             renderArmOverlayParts(playerModel, poseStack, overlayVertexConsumer, packedLight, overlay, rightArmPosition, rightArmScale, leftArmPosition, leftArmScale);
             // 身体和腿部外层（jacket 的旋转设为0）
@@ -173,7 +180,7 @@ public abstract class BaseDollItemRenderer extends BlockEntityWithoutLevelRender
             poseStack.popPose();
         } else {
             // 没有身体旋转时，正常渲染
-            renderPartWithTransform(poseStack, playerModel.hat, overlayVertexConsumer, packedLight, overlay, hatPosition, hatScale);
+            renderPartWithTransform(poseStack, playerModel.hat, overlayVertexConsumer, packedLight, overlay, hatPosition, hatCombinedScale);
             renderArmOverlayParts(playerModel, poseStack, overlayVertexConsumer, packedLight, overlay, rightArmPosition, rightArmScale, leftArmPosition, leftArmScale);
             setBodyOverlayRotation(playerModel, 0, 0, 0);
             renderBodyLegOverlayParts(playerModel, poseStack, overlayVertexConsumer, packedLight, overlay, bodyPosition, bodyScale, rightLegPosition, rightLegScale, leftLegPosition, leftLegScale);
