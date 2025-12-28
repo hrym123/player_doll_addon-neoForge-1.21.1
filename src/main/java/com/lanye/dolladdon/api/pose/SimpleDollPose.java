@@ -68,7 +68,7 @@ public class SimpleDollPose implements DollPose {
                          float[] position,
                          float[] scale) {
         this(name, displayName, headRotation, hatRotation, bodyRotation, rightArmRotation, leftArmRotation, rightLegRotation, leftLegRotation, position, scale,
-             null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+             null, null, null, null, null, null, null, null, null, null, null, null, null, null);
     }
     
     public SimpleDollPose(String name,
