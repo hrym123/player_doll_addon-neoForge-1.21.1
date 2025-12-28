@@ -92,13 +92,11 @@ public class PlayerDollAddonClient {
                 Pack.ResourcesSupplier resourcesSupplier = new Pack.ResourcesSupplier() {
                     @Override
                     public net.minecraft.server.packs.PackResources openPrimary(PackLocationInfo locationInfo) {
-                        PlayerDollAddon.LOGGER.debug("动态资源包 openPrimary 被调用");
                         return resourcePack;
                     }
                     
                     @Override
                     public net.minecraft.server.packs.PackResources openFull(PackLocationInfo locationInfo, Pack.Metadata metadata) {
-                        PlayerDollAddon.LOGGER.debug("动态资源包 openFull 被调用");
                         return resourcePack;
                     }
                 };
@@ -118,7 +116,6 @@ public class PlayerDollAddonClient {
                     // 先接受包，确保它被添加到列表的最前面
                     packConsumer.accept(pack);
                     PlayerDollAddon.LOGGER.info("动态资源包已添加到资源管理器，纹理数量: {}", com.lanye.dolladdon.util.DynamicTextureManager.TEXTURE_PATHS.size());
-                    PlayerDollAddon.LOGGER.warn("【资源包注册】动态资源包 packId: {}, 位置: TOP, required: true", packLocationInfo.id());
                 });
                 
                 PlayerDollAddon.LOGGER.info("已注册动态资源包，当前注册的纹理数量: {}", com.lanye.dolladdon.util.DynamicTextureManager.TEXTURE_PATHS.size());

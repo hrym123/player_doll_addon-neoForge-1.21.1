@@ -29,10 +29,5 @@ public class DynamicDollItemRenderer extends BaseDollItemRenderer {
     protected ResourceLocation getSkinLocation() {
         return textureLocation;
     }
-    
-    @Override
-    protected String getLogTag() {
-        return "DynamicDollItemRenderer";
-    }
 }
 

@@ -39,21 +39,11 @@ public class DynamicResourcePack implements PackResources {
     
     @Override
     public IoSupplier<InputStream> getResource(PackType type, ResourceLocation location) {
-        // 对所有资源请求都记录日志，包括模型
-        // 使用 WARN 级别以便更容易看到模型加载请求
         String namespace = location.getNamespace();
         String path = location.getPath();
         
-        // 对于模型资源的请求，使用 ERROR 级别以便更容易看到
-        if (path.startsWith("models/")) {
-            LOGGER.error("【关键模型加载】DynamicResourcePack.getResource 被调用来加载模型: type={}, location={}, path={}", type, location, path);
-        } else {
-            LOGGER.warn("【关键】DynamicResourcePack.getResource 被调用: type={}, location={}", type, location);
-        }
-        
         // 只处理我们mod的资源
         if (!PlayerDollAddon.MODID.equals(namespace)) {
-            LOGGER.debug("资源不属于我们的mod，跳过: {}", location);
             return null;
         }
         
@@ -72,7 +62,6 @@ public class DynamicResourcePack implements PackResources {
         // 模型文件应该已经在编译时生成到 src/main/resources 并打包到 JAR 中
         // Minecraft 会从 JAR 包中加载这些模型文件
         if (path.startsWith("models/")) {
-            LOGGER.debug("模型文件应该从 JAR 包中加载，不通过动态资源包提供: {}", location);
             return null;
         }
         
@@ -86,11 +75,8 @@ public class DynamicResourcePack implements PackResources {
             return;
         }
         
-        LOGGER.debug("listResources 被调用: type={}, namespace={}, path={}", type, namespace, path);
-        
         // 列出纹理资源
         if (path.equals("textures/entity")) {
-            LOGGER.debug("列出纹理资源，当前注册的纹理数量: {}", DynamicTextureManager.TEXTURE_PATHS.size());
             for (var entry : DynamicTextureManager.TEXTURE_PATHS.entrySet()) {
                 ResourceLocation location = entry.getKey();
                 if (location.getNamespace().equals(namespace) && location.getPath().startsWith("textures/entity/")) {
@@ -98,7 +84,6 @@ public class DynamicResourcePack implements PackResources {
                     if (Files.exists(filePath) && Files.isRegularFile(filePath)) {
                         try {
                             output.accept(location, () -> Files.newInputStream(filePath));
-                            LOGGER.debug("列出纹理资源: {} -> {}", location, filePath);
                         } catch (Exception e) {
                             LOGGER.error("列出纹理资源失败: {}", location, e);
                         }
@@ -113,7 +98,6 @@ public class DynamicResourcePack implements PackResources {
         // 模型文件应该已经在编译时生成到 src/main/resources 并打包到 JAR 中
         // Minecraft 会从 JAR 包中自动发现这些模型文件
         if (path.equals("models/item") || path.equals("models")) {
-            LOGGER.debug("模型资源应该从 JAR 包中加载，不通过动态资源包列出: {}", path);
             return;
         }
     }

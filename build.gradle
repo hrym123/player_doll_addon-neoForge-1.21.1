@@ -147,6 +147,49 @@ tasks.withType(ProcessResources).configureEach {
     filteringCharset = 'UTF-8'
 }
 
+// 修复 log4j2 配置文件的编码问题（解决中文乱码）
+tasks.register('fixLog4j2Encoding') {
+    description = '修复 log4j2 配置文件的编码设置为 UTF-8'
+    group = 'build'
+    
+    doLast {
+        def log4j2Files = [
+            file('build/moddev/clientLog4j2.xml'),
+            file('build/moddev/serverLog4j2.xml'),
+            file('build/moddev/dataLog4j2.xml'),
+            file('build/moddev/gameTestServerLog4j2.xml')
+        ]
+        
+        log4j2Files.each { log4j2File ->
+            if (log4j2File.exists()) {
+                def content = log4j2File.text
+                def originalContent = content
+                
+                // 为所有 RollingRandomAccessFile 添加 charset="UTF-8"（如果还没有）
+                // 匹配格式: <RollingRandomAccessFile name="..." fileName="..." filePattern="...">
+                content = content.replaceAll(
+                    /(<RollingRandomAccessFile\s+name="(?:File|DebugFile)"\s+fileName="[^"]*"\s+filePattern="[^"]*")(\s*>)/,
+                    '$1 charset="UTF-8"$2'
+                )
+                
+                // 如果内容被修改，写回文件
+                if (content != originalContent) {
+                    log4j2File.text = content
+                    println "已修复 ${log4j2File.name} 的编码设置"
+                }
+            }
+        }
+    }
+}
+
+// 在所有运行配置准备完成后执行编码修复
+tasks.matching { 
+    it.name.contains('prepareRuns') || 
+    it.name.contains('gen') && it.name.contains('Runs')
+}.configureEach {
+    finalizedBy 'fixLog4j2Encoding'
+}
+
 idea {
     module {
         downloadSources = true

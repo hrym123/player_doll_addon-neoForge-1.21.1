@@ -34,12 +34,6 @@ public abstract class BaseDollItemRenderer extends BlockEntityWithoutLevelRender
      */
     protected abstract ResourceLocation getSkinLocation();
     
-    /**
-     * 获取日志标签（用于调试）
-     * @return 日志标签
-     */
-    protected abstract String getLogTag();
-    
     @Override
     public void renderByItem(ItemStack stack, ItemDisplayContext transformType, PoseStack poseStack,
                              MultiBufferSource bufferSource, int packedLight, int packedOverlay) {
@@ -150,7 +144,7 @@ public abstract class BaseDollItemRenderer extends BlockEntityWithoutLevelRender
             poseStack.scale(0.25F * modelScale, 0.25F * modelScale, -0.25F * modelScale);
         } else {
             // 其他情况（地面、框架等）
-            poseStack.translate(0.5, 0.5, 0.5);
+            poseStack.translate(0.5, 0.6, 0.5);
             poseStack.scale(0.255F * modelScale, 0.25F * modelScale, 0.25F * modelScale);
         }
         
@@ -318,66 +312,67 @@ public abstract class BaseDollItemRenderer extends BlockEntityWithoutLevelRender
         }
         
         // 从custom_data组件读取NBT
+        com.lanye.dolladdon.PlayerDollAddon.LOGGER.debug("[物品渲染] 开始从NBT读取姿态，物品: {}", stack.getItem());
         var customData = stack.get(net.minecraft.core.component.DataComponents.CUSTOM_DATA);
         if (customData == null) {
+            com.lanye.dolladdon.PlayerDollAddon.LOGGER.debug("[物品渲染] ❌ custom_data组件为空，使用默认姿态");
             return getDefaultPose();
         }
         
         var dataTag = customData.copyTag();
-        if (dataTag == null || !dataTag.contains("EntityData")) {
+        if (dataTag == null) {
+            com.lanye.dolladdon.PlayerDollAddon.LOGGER.debug("[物品渲染] ❌ dataTag为空，使用默认姿态");
+            return getDefaultPose();
+        }
+        
+        com.lanye.dolladdon.PlayerDollAddon.LOGGER.debug("[物品渲染] 读取到custom_data内容: {}", dataTag);
+        
+        if (!dataTag.contains("EntityData")) {
+            com.lanye.dolladdon.PlayerDollAddon.LOGGER.debug("[物品渲染] ❌ 未找到EntityData标签，使用默认姿态");
             return getDefaultPose();
         }
         
         net.minecraft.nbt.CompoundTag entityTag = dataTag.getCompound("EntityData");
+        com.lanye.dolladdon.PlayerDollAddon.LOGGER.debug("[物品渲染] 读取到EntityData内容: {}", entityTag);
         
         // 优先检查是否有动作名称
+        // 注意：对于物品渲染，动作应该显示第一帧（tick=0）的姿态
+        // 因为动作是动态的，物品应该显示静态的姿态
         if (entityTag.contains("ActionName", net.minecraft.nbt.Tag.TAG_STRING)) {
             String actionName = entityTag.getString("ActionName");
+            com.lanye.dolladdon.PlayerDollAddon.LOGGER.debug("[物品渲染] 检测到动作名称: {}", actionName);
             DollAction action = PoseActionManager.getAction(actionName);
             if (action != null) {
-                // 优先使用保存的ActionTick，如果没有则使用游戏时间计算
-                int actionTick;
-                if (entityTag.contains("ActionTick")) {
-                    // 使用保存的tick（物品渲染时，应该显示保存时的状态，而不是继续播放）
-                    int savedTick = entityTag.getInt("ActionTick");
-                    // 对于物品渲染，直接使用保存的tick，不继续播放动画
-                    // 这样物品显示的姿态就和破坏时的实体姿态一致
-                    actionTick = Math.min(savedTick, action.getDuration() - 1);
-                } else {
-                    // 如果没有保存tick，使用游戏时间计算（向后兼容）
-                    long gameTime = 0;
-                    if (Minecraft.getInstance().level != null) {
-                        gameTime = Minecraft.getInstance().level.getGameTime();
-                    } else {
-                        gameTime = System.currentTimeMillis() / 50;
-                    }
-                    
-                    if (action.isLooping()) {
-                        actionTick = (int)(gameTime % action.getDuration());
-                    } else {
-                        actionTick = (int)Math.min(gameTime, action.getDuration() - 1);
-                    }
-                }
-                
-                DollPose actionPose = action.getPoseAt(actionTick);
+                // 物品渲染时，动作显示第一帧的姿态
+                DollPose actionPose = action.getPoseAt(0);
                 if (actionPose != null) {
+                    com.lanye.dolladdon.PlayerDollAddon.LOGGER.debug("[物品渲染] ✅ 使用动作的第一帧姿态: {}", actionName);
                     return actionPose;
+                } else {
+                    com.lanye.dolladdon.PlayerDollAddon.LOGGER.warn("[物品渲染] ⚠️ 动作的第一帧姿态为空: {}", actionName);
                 }
+            } else {
+                com.lanye.dolladdon.PlayerDollAddon.LOGGER.warn("[物品渲染] ⚠️ 动作不存在: {}", actionName);
             }
         }
         
         // 优先使用姿态名称（如果保存了）
         if (entityTag.contains("PoseName", net.minecraft.nbt.Tag.TAG_STRING)) {
             String poseName = entityTag.getString("PoseName");
+            com.lanye.dolladdon.PlayerDollAddon.LOGGER.debug("[物品渲染] 检测到姿态名称: {}", poseName);
             DollPose pose = PoseActionManager.getPose(poseName);
             if (pose != null) {
+                com.lanye.dolladdon.PlayerDollAddon.LOGGER.debug("[物品渲染] ✅ 使用姿态名称恢复姿态: {}", poseName);
                 return pose;
+            } else {
+                com.lanye.dolladdon.PlayerDollAddon.LOGGER.warn("[物品渲染] ⚠️ 姿态不存在: {}", poseName);
             }
         }
         
         // 如果没有姿态名称，尝试使用姿态索引（向后兼容）
         if (entityTag.contains("PoseIndex", net.minecraft.nbt.Tag.TAG_INT)) {
             int poseIndex = entityTag.getInt("PoseIndex");
+            com.lanye.dolladdon.PlayerDollAddon.LOGGER.debug("[物品渲染] 检测到姿态索引: {}", poseIndex);
             if (poseIndex >= 0) {
                 java.util.List<String> poseNames = new java.util.ArrayList<>();
                 java.util.Map<String, DollPose> allPoses = PoseActionManager.getAllPoses();
@@ -388,13 +383,21 @@ public abstract class BaseDollItemRenderer extends BlockEntityWithoutLevelRender
                     String poseName = poseNames.get(poseIndex);
                     DollPose pose = PoseActionManager.getPose(poseName);
                     if (pose != null) {
+                        com.lanye.dolladdon.PlayerDollAddon.LOGGER.debug("[物品渲染] ✅ 通过索引恢复姿态: {} (索引: {})", poseName, poseIndex);
                         return pose;
+                    } else {
+                        com.lanye.dolladdon.PlayerDollAddon.LOGGER.warn("[物品渲染] ⚠️ 通过索引找到的姿态不存在: {} (索引: {})", poseName, poseIndex);
                     }
+                } else {
+                    com.lanye.dolladdon.PlayerDollAddon.LOGGER.warn("[物品渲染] ⚠️ 姿态索引超出范围: {} (总数: {})", poseIndex, poseNames.size());
                 }
+            } else {
+                com.lanye.dolladdon.PlayerDollAddon.LOGGER.debug("[物品渲染] 姿态索引无效: {}", poseIndex);
             }
         }
         
         // 默认返回standing姿态
+        com.lanye.dolladdon.PlayerDollAddon.LOGGER.debug("[物品渲染] 未找到有效的姿态信息，使用默认姿态");
         return getDefaultPose();
     }
     

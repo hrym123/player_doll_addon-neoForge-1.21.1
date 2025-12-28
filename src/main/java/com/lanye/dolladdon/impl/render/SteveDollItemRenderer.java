@@ -22,10 +22,5 @@ public class SteveDollItemRenderer extends BaseDollItemRenderer {
     protected ResourceLocation getSkinLocation() {
         return PlayerSkinUtil.getSteveSkin();
     }
-    
-    @Override
-    protected String getLogTag() {
-        return "SteveDollItemRenderer";
-    }
 }
 

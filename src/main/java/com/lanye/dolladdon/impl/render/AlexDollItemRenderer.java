@@ -22,10 +22,5 @@ public class AlexDollItemRenderer extends BaseDollItemRenderer {
     protected ResourceLocation getSkinLocation() {
         return PlayerSkinUtil.getAlexSkin();
     }
-    
-    @Override
-    protected String getLogTag() {
-        return "AlexDollItemRenderer";
-    }
 }
 
