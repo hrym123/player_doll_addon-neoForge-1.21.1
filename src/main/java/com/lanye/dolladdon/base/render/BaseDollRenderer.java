@@ -42,8 +42,7 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
         poseStack.mulPose(Axis.YP.rotationDegrees(180.0F - yRot));
         poseStack.mulPose(Axis.XP.rotationDegrees(xRot));
         
-        // 缩小模型大小，使高度为1.125（玩家模型高度约1.8，缩放比例 = 1.125 / 1.8 = 0.625）
-        float modelScale = 0.5F; // 约 0.625F
+        float modelScale = 0.5F; 
         
         // 获取皮肤位置（由子类实现）
         ResourceLocation skinLocation = getSkinLocation(entity);
@@ -63,7 +62,7 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
         // 由于scale以当前位置为中心，最终模型中心在yOffset，模型底部在 yOffset - 0.45 * scale[1]
         // 为了保持模型底部对齐碰撞箱底部（y=0），需要：yOffset = 0.45 * scale[1]
         // 注意：这里0.45 = 1.8 * modelScale / 2 = 0.9 / 2
-        float yOffset = 0.45f * scale[1];
+        float yOffset = 0.75f * scale[1];
         
         poseStack.translate(0.0, yOffset, 0.0);
         
