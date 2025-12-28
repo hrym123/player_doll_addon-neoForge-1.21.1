@@ -46,12 +46,27 @@ public class PoseLoader {
      *   "rightLeg": [0, 0, 0],
      *   "leftLeg": [0, 0, 0],
      *   "position": [0.0, 0.0, 0.0],  // 可选，默认 [0.0, 0.0, 0.0]
-     *   "scale": [1.0, 1.0, 1.0]       // 可选，默认 [1.0, 1.0, 1.0]
+     *   "scale": [1.0, 1.0, 1.0],     // 可选，默认 [1.0, 1.0, 1.0]
+     *   "headPosition": [0.0, 0.0, 0.0],  // 可选，头部位置偏移
+     *   "headScale": [1.0, 1.0, 1.0],      // 可选，头部缩放
+     *   "hatPosition": [0.0, 0.0, 0.0],    // 可选，帽子位置偏移
+     *   "hatScale": [1.0, 1.0, 1.0],       // 可选，帽子缩放
+     *   "bodyPosition": [0.0, 0.0, 0.0],   // 可选，身体位置偏移
+     *   "bodyScale": [1.0, 1.0, 1.0],      // 可选，身体缩放
+     *   "rightArmPosition": [0.0, 0.0, 0.0], // 可选，右臂位置偏移
+     *   "rightArmScale": [1.0, 1.0, 1.0],     // 可选，右臂缩放
+     *   "leftArmPosition": [0.0, 0.0, 0.0],   // 可选，左臂位置偏移
+     *   "leftArmScale": [1.0, 1.0, 1.0],      // 可选，左臂缩放
+     *   "rightLegPosition": [0.0, 0.0, 0.0], // 可选，右腿位置偏移
+     *   "rightLegScale": [1.0, 1.0, 1.0],     // 可选，右腿缩放
+     *   "leftLegPosition": [0.0, 0.0, 0.0],   // 可选，左腿位置偏移
+     *   "leftLegScale": [1.0, 1.0, 1.0]      // 可选，左腿缩放
      * }
      * 
      * 注意：
      * - 旋转值使用角度（360度制），会在内部自动转换为弧度
-     * - position 和 scale 字段是可选的，如果省略则使用默认值
+     * - position、scale 和各部件的位置、缩放字段都是可选的，如果省略则使用默认值
+     * - 位置偏移的 Y 轴：正数向上，负数向下（与之前相反）
      */
     public static DollPose loadPose(ResourceManager resourceManager, String name) {
         ResourceLocation location = ResourceLocation.fromNamespaceAndPath(
@@ -98,7 +113,26 @@ public class PoseLoader {
         float[] position = parseFloatArray(json, "position", new float[]{0.0f, 0.0f, 0.0f});
         float[] scale = parseFloatArray(json, "scale", new float[]{1.0f, 1.0f, 1.0f});
         
-        return new SimpleDollPose(name, displayName, head, hat, body, rightArm, leftArm, rightLeg, leftLeg, position, scale);
+        // 解析各部件的位置和缩放
+        float[] headPosition = parseFloatArray(json, "headPosition", new float[]{0.0f, 0.0f, 0.0f});
+        float[] headScale = parseFloatArray(json, "headScale", new float[]{1.0f, 1.0f, 1.0f});
+        float[] hatPosition = parseFloatArray(json, "hatPosition", new float[]{0.0f, 0.0f, 0.0f});
+        float[] hatScale = parseFloatArray(json, "hatScale", new float[]{1.0f, 1.0f, 1.0f});
+        float[] bodyPosition = parseFloatArray(json, "bodyPosition", new float[]{0.0f, 0.0f, 0.0f});
+        float[] bodyScale = parseFloatArray(json, "bodyScale", new float[]{1.0f, 1.0f, 1.0f});
+        float[] rightArmPosition = parseFloatArray(json, "rightArmPosition", new float[]{0.0f, 0.0f, 0.0f});
+        float[] rightArmScale = parseFloatArray(json, "rightArmScale", new float[]{1.0f, 1.0f, 1.0f});
+        float[] leftArmPosition = parseFloatArray(json, "leftArmPosition", new float[]{0.0f, 0.0f, 0.0f});
+        float[] leftArmScale = parseFloatArray(json, "leftArmScale", new float[]{1.0f, 1.0f, 1.0f});
+        float[] rightLegPosition = parseFloatArray(json, "rightLegPosition", new float[]{0.0f, 0.0f, 0.0f});
+        float[] rightLegScale = parseFloatArray(json, "rightLegScale", new float[]{1.0f, 1.0f, 1.0f});
+        float[] leftLegPosition = parseFloatArray(json, "leftLegPosition", new float[]{0.0f, 0.0f, 0.0f});
+        float[] leftLegScale = parseFloatArray(json, "leftLegScale", new float[]{1.0f, 1.0f, 1.0f});
+        
+        return new SimpleDollPose(name, displayName, head, hat, body, rightArm, leftArm, rightLeg, leftLeg, position, scale,
+                                  headPosition, headScale, hatPosition, hatScale, bodyPosition, bodyScale,
+                                  rightArmPosition, rightArmScale, leftArmPosition, leftArmScale,
+                                  rightLegPosition, rightLegScale, leftLegPosition, leftLegScale);
     }
     
     /**

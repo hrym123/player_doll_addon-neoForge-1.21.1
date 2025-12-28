@@ -78,5 +78,117 @@ public interface DollPose {
     default float[] getScale() {
         return new float[]{1.0f, 1.0f, 1.0f};
     }
+    
+    /**
+     * 获取头部位置偏移
+     * @return [x, y, z] 位置偏移，默认[0.0, 0.0, 0.0]
+     */
+    default float[] getHeadPosition() {
+        return new float[]{0.0f, 0.0f, 0.0f};
+    }
+    
+    /**
+     * 获取头部缩放大小
+     * @return [x, y, z] 缩放大小，默认[1.0, 1.0, 1.0]
+     */
+    default float[] getHeadScale() {
+        return new float[]{1.0f, 1.0f, 1.0f};
+    }
+    
+    /**
+     * 获取帽子位置偏移
+     * @return [x, y, z] 位置偏移，默认[0.0, 0.0, 0.0]
+     */
+    default float[] getHatPosition() {
+        return new float[]{0.0f, 0.0f, 0.0f};
+    }
+    
+    /**
+     * 获取帽子缩放大小
+     * @return [x, y, z] 缩放大小，默认[1.0, 1.0, 1.0]
+     */
+    default float[] getHatScale() {
+        return new float[]{1.0f, 1.0f, 1.0f};
+    }
+    
+    /**
+     * 获取身体位置偏移
+     * @return [x, y, z] 位置偏移，默认[0.0, 0.0, 0.0]
+     */
+    default float[] getBodyPosition() {
+        return new float[]{0.0f, 0.0f, 0.0f};
+    }
+    
+    /**
+     * 获取身体缩放大小
+     * @return [x, y, z] 缩放大小，默认[1.0, 1.0, 1.0]
+     */
+    default float[] getBodyScale() {
+        return new float[]{1.0f, 1.0f, 1.0f};
+    }
+    
+    /**
+     * 获取右臂位置偏移
+     * @return [x, y, z] 位置偏移，默认[0.0, 0.0, 0.0]
+     */
+    default float[] getRightArmPosition() {
+        return new float[]{0.0f, 0.0f, 0.0f};
+    }
+    
+    /**
+     * 获取右臂缩放大小
+     * @return [x, y, z] 缩放大小，默认[1.0, 1.0, 1.0]
+     */
+    default float[] getRightArmScale() {
+        return new float[]{1.0f, 1.0f, 1.0f};
+    }
+    
+    /**
+     * 获取左臂位置偏移
+     * @return [x, y, z] 位置偏移，默认[0.0, 0.0, 0.0]
+     */
+    default float[] getLeftArmPosition() {
+        return new float[]{0.0f, 0.0f, 0.0f};
+    }
+    
+    /**
+     * 获取左臂缩放大小
+     * @return [x, y, z] 缩放大小，默认[1.0, 1.0, 1.0]
+     */
+    default float[] getLeftArmScale() {
+        return new float[]{1.0f, 1.0f, 1.0f};
+    }
+    
+    /**
+     * 获取右腿位置偏移
+     * @return [x, y, z] 位置偏移，默认[0.0, 0.0, 0.0]
+     */
+    default float[] getRightLegPosition() {
+        return new float[]{0.0f, 0.0f, 0.0f};
+    }
+    
+    /**
+     * 获取右腿缩放大小
+     * @return [x, y, z] 缩放大小，默认[1.0, 1.0, 1.0]
+     */
+    default float[] getRightLegScale() {
+        return new float[]{1.0f, 1.0f, 1.0f};
+    }
+    
+    /**
+     * 获取左腿位置偏移
+     * @return [x, y, z] 位置偏移，默认[0.0, 0.0, 0.0]
+     */
+    default float[] getLeftLegPosition() {
+        return new float[]{0.0f, 0.0f, 0.0f};
+    }
+    
+    /**
+     * 获取左腿缩放大小
+     * @return [x, y, z] 缩放大小，默认[1.0, 1.0, 1.0]
+     */
+    default float[] getLeftLegScale() {
+        return new float[]{1.0f, 1.0f, 1.0f};
+    }
 }
 
