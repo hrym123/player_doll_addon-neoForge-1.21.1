@@ -2,7 +2,9 @@ package com.lanye.dolladdon.impl.entity;
 
 import com.lanye.dolladdon.base.entity.BaseDollEntity;
 import com.lanye.dolladdon.init.ModEntities;
+import com.lanye.dolladdon.init.ModItems;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 
 /**
@@ -17,6 +19,11 @@ public class AlexDollEntity extends BaseDollEntity {
     
     public AlexDollEntity(Level level, double x, double y, double z) {
         super(ModEntities.ALEX_DOLL.get(), level, x, y, z);
+    }
+    
+    @Override
+    protected ItemStack getDollItemStack() {
+        return new ItemStack(ModItems.ALEX_DOLL.get());
     }
 }
 

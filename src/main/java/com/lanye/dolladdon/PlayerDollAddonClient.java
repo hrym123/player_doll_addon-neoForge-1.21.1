@@ -8,6 +8,7 @@ import com.lanye.dolladdon.init.ModEntities;
 import com.lanye.dolladdon.init.ModItems;
 import com.lanye.dolladdon.util.DynamicDollLoader;
 import com.lanye.dolladdon.util.DynamicResourcePack;
+import com.lanye.dolladdon.util.PoseActionManager;
 import net.minecraft.client.resources.model.ModelResourceLocation;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
@@ -26,6 +27,8 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.event.AddPackFindersEvent;
+import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
+import net.minecraft.client.Minecraft;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collections;
@@ -124,6 +127,27 @@ public class PlayerDollAddonClient {
                 e.printStackTrace();
             }
         }
+    }
+    
+    /**
+     * 在客户端登录后加载姿态和动作资源
+     */
+    @SubscribeEvent
+    public static void onClientPlayerLoggedIn(ClientPlayerNetworkEvent.LoggingIn event) {
+        // 延迟加载，确保资源管理器已完全初始化
+        net.minecraft.Util.backgroundExecutor().execute(() -> {
+            try {
+                Thread.sleep(100); // 等待资源管理器完全初始化
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            
+            net.minecraft.Util.ioPool().execute(() -> {
+                if (Minecraft.getInstance().getResourceManager() != null) {
+                    PoseActionManager.loadResources(Minecraft.getInstance().getResourceManager());
+                }
+            });
+        });
     }
 }
 

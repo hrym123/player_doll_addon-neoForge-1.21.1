@@ -1,0 +1,23 @@
+{
+  "name": "sit",
+  "looping": false,
+  "keyframes": [
+    {
+      "tick": 0,
+      "pose": "standing"
+    },
+    {
+      "tick": 5,
+      "pose": {
+        "name": "sitting",
+        "head": [0, 0, 0],
+        "body": [0, 0, 0],
+        "rightArm": [-0.6981317, 0, 0],
+        "leftArm": [0.6981317, 0, 0],
+        "rightLeg": [1.5708, 0, 0],
+        "leftLeg": [1.5708, 0, 0]
+      }
+    }
+  ]
+}
+

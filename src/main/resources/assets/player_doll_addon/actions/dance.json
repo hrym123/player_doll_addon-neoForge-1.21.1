@@ -1,0 +1,39 @@
+{
+  "name": "dance",
+  "looping": true,
+  "keyframes": [
+    {
+      "tick": 0,
+      "pose": {
+        "name": "dance_pose_1",
+        "head": [0, 0, 0],
+        "body": [0, 0, 0],
+        "rightArm": [-1.5708, 0, 0],
+        "leftArm": [1.5708, 0, 0],
+        "rightLeg": [0, 0, 0],
+        "leftLeg": [0, 0, 0]
+      }
+    },
+    {
+      "tick": 10,
+      "pose": {
+        "name": "dance_pose_2",
+        "head": [0, 0, 0],
+        "body": [0, 0, 0],
+        "rightArm": [1.5708, 0, 0],
+        "leftArm": [-1.5708, 0, 0],
+        "rightLeg": [0, 0, 0],
+        "leftLeg": [0, 0, 0]
+      }
+    },
+    {
+      "tick": 20,
+      "pose": {
+        "name": "dance_pose_1",
+        "rightArm": [-1.5708, 0, 0],
+        "leftArm": [1.5708, 0, 0]
+      }
+    }
+  ]
+}
+

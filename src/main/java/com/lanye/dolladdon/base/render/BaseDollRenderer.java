@@ -53,14 +53,29 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
         // 获取皮肤位置（由子类实现）
         ResourceLocation skinLocation = getSkinLocation(entity);
         
-        // 设置模型姿态（站立姿态）
-        float headRotX = 0.0F, headRotY = 0.0F, headRotZ = 0.0F;
-        float hatRotX = 0.0F, hatRotY = 0.0F, hatRotZ = 0.0F;
-        float bodyRotX = 0.0F, bodyRotY = 0.0F, bodyRotZ = 0.0F;
-        float rightArmRotX = -0.6981317F, rightArmRotY = 0.0F, rightArmRotZ = 0.0F; // 约 -40 度
-        float leftArmRotX = 0.6981317F, leftArmRotY = 0.0F, leftArmRotZ = 0.0F;   // 约 40 度
-        float rightLegRotX = 0F, rightLegRotY = 0.0F, rightLegRotZ = 0.0F;
-        float leftLegRotX = 0F, leftLegRotY = 0.0F, leftLegRotZ = 0.0F;
+        // 从实体获取当前姿态
+        com.lanye.dolladdon.api.pose.DollPose pose = entity.getCurrentPose();
+        if (pose == null) {
+            // 如果没有姿态，使用默认站立姿态
+            pose = com.lanye.dolladdon.api.pose.SimpleDollPose.createDefaultStandingPose();
+        }
+        
+        // 从姿态获取旋转角度
+        float[] headRot = pose.getHeadRotation();
+        float[] hatRot = pose.getHatRotation();
+        float[] bodyRot = pose.getBodyRotation();
+        float[] rightArmRot = pose.getRightArmRotation();
+        float[] leftArmRot = pose.getLeftArmRotation();
+        float[] rightLegRot = pose.getRightLegRotation();
+        float[] leftLegRot = pose.getLeftLegRotation();
+        
+        float headRotX = headRot[0], headRotY = headRot[1], headRotZ = headRot[2];
+        float hatRotX = hatRot[0], hatRotY = hatRot[1], hatRotZ = hatRot[2];
+        float bodyRotX = bodyRot[0], bodyRotY = bodyRot[1], bodyRotZ = bodyRot[2];
+        float rightArmRotX = rightArmRot[0], rightArmRotY = rightArmRot[1], rightArmRotZ = rightArmRot[2];
+        float leftArmRotX = leftArmRot[0], leftArmRotY = leftArmRot[1], leftArmRotZ = leftArmRot[2];
+        float rightLegRotX = rightLegRot[0], rightLegRotY = rightLegRot[1], rightLegRotZ = rightLegRot[2];
+        float leftLegRotX = leftLegRot[0], leftLegRotY = leftLegRot[1], leftLegRotZ = leftLegRot[2];
         
         playerModel.head.setRotation(headRotX, headRotY, headRotZ);
         playerModel.hat.setRotation(hatRotX, hatRotY, hatRotZ);
