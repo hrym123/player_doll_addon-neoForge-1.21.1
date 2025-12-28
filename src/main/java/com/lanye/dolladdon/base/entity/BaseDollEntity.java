@@ -44,8 +44,9 @@ public abstract class BaseDollEntity extends Entity {
     protected BaseDollEntity(EntityType<? extends BaseDollEntity> entityType, Level level) {
         super(entityType, level);
         this.noPhysics = false; // 有物理碰撞
-        // 默认使用站立姿态
-        this.currentPose = SimpleDollPose.createDefaultStandingPose();
+        // 默认使用standing姿态
+        DollPose standingPose = PoseActionManager.getPose("standing");
+        this.currentPose = standingPose != null ? standingPose : SimpleDollPose.createDefaultStandingPose();
         // 初始化时设置为255（默认姿态）
         if (!level.isClientSide) {
             this.entityData.set(DATA_POSE_INDEX, (byte) 255);
@@ -79,12 +80,34 @@ public abstract class BaseDollEntity extends Entity {
             DollAction action = PoseActionManager.getAction(actionName);
             if (action != null) {
                 setAction(action);
-                // 动作已设置，不需要再设置姿态索引
+                // 动作已设置，不需要再设置姿态
                 return;
             }
         }
         
-        // 如果没有动作，恢复姿态索引
+        // 优先使用姿态名称恢复（如果保存了）
+        if (tag.contains("PoseName", net.minecraft.nbt.Tag.TAG_STRING)) {
+            String poseName = tag.getString("PoseName");
+            DollPose pose = PoseActionManager.getPose(poseName);
+            if (pose != null) {
+                setPose(pose);
+                // 更新currentPoseIndex（如果可能）
+                List<String> poseNames = getAvailablePoseNames();
+                int index = poseNames.indexOf(poseName);
+                if (index >= 0) {
+                    this.currentPoseIndex = index;
+                    // 同步到客户端
+                    if (currentPoseIndex < 255) {
+                        this.entityData.set(DATA_POSE_INDEX, (byte) (currentPoseIndex & 0xFF));
+                    } else {
+                        this.entityData.set(DATA_POSE_INDEX, (byte) 255);
+                    }
+                }
+                return;
+            }
+        }
+        
+        // 如果没有姿态名称，尝试使用姿态索引（向后兼容）
         if (tag.contains("PoseIndex")) {
             this.currentPoseIndex = tag.getInt("PoseIndex");
             // 加载时恢复姿态
@@ -100,12 +123,22 @@ public abstract class BaseDollEntity extends Entity {
     
     @Override
     protected void addAdditionalSaveData(net.minecraft.nbt.CompoundTag tag) {
-        // 保存当前姿态索引
-        tag.putInt("PoseIndex", this.currentPoseIndex);
-        
-        // 如果当前有动作，也保存动作名称
+        // 如果当前有动作，保存动作名称
         if (currentAction != null) {
             tag.putString("ActionName", currentAction.getName());
+        }
+        
+        // 保存当前姿态名称（而不是索引）
+        if (currentPose != null) {
+            String poseName = currentPose.getName();
+            if (poseName != null && !poseName.isEmpty()) {
+                tag.putString("PoseName", poseName);
+            }
+        }
+        
+        // 为了向后兼容，也保存姿态索引
+        if (this.currentPoseIndex >= 0) {
+            tag.putInt("PoseIndex", this.currentPoseIndex);
         }
     }
     
@@ -123,9 +156,10 @@ public abstract class BaseDollEntity extends Entity {
                     loadPoseByIndex();
                 }
             } else if (currentPoseIndex != -1) {
-                // 如果同步值为255，使用默认姿态
+                // 如果同步值为255，使用standing姿态
                 currentPoseIndex = -1;
-                currentPose = SimpleDollPose.createDefaultStandingPose();
+                DollPose standingPose = PoseActionManager.getPose("standing");
+                currentPose = standingPose != null ? standingPose : SimpleDollPose.createDefaultStandingPose();
             }
         }
         
@@ -143,8 +177,9 @@ public abstract class BaseDollEntity extends Entity {
             if (!currentAction.isLooping() && actionTick >= currentAction.getDuration()) {
                 currentAction = null;
                 actionTick = 0;
-                // 恢复默认姿态
-                currentPose = SimpleDollPose.createDefaultStandingPose();
+                // 恢复standing姿态
+                DollPose standingPose = PoseActionManager.getPose("standing");
+                currentPose = standingPose != null ? standingPose : SimpleDollPose.createDefaultStandingPose();
             } else if (currentAction.isLooping()) {
                 // 循环动作，重置tick
                 if (actionTick >= currentAction.getDuration()) {
@@ -225,24 +260,57 @@ public abstract class BaseDollEntity extends Entity {
         net.minecraft.nbt.CompoundTag entityTag = new net.minecraft.nbt.CompoundTag();
         this.addAdditionalSaveData(entityTag);
         
-        // 使用数据组件API保存NBT
-        net.minecraft.nbt.Tag tag = itemStack.save(this.level().registryAccess());
-        net.minecraft.nbt.CompoundTag itemTag;
-        if (tag instanceof net.minecraft.nbt.CompoundTag) {
-            itemTag = (net.minecraft.nbt.CompoundTag) tag;
-        } else {
-            itemTag = new net.minecraft.nbt.CompoundTag();
-        }
-        itemTag.put("EntityData", entityTag);
-        // 从NBT重新加载ItemStack
-        try {
-            java.util.Optional<ItemStack> parsed = ItemStack.parse(this.level().registryAccess(), itemTag);
-            if (parsed.isPresent()) {
-                itemStack = parsed.get();
+        // 使用数据组件API保存NBT到custom_data组件
+        net.minecraft.nbt.CompoundTag customDataTag = new net.minecraft.nbt.CompoundTag();
+        customDataTag.put("EntityData", entityTag);
+        
+        // 设置custom_data组件（合并现有的custom_data，如果有的话）
+        var existingData = itemStack.get(net.minecraft.core.component.DataComponents.CUSTOM_DATA);
+        net.minecraft.nbt.CompoundTag finalData;
+        if (existingData != null) {
+            var existingTag = existingData.copyTag();
+            if (existingTag != null) {
+                finalData = existingTag;
+                finalData.put("EntityData", entityTag);
+            } else {
+                finalData = customDataTag;
             }
+        } else {
+            finalData = customDataTag;
+        }
+        
+        // 使用 CustomData 设置 custom_data 组件（使用反射创建，因为包路径可能不同）
+        try {
+            Class<?> customDataClass = Class.forName("net.minecraft.core.component.types.CustomData");
+            java.lang.reflect.Method ofMethod = customDataClass.getMethod("of", net.minecraft.nbt.CompoundTag.class);
+            Object customDataComponent = ofMethod.invoke(null, finalData);
+            // 使用反射调用 set 方法，避免类型转换问题
+            java.lang.reflect.Method setMethod = ItemStack.class.getMethod("set", 
+                net.minecraft.core.component.DataComponentType.class, Object.class);
+            setMethod.invoke(itemStack, net.minecraft.core.component.DataComponents.CUSTOM_DATA, customDataComponent);
+            com.lanye.dolladdon.PlayerDollAddon.LOGGER.debug("成功保存NBT到custom_data组件（反射方式）");
         } catch (Exception e) {
-            // 如果解析失败，使用原始物品堆
-            com.lanye.dolladdon.PlayerDollAddon.LOGGER.warn("无法从NBT加载物品堆，使用原始物品堆", e);
+            // 如果反射失败，尝试使用其他方式
+            com.lanye.dolladdon.PlayerDollAddon.LOGGER.warn("无法通过反射创建CustomData，尝试使用ItemStack.save/parse", e);
+            try {
+                // 使用 ItemStack.save() 和 ItemStack.parse() 作为后备方案
+                net.minecraft.nbt.Tag tag = itemStack.save(this.level().registryAccess());
+                if (tag instanceof net.minecraft.nbt.CompoundTag) {
+                    net.minecraft.nbt.CompoundTag itemTag = (net.minecraft.nbt.CompoundTag) tag;
+                    itemTag.put("custom_data", finalData);
+                    var parsed = ItemStack.parse(this.level().registryAccess(), itemTag);
+                    if (parsed.isPresent()) {
+                        itemStack = parsed.get();
+                        com.lanye.dolladdon.PlayerDollAddon.LOGGER.debug("成功通过ItemStack.save/parse保存NBT");
+                    } else {
+                        com.lanye.dolladdon.PlayerDollAddon.LOGGER.error("ItemStack.parse返回空，NBT保存失败");
+                    }
+                } else {
+                    com.lanye.dolladdon.PlayerDollAddon.LOGGER.error("ItemStack.save返回的不是CompoundTag，NBT保存失败");
+                }
+            } catch (Exception e2) {
+                com.lanye.dolladdon.PlayerDollAddon.LOGGER.error("所有NBT保存方法都失败", e2);
+            }
         }
         
         // 掉落物品
@@ -268,6 +336,7 @@ public abstract class BaseDollEntity extends Entity {
     
     /**
      * 获取所有可用的姿态名称列表
+     * standing姿态始终在列表的第一个位置
      */
     private List<String> getAvailablePoseNames() {
         // 每次都重新获取，因为资源可能在运行时加载
@@ -282,14 +351,21 @@ public abstract class BaseDollEntity extends Entity {
             poseNames.add("default");
         }
         
-        // 确保列表有序
+        // 确保列表有序（字母顺序）
         poseNames.sort(String::compareTo);
+        
+        // 确保standing始终在第一个位置
+        if (poseNames.contains("standing")) {
+            poseNames.remove("standing");
+            poseNames.add(0, "standing");
+        }
         
         return poseNames;
     }
     
     /**
      * 循环切换到下一个姿态
+     * 当处于默认状态（standing）时，第一次切换会跳过standing，直接切换到下一个姿态
      */
     private void cycleToNextPose(Player player) {
         List<String> poseNames = getAvailablePoseNames();
@@ -305,14 +381,29 @@ public abstract class BaseDollEntity extends Entity {
         // 停止当前动作
         stopAction();
         
-        // 如果当前索引无效，重置为0
-        if (currentPoseIndex < 0 || currentPoseIndex >= poseNames.size()) {
+        // 如果当前索引无效（-1表示默认standing状态），需要特殊处理
+        if (currentPoseIndex < 0) {
+            // 处于默认状态，跳过第一个（standing），直接跳到第二个
+            if (poseNames.size() > 1) {
+                currentPoseIndex = 1; // 跳过索引0（standing），直接到索引1
+            } else {
+                // 如果只有一个姿态（standing），则保持在默认状态
+                currentPoseIndex = -1;
+                // 设置为255表示使用默认姿态
+                this.entityData.set(DATA_POSE_INDEX, (byte) 255);
+                if (player != null) {
+                    player.displayClientMessage(Component.literal("只有standing姿态可用"), true);
+                }
+                return;
+            }
+        } else if (currentPoseIndex >= poseNames.size()) {
+            // 索引超出范围，重置为0
             currentPoseIndex = 0;
         } else {
             // 切换到下一个姿态
             currentPoseIndex++;
             if (currentPoseIndex >= poseNames.size()) {
-                currentPoseIndex = 0; // 循环回到第一个
+                currentPoseIndex = 0; // 循环回到第一个（standing）
             }
         }
         
@@ -332,12 +423,17 @@ public abstract class BaseDollEntity extends Entity {
                 player.displayClientMessage(Component.literal("切换到姿态: " + displayName + " (" + (currentPoseIndex + 1) + "/" + poseNames.size() + ")"), true);
             }
         } else {
-            // 如果找不到姿态，使用默认姿态
-            setPose(SimpleDollPose.createDefaultStandingPose());
+            // 如果找不到姿态，使用standing姿态
+            DollPose standingPose = PoseActionManager.getPose("standing");
+            if (standingPose != null) {
+                setPose(standingPose);
+            } else {
+                setPose(SimpleDollPose.createDefaultStandingPose());
+            }
             // 设置为255表示使用默认姿态
             this.entityData.set(DATA_POSE_INDEX, (byte) 255);
             if (player != null) {
-                player.displayClientMessage(Component.literal("切换到默认姿态"), true);
+                player.displayClientMessage(Component.literal("切换到standing姿态"), true);
             }
         }
     }
@@ -354,12 +450,14 @@ public abstract class BaseDollEntity extends Entity {
             if (pose != null) {
                 this.currentPose = pose;
             } else {
-                // 如果找不到姿态，使用默认姿态
-                this.currentPose = SimpleDollPose.createDefaultStandingPose();
+                // 如果找不到姿态，使用standing姿态
+                DollPose standingPose = PoseActionManager.getPose("standing");
+                this.currentPose = standingPose != null ? standingPose : SimpleDollPose.createDefaultStandingPose();
             }
         } else {
-            // 索引无效，使用默认姿态
-            this.currentPose = SimpleDollPose.createDefaultStandingPose();
+            // 索引无效，使用standing姿态
+            DollPose standingPose = PoseActionManager.getPose("standing");
+            this.currentPose = standingPose != null ? standingPose : SimpleDollPose.createDefaultStandingPose();
         }
     }
     
@@ -407,8 +505,9 @@ public abstract class BaseDollEntity extends Entity {
     public void stopAction() {
         this.currentAction = null;
         this.actionTick = 0;
-        // 恢复默认姿态
-        this.currentPose = SimpleDollPose.createDefaultStandingPose();
+        // 恢复standing姿态
+        DollPose standingPose = PoseActionManager.getPose("standing");
+        this.currentPose = standingPose != null ? standingPose : SimpleDollPose.createDefaultStandingPose();
     }
 }
 

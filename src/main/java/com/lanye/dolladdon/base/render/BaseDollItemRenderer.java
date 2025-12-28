@@ -150,8 +150,8 @@ public abstract class BaseDollItemRenderer extends BlockEntityWithoutLevelRender
             poseStack.scale(0.25F * modelScale, 0.25F * modelScale, -0.25F * modelScale);
         } else {
             // 其他情况（地面、框架等）
-            poseStack.translate(0.0, 0.0, 0.0);
-            poseStack.scale(0.5F * modelScale, 0.5F * modelScale, 0.5F * modelScale);
+            poseStack.translate(0.5, 0.5, 0.5);
+            poseStack.scale(0.255F * modelScale, 0.25F * modelScale, 0.25F * modelScale);
         }
         
         // 翻转模型（玩家模型需要翻转才能正确显示）
@@ -312,48 +312,51 @@ public abstract class BaseDollItemRenderer extends BlockEntityWithoutLevelRender
                     registryAccess = Minecraft.getInstance().getConnection().registryAccess();
                 }
             } catch (Exception e) {
-                // 如果无法获取，返回默认姿态
-                return SimpleDollPose.createDefaultStandingPose();
+                // 如果无法获取，返回standing姿态
+                return getDefaultPose();
             }
         }
         
-        if (registryAccess == null) {
-            return SimpleDollPose.createDefaultStandingPose();
+        // 从custom_data组件读取NBT
+        var customData = stack.get(net.minecraft.core.component.DataComponents.CUSTOM_DATA);
+        if (customData == null) {
+            return getDefaultPose();
         }
         
-        net.minecraft.nbt.Tag tag = stack.save(registryAccess);
-        if (!(tag instanceof net.minecraft.nbt.CompoundTag)) {
-            return SimpleDollPose.createDefaultStandingPose();
+        var dataTag = customData.copyTag();
+        if (dataTag == null || !dataTag.contains("EntityData")) {
+            return getDefaultPose();
         }
         
-        net.minecraft.nbt.CompoundTag itemTag = (net.minecraft.nbt.CompoundTag) tag;
-        if (!itemTag.contains("EntityData")) {
-            return SimpleDollPose.createDefaultStandingPose();
-        }
-        
-        net.minecraft.nbt.CompoundTag entityTag = itemTag.getCompound("EntityData");
+        net.minecraft.nbt.CompoundTag entityTag = dataTag.getCompound("EntityData");
         
         // 优先检查是否有动作名称
         if (entityTag.contains("ActionName", net.minecraft.nbt.Tag.TAG_STRING)) {
             String actionName = entityTag.getString("ActionName");
             DollAction action = PoseActionManager.getAction(actionName);
             if (action != null) {
-                // 计算动作的当前tick（基于游戏时间）
-                long gameTime = 0;
-                if (Minecraft.getInstance().level != null) {
-                    gameTime = Minecraft.getInstance().level.getGameTime();
-                } else {
-                    // 如果没有世界，使用系统时间作为后备（每50ms = 1 tick）
-                    gameTime = System.currentTimeMillis() / 50;
-                }
-                
-                // 计算当前动作的tick（考虑循环）
+                // 优先使用保存的ActionTick，如果没有则使用游戏时间计算
                 int actionTick;
-                if (action.isLooping()) {
-                    actionTick = (int)(gameTime % action.getDuration());
+                if (entityTag.contains("ActionTick")) {
+                    // 使用保存的tick（物品渲染时，应该显示保存时的状态，而不是继续播放）
+                    int savedTick = entityTag.getInt("ActionTick");
+                    // 对于物品渲染，直接使用保存的tick，不继续播放动画
+                    // 这样物品显示的姿态就和破坏时的实体姿态一致
+                    actionTick = Math.min(savedTick, action.getDuration() - 1);
                 } else {
-                    // 非循环动作，只播放一次
-                    actionTick = (int)Math.min(gameTime, action.getDuration() - 1);
+                    // 如果没有保存tick，使用游戏时间计算（向后兼容）
+                    long gameTime = 0;
+                    if (Minecraft.getInstance().level != null) {
+                        gameTime = Minecraft.getInstance().level.getGameTime();
+                    } else {
+                        gameTime = System.currentTimeMillis() / 50;
+                    }
+                    
+                    if (action.isLooping()) {
+                        actionTick = (int)(gameTime % action.getDuration());
+                    } else {
+                        actionTick = (int)Math.min(gameTime, action.getDuration() - 1);
+                    }
                 }
                 
                 DollPose actionPose = action.getPoseAt(actionTick);
@@ -363,7 +366,16 @@ public abstract class BaseDollItemRenderer extends BlockEntityWithoutLevelRender
             }
         }
         
-        // 如果没有动作，检查姿态索引
+        // 优先使用姿态名称（如果保存了）
+        if (entityTag.contains("PoseName", net.minecraft.nbt.Tag.TAG_STRING)) {
+            String poseName = entityTag.getString("PoseName");
+            DollPose pose = PoseActionManager.getPose(poseName);
+            if (pose != null) {
+                return pose;
+            }
+        }
+        
+        // 如果没有姿态名称，尝试使用姿态索引（向后兼容）
         if (entityTag.contains("PoseIndex", net.minecraft.nbt.Tag.TAG_INT)) {
             int poseIndex = entityTag.getInt("PoseIndex");
             if (poseIndex >= 0) {
@@ -382,7 +394,19 @@ public abstract class BaseDollItemRenderer extends BlockEntityWithoutLevelRender
             }
         }
         
-        // 默认返回站立姿态
+        // 默认返回standing姿态
+        return getDefaultPose();
+    }
+    
+    /**
+     * 获取默认姿态（standing，如果不存在则使用createDefaultStandingPose）
+     */
+    private DollPose getDefaultPose() {
+        DollPose standingPose = PoseActionManager.getPose("standing");
+        if (standingPose != null) {
+            return standingPose;
+        }
+        // 如果standing姿态不存在，回退到createDefaultStandingPose
         return SimpleDollPose.createDefaultStandingPose();
     }
 }
