@@ -48,6 +48,16 @@ public abstract class BaseDollItemRenderer extends BlockEntityWithoutLevelRender
         // 从NBT读取动作或姿态
         DollPose pose = getPoseFromNBT(stack);
         
+        // 应用姿态的位置和大小
+        float[] position = pose.getPosition();
+        float[] scale = pose.getScale();
+        if (position[0] != 0.0f || position[1] != 0.0f || position[2] != 0.0f) {
+            poseStack.translate(position[0], position[1], position[2]);
+        }
+        if (scale[0] != 1.0f || scale[1] != 1.0f || scale[2] != 1.0f) {
+            poseStack.scale(scale[0], scale[1], scale[2]);
+        }
+        
         // 从姿态获取旋转角度
         float[] headRot = pose.getHeadRotation();
         float[] hatRot = pose.getHatRotation();

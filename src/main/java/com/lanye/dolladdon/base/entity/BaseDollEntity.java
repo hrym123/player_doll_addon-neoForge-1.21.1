@@ -18,6 +18,7 @@ import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
@@ -51,6 +52,8 @@ public abstract class BaseDollEntity extends Entity {
         if (!level.isClientSide) {
             this.entityData.set(DATA_POSE_INDEX, (byte) 255);
         }
+        // 初始化碰撞箱
+        updateBoundingBox();
     }
     
     protected BaseDollEntity(EntityType<? extends BaseDollEntity> entityType, Level level, double x, double y, double z) {
@@ -170,12 +173,16 @@ public abstract class BaseDollEntity extends Entity {
                 if (index != currentPoseIndex) {
                     currentPoseIndex = index;
                     loadPoseByIndex();
+                    // 姿态改变时更新碰撞箱
+                    updateBoundingBox();
                 }
             } else if (currentPoseIndex != -1) {
                 // 如果同步值为255，使用standing姿态
                 currentPoseIndex = -1;
                 DollPose standingPose = PoseActionManager.getPose("standing");
                 currentPose = standingPose != null ? standingPose : SimpleDollPose.createDefaultStandingPose();
+                // 姿态改变时更新碰撞箱
+                updateBoundingBox();
             }
         }
         
@@ -186,7 +193,13 @@ public abstract class BaseDollEntity extends Entity {
             // 获取当前tick对应的姿态
             DollPose actionPose = currentAction.getPoseAt(actionTick);
             if (actionPose != null) {
+                // 检查姿态是否改变（包括scale的变化）
+                boolean poseChanged = currentPose != actionPose;
                 currentPose = actionPose;
+                // 如果姿态改变，更新碰撞箱
+                if (poseChanged) {
+                    updateBoundingBox();
+                }
             }
             
             // 如果动作不循环且播放完成，停止动作
@@ -196,6 +209,8 @@ public abstract class BaseDollEntity extends Entity {
                 // 恢复standing姿态
                 DollPose standingPose = PoseActionManager.getPose("standing");
                 currentPose = standingPose != null ? standingPose : SimpleDollPose.createDefaultStandingPose();
+                // 姿态改变时更新碰撞箱
+                updateBoundingBox();
             } else if (currentAction.isLooping()) {
                 // 循环动作，重置tick
                 if (actionTick >= currentAction.getDuration()) {
@@ -209,7 +224,7 @@ public abstract class BaseDollEntity extends Entity {
             this.setDeltaMovement(this.getDeltaMovement().add(0.0, -0.04, 0.0));
         }
         
-        // 移动
+        // 移动（使用重写的move方法，会自动恢复碰撞箱）
         this.move(MoverType.SELF, this.getDeltaMovement());
         
         // 应用摩擦力
@@ -220,6 +235,88 @@ public abstract class BaseDollEntity extends Entity {
             Vec3 movement = this.getDeltaMovement();
             this.setDeltaMovement(movement.x * 0.7, 0.0, movement.z * 0.7);
         }
+    }
+    
+    /**
+     * 重写getDimensions方法，根据当前姿态的scale动态返回尺寸
+     * 这样Minecraft会自动使用这个尺寸来计算碰撞箱，无需手动设置
+     */
+    @Override
+    public net.minecraft.world.entity.EntityDimensions getDimensions(net.minecraft.world.entity.Pose pose) {
+        // 基础尺寸（与DollEntityFactory中的sized(0.6f, 1f)保持一致）
+        float baseWidth = 0.6f;
+        float baseHeight = 1.0f;
+        
+        // 获取当前姿态的scale
+        DollPose currentPose = getCurrentPose();
+        if (currentPose != null) {
+            float[] scale = currentPose.getScale();
+            // 应用scale到尺寸
+            double widthScale = Math.max(Math.abs(scale[0]), Math.abs(scale[2]));
+            double heightScale = Math.abs(scale[1]);
+            
+            baseWidth *= widthScale;
+            baseHeight *= heightScale;
+        }
+        
+        // 返回动态计算的尺寸，Minecraft会自动使用这个尺寸来计算碰撞箱
+        return net.minecraft.world.entity.EntityDimensions.scalable(baseWidth, baseHeight);
+    }
+    
+    /**
+     * 重写move方法，在移动后自动恢复自定义碰撞箱
+     * move()方法会根据EntityType的尺寸重置碰撞箱，所以需要在移动后立即恢复
+     * 注意：如果getDimensions()正常工作，这个方法可能不再需要
+     */
+    @Override
+    public void move(MoverType moverType, Vec3 movement) {
+        super.move(moverType, movement);
+        // 父类的move()方法会根据EntityType的尺寸重置碰撞箱，所以需要立即恢复自定义碰撞箱
+        // 如果getDimensions()正常工作，这行代码可能不再需要
+        updateBoundingBox();
+    }
+    
+    /**
+     * 根据当前姿态的scale动态更新碰撞箱大小
+     * 基础尺寸：宽0.6，高1.0（与DollEntityFactory中的sized保持一致）
+     * 注意：如果getDimensions()正常工作，这个方法可能不再需要
+     */
+    private void updateBoundingBox() {
+        // 基础碰撞箱尺寸（与DollEntityFactory中的sized(0.6f, 1f)保持一致）
+        double baseWidth = 0.6;
+        double baseHeight = 1.0;
+        
+        // 获取当前姿态的scale
+        DollPose pose = getCurrentPose();
+        if (pose != null) {
+            float[] scale = pose.getScale();
+            // 应用scale到碰撞箱尺寸
+            // 使用scale的最大值来确保碰撞箱足够大
+            // 这里使用scale的Y值作为高度缩放，X和Z的最大值作为宽度缩放
+            double widthScale = Math.max(Math.abs(scale[0]), Math.abs(scale[2]));
+            double heightScale = Math.abs(scale[1]);
+            
+            baseWidth *= widthScale;
+            baseHeight *= heightScale;
+        }
+        
+        // 计算碰撞箱的半宽
+        double halfWidth = baseWidth / 2.0;
+        
+        // 获取实体位置
+        double x = this.getX();
+        double y = this.getY();
+        double z = this.getZ();
+        
+        // 创建并设置碰撞箱
+        // 碰撞箱以实体底部中心为基准，向上延伸
+        // 注意：position偏移主要用于渲染，不影响碰撞箱位置
+        AABB newBoundingBox = new AABB(
+            x - halfWidth, y, z - halfWidth,
+            x + halfWidth, y + baseHeight, z + halfWidth
+        );
+        
+        this.setBoundingBox(newBoundingBox);
     }
     
     @Override
@@ -585,6 +682,8 @@ public abstract class BaseDollEntity extends Entity {
             // 设置姿态时停止当前动作
             this.currentAction = null;
             this.actionTick = 0;
+            // 姿态改变时更新碰撞箱
+            updateBoundingBox();
         }
     }
     

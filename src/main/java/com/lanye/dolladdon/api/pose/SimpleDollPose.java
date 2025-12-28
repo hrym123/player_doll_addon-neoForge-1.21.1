@@ -37,6 +37,20 @@ public class SimpleDollPose implements DollPose {
                          float[] leftArmRotation,
                          float[] rightLegRotation,
                          float[] leftLegRotation) {
+        this(name, displayName, headRotation, hatRotation, bodyRotation, rightArmRotation, leftArmRotation, rightLegRotation, leftLegRotation, null, null);
+    }
+    
+    public SimpleDollPose(String name,
+                         String displayName,
+                         float[] headRotation,
+                         float[] hatRotation,
+                         float[] bodyRotation,
+                         float[] rightArmRotation,
+                         float[] leftArmRotation,
+                         float[] rightLegRotation,
+                         float[] leftLegRotation,
+                         float[] position,
+                         float[] scale) {
         this.name = name;
         this.displayName = displayName != null ? displayName : name;
         this.headRotation = headRotation != null ? headRotation : new float[]{0, 0, 0};
@@ -46,6 +60,8 @@ public class SimpleDollPose implements DollPose {
         this.leftArmRotation = leftArmRotation != null ? leftArmRotation : new float[]{0, 0, 0};
         this.rightLegRotation = rightLegRotation != null ? rightLegRotation : new float[]{0, 0, 0};
         this.leftLegRotation = leftLegRotation != null ? leftLegRotation : new float[]{0, 0, 0};
+        this.position = position != null ? position : new float[]{0.0f, 0.0f, 0.0f};
+        this.scale = scale != null ? scale : new float[]{1.0f, 1.0f, 1.0f};
     }
     
     @Override
@@ -91,6 +107,16 @@ public class SimpleDollPose implements DollPose {
     @Override
     public float[] getLeftLegRotation() {
         return leftLegRotation.clone();
+    }
+    
+    @Override
+    public float[] getPosition() {
+        return position.clone();
+    }
+    
+    @Override
+    public float[] getScale() {
+        return scale.clone();
     }
     
     /**

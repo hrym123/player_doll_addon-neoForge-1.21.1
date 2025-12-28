@@ -44,10 +44,14 @@ public class PoseLoader {
      *   "rightArm": [-40, 0, 0],
      *   "leftArm": [40, 0, 0],
      *   "rightLeg": [0, 0, 0],
-     *   "leftLeg": [0, 0, 0]
+     *   "leftLeg": [0, 0, 0],
+     *   "position": [0.0, 0.0, 0.0],  // 可选，默认 [0.0, 0.0, 0.0]
+     *   "scale": [1.0, 1.0, 1.0]       // 可选，默认 [1.0, 1.0, 1.0]
      * }
      * 
-     * 注意：旋转值使用角度（360度制），会在内部自动转换为弧度
+     * 注意：
+     * - 旋转值使用角度（360度制），会在内部自动转换为弧度
+     * - position 和 scale 字段是可选的，如果省略则使用默认值
      */
     public static DollPose loadPose(ResourceManager resourceManager, String name) {
         ResourceLocation location = ResourceLocation.fromNamespaceAndPath(
@@ -92,7 +96,10 @@ public class PoseLoader {
         float[] rightLeg = parseRotation(json, "rightLeg");
         float[] leftLeg = parseRotation(json, "leftLeg");
         
-        return new SimpleDollPose(name, displayName, head, hat, body, rightArm, leftArm, rightLeg, leftLeg);
+        float[] position = parseFloatArray(json, "position", new float[]{0.0f, 0.0f, 0.0f});
+        float[] scale = parseFloatArray(json, "scale", new float[]{1.0f, 1.0f, 1.0f});
+        
+        return new SimpleDollPose(name, displayName, head, hat, body, rightArm, leftArm, rightLeg, leftLeg, position, scale);
     }
     
     /**
@@ -119,6 +126,31 @@ public class PoseLoader {
         }
         
         return new float[]{0, 0, 0};
+    }
+    
+    /**
+     * 解析浮点数数组 [x, y, z]
+     * 用于解析位置和大小等不需要角度转换的数组
+     * 如果字段不存在，返回默认值
+     */
+    private static float[] parseFloatArray(JsonObject json, String key, float[] defaultValue) {
+        if (!json.has(key)) {
+            return defaultValue;
+        }
+        
+        JsonElement element = json.get(key);
+        if (element.isJsonArray()) {
+            var array = element.getAsJsonArray();
+            if (array.size() >= 3) {
+                return new float[]{
+                    array.get(0).getAsFloat(),
+                    array.get(1).getAsFloat(),
+                    array.get(2).getAsFloat()
+                };
+            }
+        }
+        
+        return defaultValue;
     }
     
     /**

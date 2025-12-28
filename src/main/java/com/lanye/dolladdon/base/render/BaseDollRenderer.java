@@ -45,11 +45,6 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
         // 缩小模型大小，使高度为1.125（玩家模型高度约1.8，缩放比例 = 1.125 / 1.8 = 0.625）
         float modelScale = 0.5F; // 约 0.625F
         
-        poseStack.translate(0.0, 0.75, 0.0);
-        
-        // 应用缩放和翻转
-        poseStack.scale(-modelScale, -modelScale, modelScale);
-        
         // 获取皮肤位置（由子类实现）
         ResourceLocation skinLocation = getSkinLocation(entity);
         
@@ -58,6 +53,30 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
         if (pose == null) {
             // 如果没有姿态，使用默认站立姿态
             pose = com.lanye.dolladdon.api.pose.SimpleDollPose.createDefaultStandingPose();
+        }
+        
+        // 获取姿态的scale，用于计算Y偏移以保持模型底部对齐碰撞箱底部
+        float[] scale = pose.getScale();
+        // 玩家模型高度约为1.8，应用modelScale(=0.5)后高度为0.9
+        // 应用scale[1]后，模型高度变为0.9 * scale[1]
+        // 变换顺序：translate(yOffset) -> scale(modelScale) -> scale(scale[1])
+        // 由于scale以当前位置为中心，最终模型中心在yOffset，模型底部在 yOffset - 0.45 * scale[1]
+        // 为了保持模型底部对齐碰撞箱底部（y=0），需要：yOffset = 0.45 * scale[1]
+        // 注意：这里0.45 = 1.8 * modelScale / 2 = 0.9 / 2
+        float yOffset = 0.45f * scale[1];
+        
+        poseStack.translate(0.0, yOffset, 0.0);
+        
+        // 应用缩放和翻转
+        poseStack.scale(-modelScale, -modelScale, modelScale);
+        
+        // 应用姿态的位置和大小
+        float[] position = pose.getPosition();
+        if (position[0] != 0.0f || position[1] != 0.0f || position[2] != 0.0f) {
+            poseStack.translate(position[0], position[1], position[2]);
+        }
+        if (scale[0] != 1.0f || scale[1] != 1.0f || scale[2] != 1.0f) {
+            poseStack.scale(scale[0], scale[1], scale[2]);
         }
         
         // 从姿态获取旋转角度
