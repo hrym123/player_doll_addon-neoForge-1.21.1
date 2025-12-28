@@ -18,9 +18,10 @@ public class DynamicModelGenerator {
     private static final Logger LOGGER = PlayerDollAddon.LOGGER;
     
     /**
-     * 动态模型文件存放的子目录名称
+     * 动态模型文件的前缀标识符（用于区分动态生成的模型文件）
+     * 使用 "zzz_" 前缀可以让文件在按名称排序时排在最后
      */
-    private static final String DYNAMIC_MODELS_SUBDIR = "dynamic";
+    public static final String DYNAMIC_MODEL_PREFIX = "zzz_";
     
     /**
      * 所有动态玩偶使用的模型文件内容（所有动态玩偶都使用相同的模型）
@@ -44,13 +45,15 @@ public class DynamicModelGenerator {
         try {
             boolean success = false;
             
+            // 生成的文件名（registryName 已经包含了前缀标识符）
+            String modelFileName = registryName + ".json";
+            
             // 1. 生成到 build/resources/main 目录（开发环境，当前运行中立即生效）
             // 在生产环境中，这个目录不存在，会跳过（这是正常的）
             Path buildResourcesDir = getBuildResourcesDirectory();
             if (buildResourcesDir != null) {
                 Path buildResourcesModelFile = buildResourcesDir.resolve("item")
-                        .resolve(DYNAMIC_MODELS_SUBDIR)
-                        .resolve(registryName + ".json");
+                        .resolve(modelFileName);
                 if (writeModelFileIfNeeded(buildResourcesModelFile, "build/resources/main")) {
                     success = true;
                     LOGGER.debug("模型文件已写入 build/resources/main（开发环境）");
@@ -65,8 +68,7 @@ public class DynamicModelGenerator {
             Path modResourcesDir = getModResourcesDirectory();
             if (modResourcesDir != null) {
                 Path modResourcesModelFile = modResourcesDir.resolve("item")
-                        .resolve(DYNAMIC_MODELS_SUBDIR)
-                        .resolve(registryName + ".json");
+                        .resolve(modelFileName);
                 if (writeModelFileIfNeeded(modResourcesModelFile, "src/main/resources")) {
                     success = true;
                     LOGGER.debug("模型文件已写入 src/main/resources（开发环境）");
@@ -120,44 +122,51 @@ public class DynamicModelGenerator {
     
     /**
      * 清理旧的动态模型文件
-     * 直接清空 dynamic 子目录，简化清理逻辑
+     * 清理所有带有前缀标识符的模型文件
      */
     public static void cleanupOldModelFiles() {
-        // 清理 src/main/resources 目录下的 dynamic 子目录
+        // 清理 src/main/resources 目录下带有前缀的模型文件
         Path modResourcesDir = getModResourcesDirectory();
         if (modResourcesDir != null) {
-            Path dynamicModelsDir = modResourcesDir.resolve("item").resolve(DYNAMIC_MODELS_SUBDIR);
-            cleanupDynamicDirectory(dynamicModelsDir, "src/main/resources");
+            Path itemModelsDir = modResourcesDir.resolve("item");
+            cleanupPrefixedModelFiles(itemModelsDir, "src/main/resources");
         }
         
-        // 清理 build/resources/main 目录下的 dynamic 子目录
+        // 清理 build/resources/main 目录下带有前缀的模型文件
         Path buildResourcesDir = getBuildResourcesDirectory();
         if (buildResourcesDir != null) {
-            Path dynamicModelsDir = buildResourcesDir.resolve("item").resolve(DYNAMIC_MODELS_SUBDIR);
-            cleanupDynamicDirectory(dynamicModelsDir, "build/resources/main");
+            Path itemModelsDir = buildResourcesDir.resolve("item");
+            cleanupPrefixedModelFiles(itemModelsDir, "build/resources/main");
         }
+        
+        // 同时清理旧的 dynamic 子目录（如果存在）
+        cleanupOldDynamicSubdirectory();
     }
     
     /**
-     * 清理 dynamic 子目录中的所有文件
-     * @param directory 要清理的目录（应该是 item/dynamic 目录）
+     * 清理带有前缀标识符的模型文件
+     * @param itemModelsDir item 模型目录
      * @param locationName 位置名称（用于日志）
      */
-    private static void cleanupDynamicDirectory(Path directory, String locationName) {
-        if (directory == null || !Files.exists(directory) || !Files.isDirectory(directory)) {
+    private static void cleanupPrefixedModelFiles(Path itemModelsDir, String locationName) {
+        if (itemModelsDir == null || !Files.exists(itemModelsDir) || !Files.isDirectory(itemModelsDir)) {
             return;
         }
         
-        try (var paths = Files.list(directory)) {
+        try (var paths = Files.list(itemModelsDir)) {
             int deletedCount = 0;
             for (Path filePath : paths.collect(java.util.stream.Collectors.toList())) {
                 if (Files.isRegularFile(filePath)) {
-                    try {
-                        Files.delete(filePath);
-                        deletedCount++;
-                        LOGGER.debug("已删除动态模型文件: {} ({})", filePath, locationName);
-                    } catch (IOException e) {
-                        LOGGER.warn("删除动态模型文件失败: {} ({})", filePath, locationName, e);
+                    String fileName = filePath.getFileName().toString();
+                    // 只删除带有前缀标识符的文件
+                    if (fileName.startsWith(DYNAMIC_MODEL_PREFIX) && fileName.endsWith(".json")) {
+                        try {
+                            Files.delete(filePath);
+                            deletedCount++;
+                            LOGGER.debug("已删除动态模型文件: {} ({})", filePath, locationName);
+                        } catch (IOException e) {
+                            LOGGER.warn("删除动态模型文件失败: {} ({})", filePath, locationName, e);
+                        }
                     }
                 }
             }
@@ -165,7 +174,78 @@ public class DynamicModelGenerator {
                 LOGGER.info("已清理 {} 个动态模型文件 ({})", deletedCount, locationName);
             }
         } catch (IOException e) {
-            LOGGER.error("清理动态模型文件目录失败: {} ({})", directory, locationName, e);
+            LOGGER.error("清理动态模型文件目录失败: {} ({})", itemModelsDir, locationName, e);
+        }
+    }
+    
+    /**
+     * 清理旧的 dynamic 子目录（如果存在，用于向后兼容）
+     */
+    private static void cleanupOldDynamicSubdirectory() {
+        // 清理 src/main/resources 目录下的 dynamic 子目录
+        Path modResourcesDir = getModResourcesDirectory();
+        if (modResourcesDir != null) {
+            Path dynamicModelsDir = modResourcesDir.resolve("item").resolve("dynamic");
+            if (Files.exists(dynamicModelsDir) && Files.isDirectory(dynamicModelsDir)) {
+                try (var paths = Files.list(dynamicModelsDir)) {
+                    int deletedCount = 0;
+                    for (Path filePath : paths.collect(java.util.stream.Collectors.toList())) {
+                        if (Files.isRegularFile(filePath)) {
+                            try {
+                                Files.delete(filePath);
+                                deletedCount++;
+                            } catch (IOException e) {
+                                LOGGER.warn("删除旧动态模型文件失败: {}", filePath, e);
+                            }
+                        }
+                    }
+                    if (deletedCount > 0) {
+                        LOGGER.info("已清理 {} 个旧 dynamic 子目录中的模型文件", deletedCount);
+                    }
+                    // 尝试删除空的 dynamic 目录
+                    try {
+                        Files.delete(dynamicModelsDir);
+                        LOGGER.debug("已删除空的 dynamic 子目录");
+                    } catch (IOException e) {
+                        // 如果目录不为空或删除失败，忽略错误
+                    }
+                } catch (IOException e) {
+                    LOGGER.debug("清理旧 dynamic 子目录失败", e);
+                }
+            }
+        }
+        
+        // 清理 build/resources/main 目录下的 dynamic 子目录
+        Path buildResourcesDir = getBuildResourcesDirectory();
+        if (buildResourcesDir != null) {
+            Path dynamicModelsDir = buildResourcesDir.resolve("item").resolve("dynamic");
+            if (Files.exists(dynamicModelsDir) && Files.isDirectory(dynamicModelsDir)) {
+                try (var paths = Files.list(dynamicModelsDir)) {
+                    int deletedCount = 0;
+                    for (Path filePath : paths.collect(java.util.stream.Collectors.toList())) {
+                        if (Files.isRegularFile(filePath)) {
+                            try {
+                                Files.delete(filePath);
+                                deletedCount++;
+                            } catch (IOException e) {
+                                LOGGER.warn("删除旧动态模型文件失败: {}", filePath, e);
+                            }
+                        }
+                    }
+                    if (deletedCount > 0) {
+                        LOGGER.info("已清理 {} 个旧 dynamic 子目录中的模型文件", deletedCount);
+                    }
+                    // 尝试删除空的 dynamic 目录
+                    try {
+                        Files.delete(dynamicModelsDir);
+                        LOGGER.debug("已删除空的 dynamic 子目录");
+                    } catch (IOException e) {
+                        // 如果目录不为空或删除失败，忽略错误
+                    }
+                } catch (IOException e) {
+                    LOGGER.debug("清理旧 dynamic 子目录失败", e);
+                }
+            }
         }
     }
     

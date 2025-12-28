@@ -190,8 +190,8 @@ public class DynamicDollLoader {
         DynamicTextureManager.registerTexture(textureLocation, filePath);
         
         // 生成注册名称（使用哈希值，因为它已经符合规范）
-        // 为了可读性，我们也可以尝试从文件名中提取一部分，但主要是用哈希值
-        String registryName = fileHash;
+        // 加上前缀标识符，确保模型文件名和注册名称一致，Minecraft 才能找到对应的模型文件
+        String registryName = com.lanye.dolladdon.util.DynamicModelGenerator.DYNAMIC_MODEL_PREFIX + fileHash;
         
         return new DollInfo(registryName, displayName, isAlexModel, textureLocation, filePath);
     }

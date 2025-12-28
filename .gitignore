@@ -29,7 +29,8 @@ repo
 libs/*.jar
 !libs/.gitkeep
 
-# dynamic doll models (generated at runtime)
-src/main/resources/assets/player_doll_addon/models/item/dynamic/
+# 动态生成的模型文件（以 zzz_ 前缀标识）
+src/main/resources/assets/player_doll_addon/models/item/zzz_*.json
+
 
 
