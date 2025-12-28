@@ -153,7 +153,6 @@ public class ActionLoader {
         Map<String, DollAction> actions = new HashMap<>();
         
         if (!Files.exists(actionsDir) || !Files.isDirectory(actionsDir)) {
-            LOGGER.debug("[WENTI004] 动作目录不存在或不是目录: {}", actionsDir);
             return actions;
         }
         
@@ -165,7 +164,6 @@ public class ActionLoader {
                     try {
                         String fileName = actionFile.getFileName().toString();
                         String name = fileName.substring(0, fileName.length() - ".json".length());
-                        LOGGER.info("[WENTI004] 从文件系统加载动作: {}", name);
                         
                         try (InputStreamReader reader = new InputStreamReader(
                                 Files.newInputStream(actionFile), StandardCharsets.UTF_8)) {
@@ -174,15 +172,14 @@ public class ActionLoader {
                             DollAction action = parseActionFromFileSystem(json, actionsDir.getParent().resolve("poses"));
                             if (action != null) {
                                 actions.put(name, action);
-                                LOGGER.info("[WENTI004] 从文件系统加载动作成功: {} -> {}", name, action.getName());
                             }
                         }
                     } catch (Exception e) {
-                        LOGGER.error("[WENTI004] 从文件系统加载动作文件失败: {}", actionFile, e);
+                        LOGGER.error("从文件系统加载动作文件失败: {}", actionFile, e);
                     }
                 });
         } catch (Exception e) {
-            LOGGER.error("[WENTI004] 扫描文件系统动作目录失败: {}", actionsDir, e);
+            LOGGER.error("扫描文件系统动作目录失败: {}", actionsDir, e);
         }
         
         return actions;
@@ -196,7 +193,7 @@ public class ActionLoader {
         boolean looping = json.has("looping") && json.get("looping").getAsBoolean();
         
         if (!json.has("keyframes") || !json.get("keyframes").isJsonArray()) {
-            LOGGER.error("[WENTI004] 动作缺少keyframes数组: {}", name);
+            LOGGER.error("动作缺少keyframes数组: {}", name);
             return null;
         }
         
@@ -222,7 +219,7 @@ public class ActionLoader {
             }
             
             if (pose == null) {
-                LOGGER.warn("[WENTI004] 关键帧 {} 缺少有效的姿态定义，使用默认姿态", i);
+                LOGGER.warn("关键帧 {} 缺少有效的姿态定义，使用默认姿态", i);
                 pose = com.lanye.dolladdon.api.pose.SimpleDollPose.createDefaultStandingPose();
             }
             
@@ -236,40 +233,31 @@ public class ActionLoader {
      * 加载所有动作（从 ResourceManager 和文件系统）
      */
     public static Map<String, DollAction> loadAllActions(ResourceManager resourceManager) {
-        LOGGER.info("[WENTI004] loadAllActions 开始，ResourceManager: {}", resourceManager);
         Map<String, DollAction> actions = new HashMap<>();
         
         // 首先从 ResourceManager 加载（资源包中的动作）
         try {
-            LOGGER.info("[WENTI004] 开始扫描资源包中的动作文件...");
             var resources = resourceManager.listResources("actions", path -> path.getPath().endsWith(".json"));
-            LOGGER.info("[WENTI004] 找到 {} 个动作资源文件", resources.size());
             
             for (var entry : resources.entrySet()) {
                 ResourceLocation location = entry.getKey();
                 String name = location.getPath().substring("actions/".length(), location.getPath().length() - ".json".length());
-                LOGGER.info("[WENTI004] 处理动作资源: {} (位置: {})", name, location);
                 
                 try {
                     DollAction action = loadAction(resourceManager, name);
                     if (action != null) {
                         actions.put(name, action);
-                        LOGGER.info("[WENTI004] 已加载动作: {} -> {}", name, action.getName());
-                    } else {
-                        LOGGER.warn("[WENTI004] 动作加载返回null: {}", name);
                     }
                 } catch (Exception e) {
-                    LOGGER.error("[WENTI004] 加载动作文件失败: {}", location, e);
+                    LOGGER.error("加载动作文件失败: {}", location, e);
                 }
             }
-            LOGGER.info("[WENTI004] 从资源包加载了 {} 个动作", actions.size());
         } catch (Exception e) {
-            LOGGER.error("[WENTI004] 扫描动作资源失败", e);
+            LOGGER.error("扫描动作资源失败", e);
         }
         
         // 然后从文件系统加载（文件系统中的动作会覆盖资源包中的同名动作）
         try {
-            LOGGER.info("[WENTI004] 开始从文件系统加载动作...");
             Path gameDir;
             try {
                 Class<?> fmlPathsClass = Class.forName("net.neoforged.fml.loading.FMLPaths");
@@ -280,16 +268,12 @@ public class ActionLoader {
             }
             
             Path actionsDir = gameDir.resolve(PlayerDollAddon.ACTIONS_DIR);
-            LOGGER.info("[WENTI004] 文件系统动作目录: {}", actionsDir);
             Map<String, DollAction> fileSystemActions = loadActionsFromFileSystem(actionsDir);
-            LOGGER.info("[WENTI004] 从文件系统加载了 {} 个动作: {}", fileSystemActions.size(), fileSystemActions.keySet());
             actions.putAll(fileSystemActions); // 文件系统的动作会覆盖资源包中的同名动作
-            LOGGER.info("[WENTI004] 合并后总共 {} 个动作", actions.size());
         } catch (Exception e) {
-            LOGGER.error("[WENTI004] 从文件系统加载动作失败", e);
+            LOGGER.error("从文件系统加载动作失败", e);
         }
         
-        LOGGER.info("[WENTI004] loadAllActions 完成，返回 {} 个动作", actions.size());
         return actions;
     }
 }

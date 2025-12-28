@@ -26,29 +26,17 @@ public class PoseActionManager {
      * 应该在游戏启动时或资源重载时调用（如执行 /reload 命令）
      */
     public static void loadResources(ResourceManager resourceManager) {
-        LOGGER.info("[WENTI004] loadResources 被调用，ResourceManager: {}", resourceManager);
-        LOGGER.info("[WENTI004] 开始加载姿态和动作资源...");
-        LOGGER.info("[WENTI004] 当前已加载的姿态数量（加载前）: {}", poses.size());
-        LOGGER.info("[WENTI004] 当前已加载的动作数量（加载前）: {}", actions.size());
-        
         // 加载所有姿态（从资源包和文件系统）
         Map<String, DollPose> loadedPoses = PoseLoader.loadAllPoses(resourceManager);
-        LOGGER.info("[WENTI004] PoseLoader.loadAllPoses 返回 {} 个姿态", loadedPoses.size());
-        LOGGER.info("[WENTI004] 加载的姿态列表: {}", loadedPoses.keySet());
         
         poses.clear();
         poses.putAll(loadedPoses);
-        LOGGER.info("[WENTI004] 已加载 {} 个姿态", poses.size());
         
         // 加载所有动作
         Map<String, DollAction> loadedActions = ActionLoader.loadAllActions(resourceManager);
-        LOGGER.info("[WENTI004] ActionLoader.loadAllActions 返回 {} 个动作", loadedActions.size());
-        LOGGER.info("[WENTI004] 加载的动作列表: {}", loadedActions.keySet());
         
         actions.clear();
         actions.putAll(loadedActions);
-        LOGGER.info("[WENTI004] 已加载 {} 个动作", actions.size());
-        LOGGER.info("[WENTI004] loadResources 完成");
     }
     
     /**

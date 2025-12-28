@@ -14,6 +14,8 @@ public class SimpleDollPose implements DollPose {
     private final float[] leftArmRotation;
     private final float[] rightLegRotation;
     private final float[] leftLegRotation;
+    private final float[] position;
+    private final float[] scale;
     
     public SimpleDollPose(String name,
                          float[] headRotation,
@@ -23,7 +25,7 @@ public class SimpleDollPose implements DollPose {
                          float[] leftArmRotation,
                          float[] rightLegRotation,
                          float[] leftLegRotation) {
-        this(name, null, headRotation, hatRotation, bodyRotation, rightArmRotation, leftArmRotation, rightLegRotation, leftLegRotation);
+        this(name, null, headRotation, hatRotation, bodyRotation, rightArmRotation, leftArmRotation, rightLegRotation, leftLegRotation, null, null);
     }
     
     public SimpleDollPose(String name,

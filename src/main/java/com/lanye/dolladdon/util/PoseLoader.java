@@ -138,7 +138,7 @@ public class PoseLoader {
                 return parsePose(json);
             }
         } catch (Exception e) {
-            LOGGER.error("[WENTI004] 从文件系统加载姿态文件失败: {}", poseFile, e);
+            LOGGER.error("从文件系统加载姿态文件失败: {}", poseFile, e);
             return null;
         }
     }
@@ -187,48 +187,37 @@ public class PoseLoader {
      * 加载所有姿态（从 ResourceManager 和文件系统）
      */
     public static Map<String, DollPose> loadAllPoses(ResourceManager resourceManager) {
-        LOGGER.info("[WENTI004] loadAllPoses 开始，ResourceManager: {}", resourceManager);
         Map<String, DollPose> poses = new HashMap<>();
         
         // 首先从 ResourceManager 加载（资源包中的姿态）
         try {
-            LOGGER.info("[WENTI004] 开始扫描资源包中的姿态文件...");
             var resources = resourceManager.listResources("poses", path -> path.getPath().endsWith(".json"));
-            LOGGER.info("[WENTI004] 找到 {} 个姿态资源文件", resources.size());
             
             for (var entry : resources.entrySet()) {
                 ResourceLocation location = entry.getKey();
                 String name = location.getPath().substring("poses/".length(), location.getPath().length() - ".json".length());
-                LOGGER.info("[WENTI004] 处理姿态资源: {} (位置: {})", name, location);
                 
                 try {
                     Resource resource = entry.getValue();
-                    LOGGER.info("[WENTI004] 打开姿态资源: {} -> {}", name, resource);
                     try (InputStream inputStream = resource.open();
                          InputStreamReader reader = new InputStreamReader(inputStream, StandardCharsets.UTF_8)) {
                         
                         JsonObject json = GSON.fromJson(reader, JsonObject.class);
-                        LOGGER.info("[WENTI004] 解析姿态JSON: {} -> {}", name, json);
                         DollPose pose = parsePose(json);
                         if (pose != null) {
                             poses.put(name, pose);
-                            LOGGER.info("[WENTI004] 从资源包加载姿态成功: {} -> {}", name, pose.getName());
-                        } else {
-                            LOGGER.warn("[WENTI004] 姿态解析失败: {}", name);
                         }
                     }
                 } catch (Exception e) {
-                    LOGGER.error("[WENTI004] 加载姿态文件失败: {}", location, e);
+                    LOGGER.error("加载姿态文件失败: {}", location, e);
                 }
             }
-            LOGGER.info("[WENTI004] 从资源包加载了 {} 个姿态", poses.size());
         } catch (Exception e) {
-            LOGGER.error("[WENTI004] 扫描姿态资源失败", e);
+            LOGGER.error("扫描姿态资源失败", e);
         }
         
         // 然后从文件系统加载（文件系统中的姿态会覆盖资源包中的同名姿态）
         try {
-            LOGGER.info("[WENTI004] 开始从文件系统加载姿态...");
             Path gameDir;
             try {
                 Class<?> fmlPathsClass = Class.forName("net.neoforged.fml.loading.FMLPaths");
@@ -239,16 +228,12 @@ public class PoseLoader {
             }
             
             Path posesDir = gameDir.resolve(PlayerDollAddon.POSES_DIR);
-            LOGGER.info("[WENTI004] 文件系统姿态目录: {}", posesDir);
             Map<String, DollPose> fileSystemPoses = loadPosesFromFileSystem(posesDir);
-            LOGGER.info("[WENTI004] 从文件系统加载了 {} 个姿态: {}", fileSystemPoses.size(), fileSystemPoses.keySet());
             poses.putAll(fileSystemPoses); // 文件系统的姿态会覆盖资源包中的同名姿态
-            LOGGER.info("[WENTI004] 合并后总共 {} 个姿态", poses.size());
         } catch (Exception e) {
-            LOGGER.error("[WENTI004] 从文件系统加载姿态失败", e);
+            LOGGER.error("从文件系统加载姿态失败", e);
         }
         
-        LOGGER.info("[WENTI004] loadAllPoses 完成，返回 {} 个姿态", poses.size());
         return poses;
     }
 }

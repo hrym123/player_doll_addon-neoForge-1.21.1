@@ -67,21 +67,91 @@ public abstract class BaseDollItemRenderer extends BlockEntityWithoutLevelRender
         
         playerModel.head.setRotation(headRotX, headRotY, headRotZ);
         playerModel.hat.setRotation(hatRotX, hatRotY, hatRotZ);
-        playerModel.body.setRotation(bodyRotX, bodyRotY, bodyRotZ);
+        // 注意：身体的旋转通过 PoseStack 应用，不在这里设置，避免双重旋转
         playerModel.rightArm.setRotation(rightArmRotX, rightArmRotY, rightArmRotZ);
         playerModel.leftArm.setRotation(leftArmRotX, leftArmRotY, leftArmRotZ);
         playerModel.rightLeg.setRotation(rightLegRotX, rightLegRotY, rightLegRotZ);
         playerModel.leftLeg.setRotation(leftLegRotX, leftLegRotY, leftLegRotZ);
         
         // 同时设置外层部分的旋转，使它们跟随基础部分的动作
-        DollRenderHelper.setOverlayPartsRotation(playerModel, bodyRotX, bodyRotY, bodyRotZ,
+        // 注意：身体的旋转通过 PoseStack 应用，所以 jacket 的旋转也设为0
+        DollRenderHelper.setOverlayPartsRotation(playerModel, 0, 0, 0, // 身体旋转通过 PoseStack 应用
                                leftArmRotX, leftArmRotY, leftArmRotZ,
                                rightArmRotX, rightArmRotY, rightArmRotZ,
                                leftLegRotX, leftLegRotY, leftLegRotZ,
                                rightLegRotX, rightLegRotY, rightLegRotZ);
         
-        // 渲染玩家模型（包括基础层和外层）
-        DollRenderHelper.renderPlayerModel(playerModel, poseStack, bufferSource, skinLocation, packedLight, packedOverlay);
+        // 获取渲染类型
+        var cutoutRenderType = net.minecraft.client.renderer.RenderType.entityCutoutNoCull(skinLocation);
+        var translucentRenderType = net.minecraft.client.renderer.RenderType.entityTranslucent(skinLocation);
+        int overlay = net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY;
+        
+        // 第一步：渲染基础层（base layer）
+        var baseVertexConsumer = bufferSource.getBuffer(cutoutRenderType);
+        
+        // 如果有身体旋转，使用 PoseStack 在身体旋转中心应用旋转，然后渲染身体、头部、手臂和腿部
+        if (bodyRotX != 0 || bodyRotY != 0 || bodyRotZ != 0) {
+            poseStack.pushPose();
+            // 移动到身体的旋转中心（身体和头连接处，Y坐标约为0.375）
+            poseStack.translate(0.0, 0.375, 0.0);
+            // 应用身体旋转（只在这里应用，不在 setRotation 中设置）
+            poseStack.mulPose(Axis.XP.rotation(bodyRotX));
+            poseStack.mulPose(Axis.YP.rotation(bodyRotY));
+            poseStack.mulPose(Axis.ZP.rotation(bodyRotZ));
+            // 移回
+            poseStack.translate(0.0, -0.375, 0.0);
+            // 在旋转后的坐标系中渲染身体、头部、手臂和腿部
+            // 注意：头部和手臂的旋转值已经是相对于身体的，所以保持它们的旋转值
+            playerModel.body.setRotation(0, 0, 0); // 确保身体不额外旋转（旋转已通过 PoseStack 应用）
+            // 头部和手臂保持它们自己的相对旋转值（headRotX等已经在上面设置）
+            playerModel.body.render(poseStack, baseVertexConsumer, packedLight, overlay);
+            playerModel.head.render(poseStack, baseVertexConsumer, packedLight, overlay);
+            playerModel.rightArm.render(poseStack, baseVertexConsumer, packedLight, overlay);
+            playerModel.leftArm.render(poseStack, baseVertexConsumer, packedLight, overlay);
+            playerModel.rightLeg.render(poseStack, baseVertexConsumer, packedLight, overlay);
+            playerModel.leftLeg.render(poseStack, baseVertexConsumer, packedLight, overlay);
+            poseStack.popPose();
+        } else {
+            // 没有身体旋转时，正常渲染
+            playerModel.body.setRotation(0, 0, 0);
+            playerModel.body.render(poseStack, baseVertexConsumer, packedLight, overlay);
+            playerModel.head.render(poseStack, baseVertexConsumer, packedLight, overlay);
+            playerModel.rightArm.render(poseStack, baseVertexConsumer, packedLight, overlay);
+            playerModel.leftArm.render(poseStack, baseVertexConsumer, packedLight, overlay);
+            playerModel.rightLeg.render(poseStack, baseVertexConsumer, packedLight, overlay);
+            playerModel.leftLeg.render(poseStack, baseVertexConsumer, packedLight, overlay);
+        }
+        
+        // 第二步：渲染外层（overlay layer）- 使用半透明渲染以正确显示多层皮肤
+        var overlayVertexConsumer = bufferSource.getBuffer(translucentRenderType);
+        
+        // 如果有身体旋转，使用 PoseStack 在身体旋转中心应用旋转，然后渲染所有外层部分
+        if (bodyRotX != 0 || bodyRotY != 0 || bodyRotZ != 0) {
+            poseStack.pushPose();
+            // 移动到身体的旋转中心（身体和头连接处，Y坐标约为0.375）
+            poseStack.translate(0.0, 0.375, 0.0);
+            // 应用身体旋转（只在这里应用，不在 setRotation 中设置）
+            poseStack.mulPose(Axis.XP.rotation(bodyRotX));
+            poseStack.mulPose(Axis.YP.rotation(bodyRotY));
+            poseStack.mulPose(Axis.ZP.rotation(bodyRotZ));
+            // 移回
+            poseStack.translate(0.0, -0.375, 0.0);
+            // 在旋转后的坐标系中渲染所有外层部分
+            // hat层（头发外层）
+            playerModel.hat.render(poseStack, overlayVertexConsumer, packedLight, overlay);
+            // 手臂外层（保持它们自己的旋转值）
+            renderArmOverlayParts(playerModel, poseStack, overlayVertexConsumer, packedLight, overlay);
+            // 身体和腿部外层（jacket 的旋转设为0）
+            setBodyOverlayRotation(playerModel, 0, 0, 0); // 确保身体外层不额外旋转
+            renderBodyLegOverlayParts(playerModel, poseStack, overlayVertexConsumer, packedLight, overlay);
+            poseStack.popPose();
+        } else {
+            // 没有身体旋转时，正常渲染
+            playerModel.hat.render(poseStack, overlayVertexConsumer, packedLight, overlay);
+            renderArmOverlayParts(playerModel, poseStack, overlayVertexConsumer, packedLight, overlay);
+            setBodyOverlayRotation(playerModel, 0, 0, 0);
+            renderBodyLegOverlayParts(playerModel, poseStack, overlayVertexConsumer, packedLight, overlay);
+        }
         
         poseStack.popPose();
     }
@@ -238,6 +308,98 @@ public abstract class BaseDollItemRenderer extends BlockEntityWithoutLevelRender
         }
         // 如果standing姿态不存在，回退到createDefaultStandingPose
         return SimpleDollPose.createDefaultStandingPose();
+    }
+    
+    /**
+     * 渲染手臂外层部分（overlay layer）以支持多层皮肤
+     * 
+     * @param playerModel 玩家模型
+     * @param poseStack 变换矩阵栈
+     * @param overlayVertexConsumer 外层顶点消费者
+     * @param packedLight 光照信息
+     * @param overlay 覆盖纹理
+     */
+    private void renderArmOverlayParts(PlayerModel<?> playerModel,
+                                      PoseStack poseStack,
+                                      com.mojang.blaze3d.vertex.VertexConsumer overlayVertexConsumer,
+                                      int packedLight,
+                                      int overlay) {
+        try {
+            java.lang.reflect.Field leftSleeveField = PlayerModel.class.getDeclaredField("leftSleeve");
+            java.lang.reflect.Field rightSleeveField = PlayerModel.class.getDeclaredField("rightSleeve");
+            leftSleeveField.setAccessible(true);
+            rightSleeveField.setAccessible(true);
+            
+            Object leftSleeve = leftSleeveField.get(playerModel);
+            if (leftSleeve instanceof net.minecraft.client.model.geom.ModelPart) {
+                ((net.minecraft.client.model.geom.ModelPart) leftSleeve).render(poseStack, overlayVertexConsumer, packedLight, overlay);
+            }
+            
+            Object rightSleeve = rightSleeveField.get(playerModel);
+            if (rightSleeve instanceof net.minecraft.client.model.geom.ModelPart) {
+                ((net.minecraft.client.model.geom.ModelPart) rightSleeve).render(poseStack, overlayVertexConsumer, packedLight, overlay);
+            }
+        } catch (NoSuchFieldException | IllegalAccessException e) {
+            // 如果模型不支持这些字段，则忽略
+        }
+    }
+    
+    /**
+     * 设置身体外层（jacket）的旋转
+     * 用于在渲染时临时设置，因为身体的旋转通过 PoseStack 应用
+     */
+    private void setBodyOverlayRotation(PlayerModel<?> playerModel, float bodyRotX, float bodyRotY, float bodyRotZ) {
+        try {
+            java.lang.reflect.Field jacketField = PlayerModel.class.getDeclaredField("jacket");
+            jacketField.setAccessible(true);
+            Object jacket = jacketField.get(playerModel);
+            if (jacket instanceof net.minecraft.client.model.geom.ModelPart) {
+                ((net.minecraft.client.model.geom.ModelPart) jacket).setRotation(bodyRotX, bodyRotY, bodyRotZ);
+            }
+        } catch (NoSuchFieldException | IllegalAccessException e) {
+            // 如果模型不支持这些字段，则忽略
+        }
+    }
+    
+    /**
+     * 渲染身体和腿部外层部分（overlay layer）以支持多层皮肤
+     * 
+     * @param playerModel 玩家模型
+     * @param poseStack 变换矩阵栈
+     * @param overlayVertexConsumer 外层顶点消费者
+     * @param packedLight 光照信息
+     * @param overlay 覆盖纹理
+     */
+    private void renderBodyLegOverlayParts(PlayerModel<?> playerModel,
+                                          PoseStack poseStack,
+                                          com.mojang.blaze3d.vertex.VertexConsumer overlayVertexConsumer,
+                                          int packedLight,
+                                          int overlay) {
+        try {
+            java.lang.reflect.Field leftPantsField = PlayerModel.class.getDeclaredField("leftPants");
+            java.lang.reflect.Field rightPantsField = PlayerModel.class.getDeclaredField("rightPants");
+            java.lang.reflect.Field jacketField = PlayerModel.class.getDeclaredField("jacket");
+            leftPantsField.setAccessible(true);
+            rightPantsField.setAccessible(true);
+            jacketField.setAccessible(true);
+            
+            Object jacket = jacketField.get(playerModel);
+            if (jacket instanceof net.minecraft.client.model.geom.ModelPart) {
+                ((net.minecraft.client.model.geom.ModelPart) jacket).render(poseStack, overlayVertexConsumer, packedLight, overlay);
+            }
+            
+            Object leftPants = leftPantsField.get(playerModel);
+            if (leftPants instanceof net.minecraft.client.model.geom.ModelPart) {
+                ((net.minecraft.client.model.geom.ModelPart) leftPants).render(poseStack, overlayVertexConsumer, packedLight, overlay);
+            }
+            
+            Object rightPants = rightPantsField.get(playerModel);
+            if (rightPants instanceof net.minecraft.client.model.geom.ModelPart) {
+                ((net.minecraft.client.model.geom.ModelPart) rightPants).render(poseStack, overlayVertexConsumer, packedLight, overlay);
+            }
+        } catch (NoSuchFieldException | IllegalAccessException e) {
+            // 如果模型不支持这些字段，则忽略
+        }
     }
 }
 

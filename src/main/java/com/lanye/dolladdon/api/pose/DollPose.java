@@ -62,5 +62,21 @@ public interface DollPose {
      * @return [x, y, z] 旋转角度
      */
     float[] getLeftLegRotation();
+    
+    /**
+     * 获取位置偏移（相对于默认位置）
+     * @return [x, y, z] 位置偏移
+     */
+    default float[] getPosition() {
+        return new float[]{0.0f, 0.0f, 0.0f};
+    }
+    
+    /**
+     * 获取缩放大小（相对于默认大小）
+     * @return [x, y, z] 缩放大小，默认[1.0, 1.0, 1.0]
+     */
+    default float[] getScale() {
+        return new float[]{1.0f, 1.0f, 1.0f};
+    }
 }
 

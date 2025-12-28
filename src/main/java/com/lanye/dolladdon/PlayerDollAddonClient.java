@@ -131,18 +131,13 @@ public class PlayerDollAddonClient {
      */
     @SubscribeEvent
     public static void onRegisterClientReloadListeners(RegisterClientReloadListenersEvent event) {
-        PlayerDollAddon.LOGGER.info("[WENTI004] 注册资源重载监听器");
         event.registerReloadListener((ResourceManagerReloadListener) resourceManager -> {
-            PlayerDollAddon.LOGGER.info("[WENTI004] 资源重载监听器被触发，ResourceManager: {}", resourceManager);
-            PlayerDollAddon.LOGGER.info("[WENTI004] 开始重新加载姿态和动作资源...");
             try {
                 PoseActionManager.loadResources(resourceManager);
-                PlayerDollAddon.LOGGER.info("[WENTI004] 资源重载完成");
             } catch (Exception e) {
-                PlayerDollAddon.LOGGER.error("[WENTI004] 资源重载过程中发生异常", e);
+                PlayerDollAddon.LOGGER.error("资源重载过程中发生异常", e);
             }
         });
-        PlayerDollAddon.LOGGER.info("[WENTI004] 资源重载监听器注册完成");
     }
     
     /**
@@ -150,7 +145,6 @@ public class PlayerDollAddonClient {
      */
     @SubscribeEvent
     public static void onClientPlayerLoggedIn(ClientPlayerNetworkEvent.LoggingIn event) {
-        PlayerDollAddon.LOGGER.info("[WENTI004] 客户端登录事件触发，准备加载资源");
         // 延迟加载，确保资源管理器已完全初始化
         net.minecraft.Util.backgroundExecutor().execute(() -> {
             try {
@@ -163,10 +157,7 @@ public class PlayerDollAddonClient {
             net.minecraft.Util.ioPool().execute(() -> {
                 Minecraft minecraft = Minecraft.getInstance();
                 if (minecraft != null && minecraft.getResourceManager() != null) {
-                    PlayerDollAddon.LOGGER.info("[WENTI004] 客户端登录后加载资源，ResourceManager: {}", minecraft.getResourceManager());
                     PoseActionManager.loadResources(minecraft.getResourceManager());
-                } else {
-                    PlayerDollAddon.LOGGER.warn("[WENTI004] 客户端登录后ResourceManager不可用");
                 }
             });
         });
