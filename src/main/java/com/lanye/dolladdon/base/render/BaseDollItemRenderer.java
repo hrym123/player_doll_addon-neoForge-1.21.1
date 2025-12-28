@@ -1,7 +1,12 @@
 package com.lanye.dolladdon.base.render;
 
+import com.lanye.dolladdon.api.action.DollAction;
+import com.lanye.dolladdon.api.pose.DollPose;
+import com.lanye.dolladdon.api.pose.SimpleDollPose;
+import com.lanye.dolladdon.util.PoseActionManager;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.PlayerModel;
 import net.minecraft.client.model.geom.EntityModelSet;
 import net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer;
@@ -46,14 +51,25 @@ public abstract class BaseDollItemRenderer extends BlockEntityWithoutLevelRender
         // 获取皮肤位置（由子类实现）
         ResourceLocation skinLocation = getSkinLocation();
         
-        // 设置模型姿态（站立姿态）
-        float headRotX = 0.0F, headRotY = 0.0F, headRotZ = 0.0F;
-        float hatRotX = 0.0F, hatRotY = 0.0F, hatRotZ = 0.0F;
-        float bodyRotX = 0.0F, bodyRotY = 0.0F, bodyRotZ = 0.0F;
-        float rightArmRotX = 0F, rightArmRotY = 0.0F, rightArmRotZ = 0.0F;
-        float leftArmRotX = 0F, leftArmRotY = 0.0F, leftArmRotZ = 0.0F;
-        float rightLegRotX = 0.0F, rightLegRotY = 0.0F, rightLegRotZ = 0.0F;
-        float leftLegRotX = 0.0F, leftLegRotY = 0.0F, leftLegRotZ = 0.0F;
+        // 从NBT读取动作或姿态
+        DollPose pose = getPoseFromNBT(stack);
+        
+        // 从姿态获取旋转角度
+        float[] headRot = pose.getHeadRotation();
+        float[] hatRot = pose.getHatRotation();
+        float[] bodyRot = pose.getBodyRotation();
+        float[] rightArmRot = pose.getRightArmRotation();
+        float[] leftArmRot = pose.getLeftArmRotation();
+        float[] rightLegRot = pose.getRightLegRotation();
+        float[] leftLegRot = pose.getLeftLegRotation();
+        
+        float headRotX = headRot[0], headRotY = headRot[1], headRotZ = headRot[2];
+        float hatRotX = hatRot[0], hatRotY = hatRot[1], hatRotZ = hatRot[2];
+        float bodyRotX = bodyRot[0], bodyRotY = bodyRot[1], bodyRotZ = bodyRot[2];
+        float rightArmRotX = rightArmRot[0], rightArmRotY = rightArmRot[1], rightArmRotZ = rightArmRot[2];
+        float leftArmRotX = leftArmRot[0], leftArmRotY = leftArmRot[1], leftArmRotZ = leftArmRot[2];
+        float rightLegRotX = rightLegRot[0], rightLegRotY = rightLegRot[1], rightLegRotZ = rightLegRot[2];
+        float leftLegRotX = leftLegRot[0], leftLegRotY = leftLegRot[1], leftLegRotZ = leftLegRot[2];
         
         playerModel.head.setRotation(headRotX, headRotY, headRotZ);
         playerModel.hat.setRotation(hatRotX, hatRotY, hatRotZ);
@@ -277,6 +293,97 @@ public abstract class BaseDollItemRenderer extends BlockEntityWithoutLevelRender
         } catch (NoSuchFieldException | IllegalAccessException e) {
             // 如果模型不支持这些字段，则忽略
         }
+    }
+    
+    /**
+     * 从物品堆的NBT标签中获取姿态
+     * 支持从动作或姿态索引读取
+     */
+    private DollPose getPoseFromNBT(ItemStack stack) {
+        // 使用 save 方法获取NBT数据
+        net.minecraft.core.RegistryAccess registryAccess = null;
+        if (Minecraft.getInstance().level != null) {
+            registryAccess = Minecraft.getInstance().level.registryAccess();
+        } else {
+            // 如果没有世界，尝试使用服务器注册表访问（如果可用）
+            try {
+                if (Minecraft.getInstance().getConnection() != null && 
+                    Minecraft.getInstance().getConnection().registryAccess() != null) {
+                    registryAccess = Minecraft.getInstance().getConnection().registryAccess();
+                }
+            } catch (Exception e) {
+                // 如果无法获取，返回默认姿态
+                return SimpleDollPose.createDefaultStandingPose();
+            }
+        }
+        
+        if (registryAccess == null) {
+            return SimpleDollPose.createDefaultStandingPose();
+        }
+        
+        net.minecraft.nbt.Tag tag = stack.save(registryAccess);
+        if (!(tag instanceof net.minecraft.nbt.CompoundTag)) {
+            return SimpleDollPose.createDefaultStandingPose();
+        }
+        
+        net.minecraft.nbt.CompoundTag itemTag = (net.minecraft.nbt.CompoundTag) tag;
+        if (!itemTag.contains("EntityData")) {
+            return SimpleDollPose.createDefaultStandingPose();
+        }
+        
+        net.minecraft.nbt.CompoundTag entityTag = itemTag.getCompound("EntityData");
+        
+        // 优先检查是否有动作名称
+        if (entityTag.contains("ActionName", net.minecraft.nbt.Tag.TAG_STRING)) {
+            String actionName = entityTag.getString("ActionName");
+            DollAction action = PoseActionManager.getAction(actionName);
+            if (action != null) {
+                // 计算动作的当前tick（基于游戏时间）
+                long gameTime = 0;
+                if (Minecraft.getInstance().level != null) {
+                    gameTime = Minecraft.getInstance().level.getGameTime();
+                } else {
+                    // 如果没有世界，使用系统时间作为后备（每50ms = 1 tick）
+                    gameTime = System.currentTimeMillis() / 50;
+                }
+                
+                // 计算当前动作的tick（考虑循环）
+                int actionTick;
+                if (action.isLooping()) {
+                    actionTick = (int)(gameTime % action.getDuration());
+                } else {
+                    // 非循环动作，只播放一次
+                    actionTick = (int)Math.min(gameTime, action.getDuration() - 1);
+                }
+                
+                DollPose actionPose = action.getPoseAt(actionTick);
+                if (actionPose != null) {
+                    return actionPose;
+                }
+            }
+        }
+        
+        // 如果没有动作，检查姿态索引
+        if (entityTag.contains("PoseIndex", net.minecraft.nbt.Tag.TAG_INT)) {
+            int poseIndex = entityTag.getInt("PoseIndex");
+            if (poseIndex >= 0) {
+                java.util.List<String> poseNames = new java.util.ArrayList<>();
+                java.util.Map<String, DollPose> allPoses = PoseActionManager.getAllPoses();
+                poseNames.addAll(allPoses.keySet());
+                poseNames.sort(String::compareTo);
+                
+                if (poseIndex < poseNames.size()) {
+                    String poseName = poseNames.get(poseIndex);
+                    DollPose pose = PoseActionManager.getPose(poseName);
+                    if (pose != null) {
+                        return pose;
+                    }
+                }
+            }
+        }
+        
+        // 默认返回站立姿态
+        return SimpleDollPose.createDefaultStandingPose();
     }
 }
 

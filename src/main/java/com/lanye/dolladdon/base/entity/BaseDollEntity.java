@@ -16,6 +16,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 
@@ -64,7 +65,26 @@ public abstract class BaseDollEntity extends Entity {
     
     @Override
     protected void readAdditionalSaveData(net.minecraft.nbt.CompoundTag tag) {
-        // 保存当前姿态索引
+        restoreFromNBT(tag);
+    }
+    
+    /**
+     * 从NBT恢复实体数据（公共方法，供物品使用）
+     * @param tag NBT标签
+     */
+    public void restoreFromNBT(net.minecraft.nbt.CompoundTag tag) {
+        // 优先恢复动作（如果有）
+        if (tag.contains("ActionName", net.minecraft.nbt.Tag.TAG_STRING)) {
+            String actionName = tag.getString("ActionName");
+            DollAction action = PoseActionManager.getAction(actionName);
+            if (action != null) {
+                setAction(action);
+                // 动作已设置，不需要再设置姿态索引
+                return;
+            }
+        }
+        
+        // 如果没有动作，恢复姿态索引
         if (tag.contains("PoseIndex")) {
             this.currentPoseIndex = tag.getInt("PoseIndex");
             // 加载时恢复姿态
@@ -82,6 +102,11 @@ public abstract class BaseDollEntity extends Entity {
     protected void addAdditionalSaveData(net.minecraft.nbt.CompoundTag tag) {
         // 保存当前姿态索引
         tag.putInt("PoseIndex", this.currentPoseIndex);
+        
+        // 如果当前有动作，也保存动作名称
+        if (currentAction != null) {
+            tag.putString("ActionName", currentAction.getName());
+        }
     }
     
     @Override
@@ -197,11 +222,28 @@ public abstract class BaseDollEntity extends Entity {
         ItemStack itemStack = getDollItemStack();
         
         // 保存NBT标签到物品
-        net.minecraft.nbt.CompoundTag itemTag = new net.minecraft.nbt.CompoundTag();
         net.minecraft.nbt.CompoundTag entityTag = new net.minecraft.nbt.CompoundTag();
         this.addAdditionalSaveData(entityTag);
+        
+        // 使用数据组件API保存NBT
+        net.minecraft.nbt.Tag tag = itemStack.save(this.level().registryAccess());
+        net.minecraft.nbt.CompoundTag itemTag;
+        if (tag instanceof net.minecraft.nbt.CompoundTag) {
+            itemTag = (net.minecraft.nbt.CompoundTag) tag;
+        } else {
+            itemTag = new net.minecraft.nbt.CompoundTag();
+        }
         itemTag.put("EntityData", entityTag);
-        itemStack.setTag(itemTag);
+        // 从NBT重新加载ItemStack
+        try {
+            java.util.Optional<ItemStack> parsed = ItemStack.parse(this.level().registryAccess(), itemTag);
+            if (parsed.isPresent()) {
+                itemStack = parsed.get();
+            }
+        } catch (Exception e) {
+            // 如果解析失败，使用原始物品堆
+            com.lanye.dolladdon.PlayerDollAddon.LOGGER.warn("无法从NBT加载物品堆，使用原始物品堆", e);
+        }
         
         // 掉落物品
         net.minecraft.world.entity.item.ItemEntity itemEntity = new net.minecraft.world.entity.item.ItemEntity(

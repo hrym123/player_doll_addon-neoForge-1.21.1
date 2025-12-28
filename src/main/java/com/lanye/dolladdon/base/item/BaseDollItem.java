@@ -56,11 +56,12 @@ public abstract class BaseDollItem extends Item {
         dollEntity.setYRot(player.getYRot() - 180); // 设置朝向
         
         // 如果物品有NBT标签，恢复实体的状态（包括姿态）
-        if (stack.hasTag()) {
-            net.minecraft.nbt.CompoundTag itemTag = stack.getTag();
+        net.minecraft.nbt.Tag tag = stack.save(level.registryAccess());
+        if (tag instanceof net.minecraft.nbt.CompoundTag) {
+            net.minecraft.nbt.CompoundTag itemTag = (net.minecraft.nbt.CompoundTag) tag;
             if (itemTag.contains("EntityData")) {
                 net.minecraft.nbt.CompoundTag entityTag = itemTag.getCompound("EntityData");
-                dollEntity.readAdditionalSaveData(entityTag);
+                dollEntity.restoreFromNBT(entityTag);
             }
         }
         
