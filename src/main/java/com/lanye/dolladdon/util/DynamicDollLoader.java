@@ -80,7 +80,6 @@ public class DynamicDollLoader {
                 Class<?> fmlPathsClass = Class.forName("net.neoforged.fml.loading.FMLPaths");
                 java.lang.reflect.Method gameDirMethod = fmlPathsClass.getMethod("getGamePath");
                 gameDir = (Path) gameDirMethod.invoke(null);
-                LOGGER.info("使用 FMLPaths 获取游戏目录: {}", gameDir);
             } catch (Exception e) {
                 // 如果 FMLPaths 不可用，使用当前工作目录
                 gameDir = Paths.get(".").toAbsolutePath().normalize();
@@ -88,7 +87,6 @@ public class DynamicDollLoader {
             }
             
             Path targetDir = gameDir.resolve(directoryPath).normalize();
-            LOGGER.info("扫描玩偶材质目录: {} (绝对路径: {})", directoryPath, targetDir);
             
             // 检查目录是否存在
             if (!Files.exists(targetDir) || !Files.isDirectory(targetDir)) {
@@ -96,7 +94,6 @@ public class DynamicDollLoader {
                 // 尝试创建目录
                 try {
                     Files.createDirectories(targetDir);
-                    LOGGER.info("已创建玩偶材质目录: {}", targetDir);
                 } catch (IOException e) {
                     LOGGER.error("无法创建玩偶材质目录: {}", targetDir, e);
                     return dollInfos;
@@ -112,15 +109,12 @@ public class DynamicDollLoader {
                              DollInfo info = parseDollFile(path, targetDir);
                              if (info != null) {
                                  dollInfos.add(info);
-                                 LOGGER.info("加载玩偶材质: {} -> {}", info.getFileName(), info.getDisplayName());
                              }
                          } catch (Exception e) {
                              LOGGER.error("解析玩偶文件失败: {}", path, e);
                          }
                      });
             }
-            
-            LOGGER.info("共加载 {} 个玩偶材质", dollInfos.size());
             
         } catch (Exception e) {
             LOGGER.error("扫描玩偶材质目录失败: {}", directoryPath, e);

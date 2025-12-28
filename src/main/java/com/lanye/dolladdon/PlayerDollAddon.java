@@ -16,20 +16,26 @@ import net.neoforged.neoforge.registries.DeferredRegister;
 import org.slf4j.Logger;
 import com.mojang.logging.LogUtils;
 
+import java.nio.file.Path;
+
 @Mod(PlayerDollAddon.MODID)
 public class PlayerDollAddon {
     public static final String MODID = "player_doll_addon";
     public static final Logger LOGGER = LogUtils.getLogger();
     
-    // 玩偶材质目录路径（相对于游戏目录）
-    public static final String DOLL_TEXTURES_DIR = "doll_textures";
+    // 玩偶图片目录路径（相对于游戏目录）
+    public static final String PNG_DIR = "player_doll/png";
     // 姿态文件目录路径（相对于游戏目录）
-    public static final String POSES_DIR = "poses";
+    public static final String POSES_DIR = "player_doll/poses";
+    // 动作文件目录路径（相对于游戏目录）
+    public static final String ACTIONS_DIR = "player_doll/actions";
     
     // 创建创造模式物品栏注册器
     public static final DeferredRegister<CreativeModeTab> CREATIVE_MODE_TABS = DeferredRegister.create(Registries.CREATIVE_MODE_TAB, MODID);
 
     public PlayerDollAddon(IEventBus modEventBus, ModContainer modContainer) {
+        // 初始化默认文件（从资源包复制到文件系统）
+        initializeDefaultFiles();
         // 先扫描目录并注册动态玩偶（必须在注册器注册之前）
         registerDynamicDolls();
         
@@ -46,19 +52,35 @@ public class PlayerDollAddon {
     }
     
     /**
+     * 初始化默认文件（生成到文件系统）
+     */
+    private void initializeDefaultFiles() {
+        try {
+            Path gameDir;
+            try {
+                Class<?> fmlPathsClass = Class.forName("net.neoforged.fml.loading.FMLPaths");
+                java.lang.reflect.Method gameDirMethod = fmlPathsClass.getMethod("getGamePath");
+                gameDir = (Path) gameDirMethod.invoke(null);
+            } catch (Exception e) {
+                gameDir = java.nio.file.Paths.get(".").toAbsolutePath().normalize();
+            }
+            
+            com.lanye.dolladdon.util.DefaultFileInitializer.initializeDefaultFiles(gameDir);
+        } catch (Exception e) {
+            LOGGER.error("初始化默认文件失败", e);
+        }
+    }
+    
+    /**
      * 注册动态玩偶（从文件加载）
      * 在构造函数中调用，确保在注册器注册之前完成
      */
     private void registerDynamicDolls() {
-        LOGGER.info("开始扫描玩偶材质目录: {}", DOLL_TEXTURES_DIR);
-        
         // 先清理旧的动态模型文件（保留 alex_doll.json 和 steve_doll.json）
         com.lanye.dolladdon.util.DynamicModelGenerator.cleanupOldModelFiles();
         
         // 扫描目录
-        var dollInfos = DynamicDollLoader.scanDirectory(DOLL_TEXTURES_DIR);
-        
-        LOGGER.info("扫描到 {} 个玩偶材质文件", dollInfos.size());
+        var dollInfos = DynamicDollLoader.scanDirectory(PNG_DIR);
         
         // 批量生成所有动态玩偶的模型文件（所有动态玩偶都使用相同的模型内容）
         java.util.List<String> registryNames = new java.util.ArrayList<>();
@@ -85,20 +107,12 @@ public class PlayerDollAddon {
                     dollInfo.getDisplayName()
                 );
                 
-                LOGGER.info("已注册动态玩偶: {} (模型: {}, 显示名称: {})", 
-                    dollInfo.getFileName(),
-                    dollInfo.isAlexModel() ? "Alex" : "Steve",
-                    dollInfo.getDisplayName()
-                );
                 successCount++;
             } catch (Exception e) {
                 LOGGER.error("注册动态玩偶失败: {}", dollInfo.getFileName(), e);
                 e.printStackTrace();
             }
         }
-        
-        LOGGER.info("动态玩偶注册完成，成功注册 {}/{} 个玩偶", successCount, dollInfos.size());
-        LOGGER.info("ModItems.DYNAMIC_DOLLS 大小: {}", ModItems.DYNAMIC_DOLLS.size());
     }
     
     // 创建玩家玩偶物品栏
@@ -124,12 +138,10 @@ public class PlayerDollAddon {
                                 ItemStack stack = new ItemStack(entry.getValue().get());
                                 output.accept(stack);
                                 dynamicCount++;
-                                LOGGER.debug("添加动态玩偶到物品栏: {}", entry.getKey());
                             } catch (Exception e) {
                                 LOGGER.error("添加动态玩偶到物品栏失败: {}", entry.getKey(), e);
                             }
                         }
-                        LOGGER.info("物品栏中添加了 {} 个动态玩偶", dynamicCount);
                     })
                     .build()
     );

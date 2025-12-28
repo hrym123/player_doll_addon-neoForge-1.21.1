@@ -92,7 +92,6 @@ public class PoseActionManager {
      */
     public static void registerPose(String name, DollPose pose) {
         poses.put(name, pose);
-        LOGGER.info("已注册自定义姿态: {}", name);
     }
     
     /**
@@ -102,7 +101,6 @@ public class PoseActionManager {
      */
     public static void registerAction(String name, DollAction action) {
         actions.put(name, action);
-        LOGGER.info("已注册自定义动作: {}", name);
     }
     
     /**
@@ -127,8 +125,6 @@ public class PoseActionManager {
             for (Map.Entry<String, DollPose> entry : fileSystemPoses.entrySet()) {
                 poses.put(entry.getKey(), entry.getValue());
             }
-            
-            LOGGER.info("已从文件系统重新加载 {} 个姿态文件", fileSystemPoses.size());
         } catch (Exception e) {
             LOGGER.error("从文件系统重新加载姿态失败", e);
         }

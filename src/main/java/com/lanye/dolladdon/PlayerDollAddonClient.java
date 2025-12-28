@@ -52,7 +52,7 @@ public class PlayerDollAddonClient {
         
         // 注册动态玩偶实体渲染器
         // 需要先扫描目录获取信息
-        var dollInfos = DynamicDollLoader.scanDirectory(PlayerDollAddon.DOLL_TEXTURES_DIR);
+        var dollInfos = DynamicDollLoader.scanDirectory(PlayerDollAddon.PNG_DIR);
         for (var dollInfo : dollInfos) {
             var entityHolder = ModEntities.DYNAMIC_DOLLS.get(dollInfo.getFileName());
             if (entityHolder != null) {
@@ -64,7 +64,6 @@ public class PlayerDollAddonClient {
                         dollInfo.isAlexModel()
                     )
                 );
-                PlayerDollAddon.LOGGER.info("已注册动态玩偶渲染器: {}", dollInfo.getFileName());
             }
         }
     }
@@ -118,10 +117,7 @@ public class PlayerDollAddonClient {
                     );
                     // 先接受包，确保它被添加到列表的最前面
                     packConsumer.accept(pack);
-                    PlayerDollAddon.LOGGER.info("动态资源包已添加到资源管理器，纹理数量: {}", com.lanye.dolladdon.util.DynamicTextureManager.TEXTURE_PATHS.size());
                 });
-                
-                PlayerDollAddon.LOGGER.info("已注册动态资源包，当前注册的纹理数量: {}", com.lanye.dolladdon.util.DynamicTextureManager.TEXTURE_PATHS.size());
             } catch (Exception e) {
                 PlayerDollAddon.LOGGER.error("注册动态资源包失败", e);
                 e.printStackTrace();

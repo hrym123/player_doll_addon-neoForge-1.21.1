@@ -23,7 +23,6 @@ public class DynamicTextureManager {
      */
     public static void registerTexture(ResourceLocation resourceLocation, Path filePath) {
         TEXTURE_PATHS.put(resourceLocation, filePath);
-        LOGGER.debug("注册动态纹理: {} -> {}", resourceLocation, filePath);
     }
     
     /**

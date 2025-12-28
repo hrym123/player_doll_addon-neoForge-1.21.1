@@ -56,10 +56,7 @@ public class DynamicModelGenerator {
                         .resolve(modelFileName);
                 if (writeModelFileIfNeeded(buildResourcesModelFile, "build/resources/main")) {
                     success = true;
-                    LOGGER.debug("模型文件已写入 build/resources/main（开发环境）");
                 }
-            } else {
-                LOGGER.debug("无法获取 build/resources/main 目录（可能是生产环境，这是正常的）");
             }
             
             // 2. 生成到 src/main/resources 目录（开发环境，下次编译时会被包含到 JAR）
@@ -71,10 +68,7 @@ public class DynamicModelGenerator {
                         .resolve(modelFileName);
                 if (writeModelFileIfNeeded(modResourcesModelFile, "src/main/resources")) {
                     success = true;
-                    LOGGER.debug("模型文件已写入 src/main/resources（开发环境）");
                 }
-            } else {
-                LOGGER.debug("无法获取 src/main/resources 目录（可能是生产环境，这是正常的）");
             }
             
             // 只要任一目录写入成功，就返回 true
@@ -99,11 +93,10 @@ public class DynamicModelGenerator {
                 try {
                     String existingContent = Files.readString(modelFile);
                     if (existingContent.trim().equals(MODEL_CONTENT.trim())) {
-                        LOGGER.debug("模型文件已存在且内容相同，跳过: {} ({})", modelFile, locationName);
                         return true;
                     }
                 } catch (IOException e) {
-                    LOGGER.debug("读取现有模型文件失败，将重新生成: {}", modelFile, e);
+                    // 读取失败，将重新生成
                 }
             }
             
@@ -112,7 +105,6 @@ public class DynamicModelGenerator {
             
             // 写入文件
             Files.writeString(modelFile, MODEL_CONTENT);
-            LOGGER.info("已生成模型文件: {} ({})", modelFile, locationName);
             return true;
         } catch (IOException e) {
             LOGGER.warn("生成模型文件失败: {} ({})", modelFile, locationName, e);
@@ -163,15 +155,11 @@ public class DynamicModelGenerator {
                         try {
                             Files.delete(filePath);
                             deletedCount++;
-                            LOGGER.debug("已删除动态模型文件: {} ({})", filePath, locationName);
                         } catch (IOException e) {
                             LOGGER.warn("删除动态模型文件失败: {} ({})", filePath, locationName, e);
                         }
                     }
                 }
-            }
-            if (deletedCount > 0) {
-                LOGGER.info("已清理 {} 个动态模型文件 ({})", deletedCount, locationName);
             }
         } catch (IOException e) {
             LOGGER.error("清理动态模型文件目录失败: {} ({})", itemModelsDir, locationName, e);
@@ -188,29 +176,23 @@ public class DynamicModelGenerator {
             Path dynamicModelsDir = modResourcesDir.resolve("item").resolve("dynamic");
             if (Files.exists(dynamicModelsDir) && Files.isDirectory(dynamicModelsDir)) {
                 try (var paths = Files.list(dynamicModelsDir)) {
-                    int deletedCount = 0;
                     for (Path filePath : paths.collect(java.util.stream.Collectors.toList())) {
                         if (Files.isRegularFile(filePath)) {
                             try {
                                 Files.delete(filePath);
-                                deletedCount++;
                             } catch (IOException e) {
                                 LOGGER.warn("删除旧动态模型文件失败: {}", filePath, e);
                             }
                         }
                     }
-                    if (deletedCount > 0) {
-                        LOGGER.info("已清理 {} 个旧 dynamic 子目录中的模型文件", deletedCount);
-                    }
                     // 尝试删除空的 dynamic 目录
                     try {
                         Files.delete(dynamicModelsDir);
-                        LOGGER.debug("已删除空的 dynamic 子目录");
                     } catch (IOException e) {
                         // 如果目录不为空或删除失败，忽略错误
                     }
                 } catch (IOException e) {
-                    LOGGER.debug("清理旧 dynamic 子目录失败", e);
+                    // 清理失败，忽略错误
                 }
             }
         }
@@ -221,29 +203,23 @@ public class DynamicModelGenerator {
             Path dynamicModelsDir = buildResourcesDir.resolve("item").resolve("dynamic");
             if (Files.exists(dynamicModelsDir) && Files.isDirectory(dynamicModelsDir)) {
                 try (var paths = Files.list(dynamicModelsDir)) {
-                    int deletedCount = 0;
                     for (Path filePath : paths.collect(java.util.stream.Collectors.toList())) {
                         if (Files.isRegularFile(filePath)) {
                             try {
                                 Files.delete(filePath);
-                                deletedCount++;
                             } catch (IOException e) {
                                 LOGGER.warn("删除旧动态模型文件失败: {}", filePath, e);
                             }
                         }
                     }
-                    if (deletedCount > 0) {
-                        LOGGER.info("已清理 {} 个旧 dynamic 子目录中的模型文件", deletedCount);
-                    }
                     // 尝试删除空的 dynamic 目录
                     try {
                         Files.delete(dynamicModelsDir);
-                        LOGGER.debug("已删除空的 dynamic 子目录");
                     } catch (IOException e) {
                         // 如果目录不为空或删除失败，忽略错误
                     }
                 } catch (IOException e) {
-                    LOGGER.debug("清理旧 dynamic 子目录失败", e);
+                    // 清理失败，忽略错误
                 }
             }
         }
@@ -256,7 +232,6 @@ public class DynamicModelGenerator {
      */
     public static int generateAllItemModels(java.util.List<String> registryNames) {
         int successCount = 0;
-        LOGGER.info("开始批量生成 {} 个动态玩偶的模型文件", registryNames.size());
         
         for (String registryName : registryNames) {
             if (generateItemModel(registryName)) {
@@ -264,7 +239,6 @@ public class DynamicModelGenerator {
             }
         }
         
-        LOGGER.info("批量生成模型文件完成，成功生成 {}/{} 个", successCount, registryNames.size());
         return successCount;
     }
     
@@ -290,7 +264,6 @@ public class DynamicModelGenerator {
             // 如果 gameDir 是 run 目录，向上查找项目根目录
             if (gameDir.getFileName() != null && gameDir.getFileName().toString().equals("run")) {
                 projectRoot = gameDir.getParent();
-                LOGGER.debug("检测到 run 目录，项目根目录: {}", projectRoot);
             }
             
             // 尝试查找 build/resources/main 目录
@@ -304,14 +277,11 @@ public class DynamicModelGenerator {
             // 检查 build/resources/main 目录是否存在或可以创建
             Path buildResourcesBase = projectRoot.resolve("build").resolve("resources").resolve("main");
             if (Files.exists(buildResourcesBase) || Files.exists(projectRoot.resolve("build"))) {
-                LOGGER.info("找到 build/resources/main 目录: {}", buildResourcesDir);
                 return buildResourcesDir;
             }
             
-            LOGGER.debug("无法找到 build/resources/main 目录（可能是生产环境，这是正常的）。尝试的路径: {}", buildResourcesDir);
             return null;
         } catch (Exception e) {
-            LOGGER.debug("获取 build/resources/main 目录失败（可能是生产环境，这是正常的）", e);
             return null;
         }
     }
@@ -351,14 +321,11 @@ public class DynamicModelGenerator {
             // 检查 src/main/resources 目录是否存在
             Path resourcesBase = projectRoot.resolve("src").resolve("main").resolve("resources");
             if (Files.exists(resourcesBase) && Files.isDirectory(resourcesBase)) {
-                LOGGER.debug("找到 src/main/resources 目录: {}", resourcesDir);
                 return resourcesDir;
             }
             
-            LOGGER.debug("无法找到 src/main/resources 目录（可能是生产环境，这是正常的）");
             return null;
         } catch (Exception e) {
-            LOGGER.debug("获取 src/main/resources 目录失败（可能是生产环境，这是正常的）", e);
             return null;
         }
     }

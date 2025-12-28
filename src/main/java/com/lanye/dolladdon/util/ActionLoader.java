@@ -18,6 +18,8 @@ import org.slf4j.Logger;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -109,9 +111,25 @@ public class ActionLoader {
                     // 内联姿态定义
                     pose = PoseLoader.parsePose(poseElement.getAsJsonObject());
                 } else if (poseElement.isJsonPrimitive()) {
-                    // 引用其他姿态文件
+                    // 引用其他姿态文件，优先从文件系统加载
                     String poseName = poseElement.getAsString();
-                    pose = PoseLoader.loadPose(resourceManager, poseName);
+                    // 先尝试从文件系统加载
+                    try {
+                        Path gameDir;
+                        try {
+                            Class<?> fmlPathsClass = Class.forName("net.neoforged.fml.loading.FMLPaths");
+                            java.lang.reflect.Method gameDirMethod = fmlPathsClass.getMethod("getGamePath");
+                            gameDir = (Path) gameDirMethod.invoke(null);
+                        } catch (Exception e) {
+                            gameDir = java.nio.file.Paths.get(".").toAbsolutePath().normalize();
+                        }
+                        Path posesDir = gameDir.resolve(PlayerDollAddon.POSES_DIR);
+                        Path poseFile = posesDir.resolve(poseName + ".json");
+                        pose = PoseLoader.loadPoseFromFileSystem(poseFile);
+                    } catch (Exception e) {
+                        // 如果文件系统加载失败，尝试从资源包加载（向后兼容）
+                        pose = PoseLoader.loadPose(resourceManager, poseName);
+                    }
                 }
             }
             
@@ -127,12 +145,101 @@ public class ActionLoader {
     }
     
     /**
-     * 加载所有动作
+     * 从文件系统加载动作文件
+     * @param actionsDir 动作文件目录路径
+     * @return 加载的动作映射
+     */
+    public static Map<String, DollAction> loadActionsFromFileSystem(Path actionsDir) {
+        Map<String, DollAction> actions = new HashMap<>();
+        
+        if (!Files.exists(actionsDir) || !Files.isDirectory(actionsDir)) {
+            LOGGER.debug("[WENTI004] 动作目录不存在或不是目录: {}", actionsDir);
+            return actions;
+        }
+        
+        try {
+            Files.list(actionsDir)
+                .filter(path -> path.toString().endsWith(".json"))
+                .filter(Files::isRegularFile)
+                .forEach(actionFile -> {
+                    try {
+                        String fileName = actionFile.getFileName().toString();
+                        String name = fileName.substring(0, fileName.length() - ".json".length());
+                        LOGGER.info("[WENTI004] 从文件系统加载动作: {}", name);
+                        
+                        try (InputStreamReader reader = new InputStreamReader(
+                                Files.newInputStream(actionFile), StandardCharsets.UTF_8)) {
+                            JsonObject json = GSON.fromJson(reader, JsonObject.class);
+                            // 解析动作时，如果引用了姿态，需要从文件系统加载
+                            DollAction action = parseActionFromFileSystem(json, actionsDir.getParent().resolve("poses"));
+                            if (action != null) {
+                                actions.put(name, action);
+                                LOGGER.info("[WENTI004] 从文件系统加载动作成功: {} -> {}", name, action.getName());
+                            }
+                        }
+                    } catch (Exception e) {
+                        LOGGER.error("[WENTI004] 从文件系统加载动作文件失败: {}", actionFile, e);
+                    }
+                });
+        } catch (Exception e) {
+            LOGGER.error("[WENTI004] 扫描文件系统动作目录失败: {}", actionsDir, e);
+        }
+        
+        return actions;
+    }
+    
+    /**
+     * 从文件系统解析动作（用于处理姿态引用）
+     */
+    private static DollAction parseActionFromFileSystem(JsonObject json, Path posesDir) {
+        String name = json.has("name") ? json.get("name").getAsString() : "unnamed";
+        boolean looping = json.has("looping") && json.get("looping").getAsBoolean();
+        
+        if (!json.has("keyframes") || !json.get("keyframes").isJsonArray()) {
+            LOGGER.error("[WENTI004] 动作缺少keyframes数组: {}", name);
+            return null;
+        }
+        
+        JsonArray keyframesArray = json.get("keyframes").getAsJsonArray();
+        ActionKeyframe[] keyframes = new ActionKeyframe[keyframesArray.size()];
+        
+        for (int i = 0; i < keyframesArray.size(); i++) {
+            JsonObject keyframeObj = keyframesArray.get(i).getAsJsonObject();
+            
+            int tick = keyframeObj.has("tick") ? keyframeObj.get("tick").getAsInt() : 0;
+            
+            DollPose pose = null;
+            if (keyframeObj.has("pose")) {
+                JsonElement poseElement = keyframeObj.get("pose");
+                if (poseElement.isJsonObject()) {
+                    // 内联姿态定义
+                    pose = PoseLoader.parsePose(poseElement.getAsJsonObject());
+                } else if (poseElement.isJsonPrimitive()) {
+                    // 引用其他姿态文件，从文件系统加载
+                    String poseName = poseElement.getAsString();
+                    pose = PoseLoader.loadPoseFromFileSystem(posesDir.resolve(poseName + ".json"));
+                }
+            }
+            
+            if (pose == null) {
+                LOGGER.warn("[WENTI004] 关键帧 {} 缺少有效的姿态定义，使用默认姿态", i);
+                pose = com.lanye.dolladdon.api.pose.SimpleDollPose.createDefaultStandingPose();
+            }
+            
+            keyframes[i] = new ActionKeyframe(tick, pose);
+        }
+        
+        return new SimpleDollAction(name, looping, keyframes);
+    }
+    
+    /**
+     * 加载所有动作（从 ResourceManager 和文件系统）
      */
     public static Map<String, DollAction> loadAllActions(ResourceManager resourceManager) {
         LOGGER.info("[WENTI004] loadAllActions 开始，ResourceManager: {}", resourceManager);
         Map<String, DollAction> actions = new HashMap<>();
         
+        // 首先从 ResourceManager 加载（资源包中的动作）
         try {
             LOGGER.info("[WENTI004] 开始扫描资源包中的动作文件...");
             var resources = resourceManager.listResources("actions", path -> path.getPath().endsWith(".json"));
@@ -158,6 +265,28 @@ public class ActionLoader {
             LOGGER.info("[WENTI004] 从资源包加载了 {} 个动作", actions.size());
         } catch (Exception e) {
             LOGGER.error("[WENTI004] 扫描动作资源失败", e);
+        }
+        
+        // 然后从文件系统加载（文件系统中的动作会覆盖资源包中的同名动作）
+        try {
+            LOGGER.info("[WENTI004] 开始从文件系统加载动作...");
+            Path gameDir;
+            try {
+                Class<?> fmlPathsClass = Class.forName("net.neoforged.fml.loading.FMLPaths");
+                java.lang.reflect.Method gameDirMethod = fmlPathsClass.getMethod("getGamePath");
+                gameDir = (Path) gameDirMethod.invoke(null);
+            } catch (Exception e) {
+                gameDir = java.nio.file.Paths.get(".").toAbsolutePath().normalize();
+            }
+            
+            Path actionsDir = gameDir.resolve(PlayerDollAddon.ACTIONS_DIR);
+            LOGGER.info("[WENTI004] 文件系统动作目录: {}", actionsDir);
+            Map<String, DollAction> fileSystemActions = loadActionsFromFileSystem(actionsDir);
+            LOGGER.info("[WENTI004] 从文件系统加载了 {} 个动作: {}", fileSystemActions.size(), fileSystemActions.keySet());
+            actions.putAll(fileSystemActions); // 文件系统的动作会覆盖资源包中的同名动作
+            LOGGER.info("[WENTI004] 合并后总共 {} 个动作", actions.size());
+        } catch (Exception e) {
+            LOGGER.error("[WENTI004] 从文件系统加载动作失败", e);
         }
         
         LOGGER.info("[WENTI004] loadAllActions 完成，返回 {} 个动作", actions.size());

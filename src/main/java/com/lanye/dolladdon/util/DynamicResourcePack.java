@@ -47,11 +47,10 @@ public class DynamicResourcePack implements PackResources {
             return null;
         }
         
-        // 如果是纹理，从 doll_textures 目录加载
+        // 如果是纹理，从 player_doll/png 目录加载
         if (path.startsWith("textures/entity/")) {
             Path texturePath = DynamicTextureManager.getTexturePath(location);
             if (texturePath != null && Files.exists(texturePath) && Files.isRegularFile(texturePath)) {
-                LOGGER.info("动态资源包提供纹理: {} -> {}", location, texturePath);
                 return () -> Files.newInputStream(texturePath);
             } else {
                 LOGGER.warn("动态资源包无法找到纹理: {} (路径: {})", location, texturePath);

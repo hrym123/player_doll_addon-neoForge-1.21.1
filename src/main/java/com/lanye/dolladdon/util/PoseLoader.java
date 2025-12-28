@@ -121,6 +121,28 @@ public class PoseLoader {
     }
     
     /**
+     * 从文件系统加载单个姿态文件
+     * @param poseFile 姿态文件路径
+     * @return 加载的姿态，如果失败返回null
+     */
+    public static DollPose loadPoseFromFileSystem(Path poseFile) {
+        if (!Files.exists(poseFile) || !Files.isRegularFile(poseFile)) {
+            return null;
+        }
+        
+        try {
+            try (InputStreamReader reader = new InputStreamReader(
+                    Files.newInputStream(poseFile), StandardCharsets.UTF_8)) {
+                JsonObject json = GSON.fromJson(reader, JsonObject.class);
+                return parsePose(json);
+            }
+        } catch (Exception e) {
+            LOGGER.error("[WENTI004] 从文件系统加载姿态文件失败: {}", poseFile, e);
+            return null;
+        }
+    }
+    
+    /**
      * 从文件系统加载姿态文件
      * @param posesDir 姿态文件目录路径
      * @return 加载的姿态映射
@@ -129,7 +151,6 @@ public class PoseLoader {
         Map<String, DollPose> poses = new HashMap<>();
         
         if (!Files.exists(posesDir) || !Files.isDirectory(posesDir)) {
-            LOGGER.debug("姿态目录不存在或不是目录: {}", posesDir);
             return poses;
         }
         
@@ -148,7 +169,6 @@ public class PoseLoader {
                             DollPose pose = parsePose(json);
                             if (pose != null) {
                                 poses.put(name, pose);
-                                LOGGER.info("从文件系统加载姿态: {} -> {}", name, pose.getName());
                             }
                         }
                     } catch (Exception e) {

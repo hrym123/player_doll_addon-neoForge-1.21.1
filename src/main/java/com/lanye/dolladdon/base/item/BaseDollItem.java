@@ -57,21 +57,13 @@ public abstract class BaseDollItem extends Item {
         
         // 如果物品有NBT标签，恢复实体的状态（包括姿态）
         // 从custom_data组件读取NBT
-        com.lanye.dolladdon.PlayerDollAddon.LOGGER.debug("[放置物品] 开始从物品NBT恢复实体状态，物品: {}", stack.getItem());
         var customData = stack.get(net.minecraft.core.component.DataComponents.CUSTOM_DATA);
         if (customData != null) {
             var dataTag = customData.copyTag();
-            com.lanye.dolladdon.PlayerDollAddon.LOGGER.debug("[放置物品] 读取到custom_data内容: {}", dataTag);
             if (dataTag != null && dataTag.contains("EntityData")) {
                 net.minecraft.nbt.CompoundTag entityTag = dataTag.getCompound("EntityData");
-                com.lanye.dolladdon.PlayerDollAddon.LOGGER.debug("[放置物品] 读取到EntityData内容: {}", entityTag);
                 dollEntity.restoreFromNBT(entityTag);
-                com.lanye.dolladdon.PlayerDollAddon.LOGGER.debug("[放置物品] ✅ 实体状态已恢复");
-            } else {
-                com.lanye.dolladdon.PlayerDollAddon.LOGGER.debug("[放置物品] ⚠️ 未找到EntityData标签");
             }
-        } else {
-            com.lanye.dolladdon.PlayerDollAddon.LOGGER.debug("[放置物品] ⚠️ custom_data组件为空，不恢复实体状态");
         }
         
         // 检查是否可以生成
