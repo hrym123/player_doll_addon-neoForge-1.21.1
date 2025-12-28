@@ -74,7 +74,7 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
         // 应用姿态的位置和大小
         float[] position = pose.getPosition();
         if (position[0] != 0.0f || position[1] != 0.0f || position[2] != 0.0f) {
-            poseStack.translate(position[0], position[1], position[2]);
+            poseStack.translate(position[0], -position[1], position[2]);
         }
         if (scale[0] != 1.0f || scale[1] != 1.0f || scale[2] != 1.0f) {
             poseStack.scale(scale[0], scale[1], scale[2]);
