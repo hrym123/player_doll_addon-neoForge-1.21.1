@@ -98,6 +98,7 @@ public class PoseLoader {
     /**
      * 解析旋转数组 [x, y, z]
      * JSON中的值使用角度（360度制），会转换为弧度返回
+     * 注意：角度值需要取反以适应旋转方向（+90度朝前）
      */
     private static float[] parseRotation(JsonObject json, String key) {
         if (!json.has(key)) {
@@ -108,11 +109,11 @@ public class PoseLoader {
         if (element.isJsonArray()) {
             var array = element.getAsJsonArray();
             if (array.size() >= 3) {
-                // 将角度转换为弧度
+                // 将角度转换为弧度，并取反以适应旋转方向（+90度朝前）
                 return new float[]{
-                    (float) Math.toRadians(array.get(0).getAsFloat()),
-                    (float) Math.toRadians(array.get(1).getAsFloat()),
-                    (float) Math.toRadians(array.get(2).getAsFloat())
+                    (float) Math.toRadians(-array.get(0).getAsFloat()),
+                    (float) Math.toRadians(-array.get(1).getAsFloat()),
+                    (float) Math.toRadians(-array.get(2).getAsFloat())
                 };
             }
         }
