@@ -6,6 +6,8 @@ import com.lanye.dolladdon.api.pose.DollPose;
 import net.minecraft.server.packs.resources.ResourceManager;
 import org.slf4j.Logger;
 
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -21,22 +23,32 @@ public class PoseActionManager {
     
     /**
      * 加载所有姿态和动作资源
-     * 应该在游戏启动时调用
+     * 应该在游戏启动时或资源重载时调用（如执行 /reload 命令）
      */
     public static void loadResources(ResourceManager resourceManager) {
-        LOGGER.info("开始加载姿态和动作资源...");
+        LOGGER.info("[WENTI004] loadResources 被调用，ResourceManager: {}", resourceManager);
+        LOGGER.info("[WENTI004] 开始加载姿态和动作资源...");
+        LOGGER.info("[WENTI004] 当前已加载的姿态数量（加载前）: {}", poses.size());
+        LOGGER.info("[WENTI004] 当前已加载的动作数量（加载前）: {}", actions.size());
         
-        // 加载所有姿态
+        // 加载所有姿态（从资源包和文件系统）
         Map<String, DollPose> loadedPoses = PoseLoader.loadAllPoses(resourceManager);
+        LOGGER.info("[WENTI004] PoseLoader.loadAllPoses 返回 {} 个姿态", loadedPoses.size());
+        LOGGER.info("[WENTI004] 加载的姿态列表: {}", loadedPoses.keySet());
+        
         poses.clear();
         poses.putAll(loadedPoses);
-        LOGGER.info("已加载 {} 个姿态", poses.size());
+        LOGGER.info("[WENTI004] 已加载 {} 个姿态", poses.size());
         
         // 加载所有动作
         Map<String, DollAction> loadedActions = ActionLoader.loadAllActions(resourceManager);
+        LOGGER.info("[WENTI004] ActionLoader.loadAllActions 返回 {} 个动作", loadedActions.size());
+        LOGGER.info("[WENTI004] 加载的动作列表: {}", loadedActions.keySet());
+        
         actions.clear();
         actions.putAll(loadedActions);
-        LOGGER.info("已加载 {} 个动作", actions.size());
+        LOGGER.info("[WENTI004] 已加载 {} 个动作", actions.size());
+        LOGGER.info("[WENTI004] loadResources 完成");
     }
     
     /**
@@ -91,6 +103,35 @@ public class PoseActionManager {
     public static void registerAction(String name, DollAction action) {
         actions.put(name, action);
         LOGGER.info("已注册自定义动作: {}", name);
+    }
+    
+    /**
+     * 从文件系统重新加载姿态文件（动态读取）
+     * 可以在游戏运行时调用此方法来重新加载 poses 目录中的姿态文件
+     */
+    public static void reloadPosesFromFileSystem() {
+        try {
+            Path gameDir;
+            try {
+                Class<?> fmlPathsClass = Class.forName("net.neoforged.fml.loading.FMLPaths");
+                java.lang.reflect.Method gameDirMethod = fmlPathsClass.getMethod("getGamePath");
+                gameDir = (Path) gameDirMethod.invoke(null);
+            } catch (Exception e) {
+                gameDir = Paths.get(".").toAbsolutePath().normalize();
+            }
+            
+            Path posesDir = gameDir.resolve(PlayerDollAddon.POSES_DIR);
+            Map<String, DollPose> fileSystemPoses = PoseLoader.loadPosesFromFileSystem(posesDir);
+            
+            // 更新姿态映射（保留资源包中的姿态，但用文件系统中的姿态覆盖同名姿态）
+            for (Map.Entry<String, DollPose> entry : fileSystemPoses.entrySet()) {
+                poses.put(entry.getKey(), entry.getValue());
+            }
+            
+            LOGGER.info("已从文件系统重新加载 {} 个姿态文件", fileSystemPoses.size());
+        } catch (Exception e) {
+            LOGGER.error("从文件系统重新加载姿态失败", e);
+        }
     }
 }
 

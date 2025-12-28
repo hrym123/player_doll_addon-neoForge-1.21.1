@@ -23,6 +23,8 @@ public class PlayerDollAddon {
     
     // 玩偶材质目录路径（相对于游戏目录）
     public static final String DOLL_TEXTURES_DIR = "doll_textures";
+    // 姿态文件目录路径（相对于游戏目录）
+    public static final String POSES_DIR = "poses";
     
     // 创建创造模式物品栏注册器
     public static final DeferredRegister<CreativeModeTab> CREATIVE_MODE_TABS = DeferredRegister.create(Registries.CREATIVE_MODE_TAB, MODID);

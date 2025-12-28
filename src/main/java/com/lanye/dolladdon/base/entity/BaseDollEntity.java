@@ -97,9 +97,10 @@ public abstract class BaseDollEntity extends Entity {
                 List<String> poseNames = getAvailablePoseNames();
                 int index = poseNames.indexOf(poseName);
                 if (index >= 0) {
-                    this.currentPoseIndex = index;
+                    // 如果索引是0（standing），设置为-1表示默认状态
+                    this.currentPoseIndex = (index == 0) ? -1 : index;
                     // 同步到客户端
-                    if (currentPoseIndex < 255) {
+                    if (currentPoseIndex >= 0 && currentPoseIndex < 255) {
                         this.entityData.set(DATA_POSE_INDEX, (byte) (currentPoseIndex & 0xFF));
                     } else {
                         this.entityData.set(DATA_POSE_INDEX, (byte) 255);
@@ -114,7 +115,8 @@ public abstract class BaseDollEntity extends Entity {
         // 如果没有姿态名称，尝试使用姿态索引（向后兼容）
         if (tag.contains("PoseIndex")) {
             int savedIndex = tag.getInt("PoseIndex");
-            this.currentPoseIndex = savedIndex;
+            // 如果索引是0（standing），设置为-1表示默认状态
+            this.currentPoseIndex = (savedIndex == 0) ? -1 : savedIndex;
             // 加载时恢复姿态
             loadPoseByIndex();
             // 同步到客户端
@@ -123,6 +125,12 @@ public abstract class BaseDollEntity extends Entity {
             } else {
                 this.entityData.set(DATA_POSE_INDEX, (byte) 255);
             }
+        } else {
+            // NBT中没有姿态信息，使用默认standing姿态
+            this.currentPoseIndex = -1;
+            this.entityData.set(DATA_POSE_INDEX, (byte) 255);
+            DollPose standingPose = PoseActionManager.getPose("standing");
+            this.currentPose = standingPose != null ? standingPose : SimpleDollPose.createDefaultStandingPose();
         }
     }
     
@@ -134,15 +142,18 @@ public abstract class BaseDollEntity extends Entity {
         }
         
         // 保存当前姿态名称（而不是索引）
+        // standing姿态不保存到NBT，当NBT为空时默认使用standing姿态
         if (currentPose != null) {
             String poseName = currentPose.getName();
-            if (poseName != null && !poseName.isEmpty()) {
+            // 只有当姿态不是standing时才保存
+            if (poseName != null && !poseName.isEmpty() && !poseName.equals("standing")) {
                 tag.putString("PoseName", poseName);
             }
         }
         
         // 为了向后兼容，也保存姿态索引
-        if (this.currentPoseIndex >= 0) {
+        // standing姿态（索引-1或0）不保存，当NBT为空时默认使用standing姿态
+        if (this.currentPoseIndex > 0) {
             tag.putInt("PoseIndex", this.currentPoseIndex);
         }
     }
@@ -268,71 +279,125 @@ public abstract class BaseDollEntity extends Entity {
         net.minecraft.nbt.CompoundTag entityTag = new net.minecraft.nbt.CompoundTag();
         this.addAdditionalSaveData(entityTag);
         
-        // 使用数据组件API保存NBT到custom_data组件
-        net.minecraft.nbt.CompoundTag customDataTag = new net.minecraft.nbt.CompoundTag();
-        customDataTag.put("EntityData", entityTag);
-        
-        // 设置custom_data组件（合并现有的custom_data，如果有的话）
+        // 只有当entityTag不为空时才保存custom_data，否则清除EntityData标签（允许物品叠加）
         var existingData = itemStack.get(net.minecraft.core.component.DataComponents.CUSTOM_DATA);
-        net.minecraft.nbt.CompoundTag finalData;
-        if (existingData != null) {
-            var existingTag = existingData.copyTag();
-            if (existingTag != null) {
-                finalData = existingTag;
-                finalData.put("EntityData", entityTag);
+        if (!entityTag.isEmpty()) {
+            // 使用数据组件API保存NBT到custom_data组件
+            net.minecraft.nbt.CompoundTag customDataTag = new net.minecraft.nbt.CompoundTag();
+            customDataTag.put("EntityData", entityTag);
+            
+            // 设置custom_data组件（合并现有的custom_data，如果有的话）
+            net.minecraft.nbt.CompoundTag finalData;
+            if (existingData != null) {
+                var existingTag = existingData.copyTag();
+                if (existingTag != null) {
+                    finalData = existingTag;
+                    finalData.put("EntityData", entityTag);
+                } else {
+                    finalData = customDataTag;
+                }
             } else {
                 finalData = customDataTag;
             }
+            
+            // 直接使用 DataComponents.CUSTOM_DATA API 设置 custom_data 组件
+            // 在 Minecraft 1.21.1 中，需要使用 CustomData 对象包装 CompoundTag
+            boolean saved = false;
+            try {
+                // 尝试使用 CustomData.of() 创建（尝试不同的包路径）
+                String[] possiblePaths = {
+                    "net.minecraft.core.component.types.CustomData",
+                    "net.minecraft.core.component.CustomData",
+                    "net.minecraft.world.item.component.CustomData"
+                };
+                
+                Object customDataComponent = null;
+                for (String className : possiblePaths) {
+                    try {
+                        Class<?> customDataClass = Class.forName(className);
+                        java.lang.reflect.Method ofMethod = customDataClass.getMethod("of", net.minecraft.nbt.CompoundTag.class);
+                        customDataComponent = ofMethod.invoke(null, finalData);
+                        break;
+                    } catch (ClassNotFoundException e2) {
+                        // 继续尝试下一个路径
+                        continue;
+                    } catch (Exception e3) {
+                        // 继续尝试下一个路径
+                    }
+                }
+                
+                if (customDataComponent != null) {
+                    // 使用反射调用 set 方法，因为类型可能不匹配
+                    try {
+                        java.lang.reflect.Method setMethod = ItemStack.class.getMethod("set", 
+                            net.minecraft.core.component.DataComponentType.class, Object.class);
+                        setMethod.invoke(itemStack, net.minecraft.core.component.DataComponents.CUSTOM_DATA, customDataComponent);
+                        saved = true;
+                    } catch (Exception e) {
+                        com.lanye.dolladdon.PlayerDollAddon.LOGGER.error("[破坏掉落] 设置custom_data组件失败", e);
+                    }
+                } else {
+                    // 如果所有反射方法都失败，无法创建CustomData对象
+                    com.lanye.dolladdon.PlayerDollAddon.LOGGER.error("[破坏掉落] 无法创建CustomData对象，所有包路径都失败");
+                }
+            } catch (Exception e) {
+                com.lanye.dolladdon.PlayerDollAddon.LOGGER.error("[破坏掉落] NBT保存失败", e);
+            }
+            
+            if (!saved) {
+                com.lanye.dolladdon.PlayerDollAddon.LOGGER.error("[破坏掉落] 无法保存NBT标签到物品，掉落物可能不包含实体状态信息");
+            }
         } else {
-            finalData = customDataTag;
-        }
-        
-        // 直接使用 DataComponents.CUSTOM_DATA API 设置 custom_data 组件
-        // 在 Minecraft 1.21.1 中，需要使用 CustomData 对象包装 CompoundTag
-        boolean saved = false;
-        try {
-            // 尝试使用 CustomData.of() 创建（尝试不同的包路径）
-            String[] possiblePaths = {
-                "net.minecraft.core.component.types.CustomData",
-                "net.minecraft.core.component.CustomData",
-                "net.minecraft.world.item.component.CustomData"
-            };
-            
-            Object customDataComponent = null;
-            for (String className : possiblePaths) {
-                try {
-                    Class<?> customDataClass = Class.forName(className);
-                    java.lang.reflect.Method ofMethod = customDataClass.getMethod("of", net.minecraft.nbt.CompoundTag.class);
-                    customDataComponent = ofMethod.invoke(null, finalData);
-                    break;
-                } catch (ClassNotFoundException e2) {
-                    // 继续尝试下一个路径
-                    continue;
-                } catch (Exception e3) {
-                    // 继续尝试下一个路径
+            // entityTag为空，需要清除EntityData标签以确保物品可以叠加
+            if (existingData != null) {
+                var existingTag = existingData.copyTag();
+                if (existingTag != null && existingTag.contains("EntityData")) {
+                    // 移除EntityData标签
+                    existingTag.remove("EntityData");
+                    
+                    // 如果移除后tag为空，完全移除custom_data组件
+                    if (existingTag.isEmpty()) {
+                        try {
+                            java.lang.reflect.Method removeMethod = ItemStack.class.getMethod("remove", 
+                                net.minecraft.core.component.DataComponentType.class);
+                            removeMethod.invoke(itemStack, net.minecraft.core.component.DataComponents.CUSTOM_DATA);
+                        } catch (Exception e) {
+                            com.lanye.dolladdon.PlayerDollAddon.LOGGER.error("[破坏掉落] 移除custom_data组件失败", e);
+                        }
+                    } else {
+                        // 还有其他的标签，保留custom_data但移除EntityData
+                        try {
+                            String[] possiblePaths = {
+                                "net.minecraft.core.component.types.CustomData",
+                                "net.minecraft.core.component.CustomData",
+                                "net.minecraft.world.item.component.CustomData"
+                            };
+                            
+                            Object customDataComponent = null;
+                            for (String className : possiblePaths) {
+                                try {
+                                    Class<?> customDataClass = Class.forName(className);
+                                    java.lang.reflect.Method ofMethod = customDataClass.getMethod("of", net.minecraft.nbt.CompoundTag.class);
+                                    customDataComponent = ofMethod.invoke(null, existingTag);
+                                    break;
+                                } catch (ClassNotFoundException e2) {
+                                    continue;
+                                } catch (Exception e3) {
+                                    // 继续尝试下一个路径
+                                }
+                            }
+                            
+                            if (customDataComponent != null) {
+                                java.lang.reflect.Method setMethod = ItemStack.class.getMethod("set", 
+                                    net.minecraft.core.component.DataComponentType.class, Object.class);
+                                setMethod.invoke(itemStack, net.minecraft.core.component.DataComponents.CUSTOM_DATA, customDataComponent);
+                            }
+                        } catch (Exception e) {
+                            com.lanye.dolladdon.PlayerDollAddon.LOGGER.error("[破坏掉落] 更新custom_data组件失败", e);
+                        }
+                    }
                 }
             }
-            
-            if (customDataComponent != null) {
-                // 使用反射调用 set 方法，因为类型可能不匹配
-                try {
-                    java.lang.reflect.Method setMethod = ItemStack.class.getMethod("set", 
-                        net.minecraft.core.component.DataComponentType.class, Object.class);
-                    setMethod.invoke(itemStack, net.minecraft.core.component.DataComponents.CUSTOM_DATA, customDataComponent);
-                    saved = true;
-                } catch (Exception e) {
-                    com.lanye.dolladdon.PlayerDollAddon.LOGGER.error("[破坏掉落] 设置custom_data组件失败", e);
-                }
-            } else {
-                // 如果所有反射方法都失败，无法创建CustomData对象
-                com.lanye.dolladdon.PlayerDollAddon.LOGGER.error("[破坏掉落] 无法创建CustomData对象，所有包路径都失败");
-            }
-        } catch (Exception e) {
-            com.lanye.dolladdon.PlayerDollAddon.LOGGER.error("[破坏掉落] NBT保存失败", e);
-        }
-        
-        if (!saved) {
-            com.lanye.dolladdon.PlayerDollAddon.LOGGER.error("[破坏掉落] 无法保存NBT标签到物品，掉落物可能不包含实体状态信息");
         }
         
         // 掉落物品
@@ -420,43 +485,61 @@ public abstract class BaseDollEntity extends Entity {
                 return;
             }
         } else if (currentPoseIndex >= poseNames.size()) {
-            // 索引超出范围，重置为0
-            currentPoseIndex = 0;
+            // 索引超出范围，重置为-1（standing姿态）
+            currentPoseIndex = -1;
         } else {
             // 切换到下一个姿态
             currentPoseIndex++;
             if (currentPoseIndex >= poseNames.size()) {
-                currentPoseIndex = 0; // 循环回到第一个（standing）
+                // 循环回到第一个（standing），设置为-1表示默认状态，不保存到NBT
+                currentPoseIndex = -1;
             }
         }
         
-        // 同步姿态索引到客户端
-        byte indexToSync = (byte) (currentPoseIndex & 0xFF);
-        this.entityData.set(DATA_POSE_INDEX, indexToSync);
-        
-        // 加载新姿态
-        String poseName = poseNames.get(currentPoseIndex);
-        DollPose pose = PoseActionManager.getPose(poseName);
-        
-        if (pose != null) {
-            setPose(pose);
-            // 发送消息给玩家（优先使用中文名称，显示在动作栏）
-            if (player != null) {
-                String displayName = pose.getDisplayName();
-                player.displayClientMessage(Component.literal("切换到姿态: " + displayName + " (" + (currentPoseIndex + 1) + "/" + poseNames.size() + ")"), true);
-            }
-        } else {
-            // 如果找不到姿态，使用standing姿态
+        // 如果循环回到standing姿态（索引为-1），设置为255表示默认姿态
+        if (currentPoseIndex < 0) {
+            this.entityData.set(DATA_POSE_INDEX, (byte) 255);
             DollPose standingPose = PoseActionManager.getPose("standing");
             if (standingPose != null) {
                 setPose(standingPose);
             } else {
                 setPose(SimpleDollPose.createDefaultStandingPose());
             }
-            // 设置为255表示使用默认姿态
-            this.entityData.set(DATA_POSE_INDEX, (byte) 255);
             if (player != null) {
-                player.displayClientMessage(Component.literal("切换到standing姿态"), true);
+                DollPose pose = getCurrentPose();
+                String displayName = pose != null ? pose.getDisplayName() : "站立";
+                player.displayClientMessage(Component.literal("切换到姿态: " + displayName), true);
+            }
+        } else {
+            // 同步姿态索引到客户端
+            byte indexToSync = (byte) (currentPoseIndex & 0xFF);
+            this.entityData.set(DATA_POSE_INDEX, indexToSync);
+            
+            // 加载新姿态
+            String poseName = poseNames.get(currentPoseIndex);
+            DollPose pose = PoseActionManager.getPose(poseName);
+            
+            if (pose != null) {
+                setPose(pose);
+                // 发送消息给玩家（优先使用中文名称，显示在动作栏）
+                if (player != null) {
+                    String displayName = pose.getDisplayName();
+                    player.displayClientMessage(Component.literal("切换到姿态: " + displayName + " (" + (currentPoseIndex + 1) + "/" + poseNames.size() + ")"), true);
+                }
+            } else {
+                // 如果找不到姿态，使用standing姿态
+                DollPose standingPose = PoseActionManager.getPose("standing");
+                if (standingPose != null) {
+                    setPose(standingPose);
+                } else {
+                    setPose(SimpleDollPose.createDefaultStandingPose());
+                }
+                // 设置为255表示使用默认姿态
+                this.entityData.set(DATA_POSE_INDEX, (byte) 255);
+                currentPoseIndex = -1;
+                if (player != null) {
+                    player.displayClientMessage(Component.literal("切换到standing姿态"), true);
+                }
             }
         }
     }

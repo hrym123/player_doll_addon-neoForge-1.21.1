@@ -130,29 +130,37 @@ public class ActionLoader {
      * 加载所有动作
      */
     public static Map<String, DollAction> loadAllActions(ResourceManager resourceManager) {
+        LOGGER.info("[WENTI004] loadAllActions 开始，ResourceManager: {}", resourceManager);
         Map<String, DollAction> actions = new HashMap<>();
         
         try {
+            LOGGER.info("[WENTI004] 开始扫描资源包中的动作文件...");
             var resources = resourceManager.listResources("actions", path -> path.getPath().endsWith(".json"));
+            LOGGER.info("[WENTI004] 找到 {} 个动作资源文件", resources.size());
             
             for (var entry : resources.entrySet()) {
                 ResourceLocation location = entry.getKey();
                 String name = location.getPath().substring("actions/".length(), location.getPath().length() - ".json".length());
+                LOGGER.info("[WENTI004] 处理动作资源: {} (位置: {})", name, location);
                 
                 try {
                     DollAction action = loadAction(resourceManager, name);
                     if (action != null) {
                         actions.put(name, action);
-                        LOGGER.info("已加载动作: {} -> {}", name, action.getName());
+                        LOGGER.info("[WENTI004] 已加载动作: {} -> {}", name, action.getName());
+                    } else {
+                        LOGGER.warn("[WENTI004] 动作加载返回null: {}", name);
                     }
                 } catch (Exception e) {
-                    LOGGER.error("加载动作文件失败: {}", location, e);
+                    LOGGER.error("[WENTI004] 加载动作文件失败: {}", location, e);
                 }
             }
+            LOGGER.info("[WENTI004] 从资源包加载了 {} 个动作", actions.size());
         } catch (Exception e) {
-            LOGGER.error("扫描动作资源失败", e);
+            LOGGER.error("[WENTI004] 扫描动作资源失败", e);
         }
         
+        LOGGER.info("[WENTI004] loadAllActions 完成，返回 {} 个动作", actions.size());
         return actions;
     }
 }
