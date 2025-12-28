@@ -61,7 +61,6 @@ public class DefaultFileInitializer {
             
             String readmeContent = generateReadmeContent();
             Files.writeString(readmePath, readmeContent, StandardCharsets.UTF_8);
-            LOGGER.info("已生成 README.md 文档: {}", readmePath);
         } catch (IOException e) {
             LOGGER.error("生成 README.md 失败", e);
         }

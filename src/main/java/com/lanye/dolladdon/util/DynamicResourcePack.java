@@ -52,8 +52,6 @@ public class DynamicResourcePack implements PackResources {
             Path texturePath = DynamicTextureManager.getTexturePath(location);
             if (texturePath != null && Files.exists(texturePath) && Files.isRegularFile(texturePath)) {
                 return () -> Files.newInputStream(texturePath);
-            } else {
-                LOGGER.warn("动态资源包无法找到纹理: {} (路径: {})", location, texturePath);
             }
         }
         
@@ -86,8 +84,6 @@ public class DynamicResourcePack implements PackResources {
                         } catch (Exception e) {
                             LOGGER.error("列出纹理资源失败: {}", location, e);
                         }
-                    } else {
-                        LOGGER.warn("纹理文件不存在: {} -> {}", location, filePath);
                     }
                 }
             }

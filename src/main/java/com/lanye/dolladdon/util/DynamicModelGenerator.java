@@ -156,7 +156,7 @@ public class DynamicModelGenerator {
                             Files.delete(filePath);
                             deletedCount++;
                         } catch (IOException e) {
-                            LOGGER.warn("删除动态模型文件失败: {} ({})", filePath, locationName, e);
+                            // 删除文件失败，忽略
                         }
                     }
                 }
@@ -181,7 +181,7 @@ public class DynamicModelGenerator {
                             try {
                                 Files.delete(filePath);
                             } catch (IOException e) {
-                                LOGGER.warn("删除旧动态模型文件失败: {}", filePath, e);
+                                // 删除文件失败，忽略
                             }
                         }
                     }
@@ -208,7 +208,7 @@ public class DynamicModelGenerator {
                             try {
                                 Files.delete(filePath);
                             } catch (IOException e) {
-                                LOGGER.warn("删除旧动态模型文件失败: {}", filePath, e);
+                                // 删除文件失败，忽略
                             }
                         }
                     }

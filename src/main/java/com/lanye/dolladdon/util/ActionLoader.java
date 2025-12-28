@@ -67,7 +67,6 @@ public class ActionLoader {
         try {
             Optional<Resource> resourceOpt = resourceManager.getResource(location);
             if (resourceOpt.isEmpty()) {
-                LOGGER.warn("找不到动作资源文件: {}", location);
                 return null;
             }
             
@@ -134,7 +133,6 @@ public class ActionLoader {
             }
             
             if (pose == null) {
-                LOGGER.warn("关键帧 {} 缺少有效的姿态定义，使用默认姿态", i);
                 pose = com.lanye.dolladdon.api.pose.SimpleDollPose.createDefaultStandingPose();
             }
             
@@ -219,7 +217,6 @@ public class ActionLoader {
             }
             
             if (pose == null) {
-                LOGGER.warn("关键帧 {} 缺少有效的姿态定义，使用默认姿态", i);
                 pose = com.lanye.dolladdon.api.pose.SimpleDollPose.createDefaultStandingPose();
             }
             

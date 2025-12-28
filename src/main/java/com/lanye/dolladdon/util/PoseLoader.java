@@ -62,7 +62,6 @@ public class PoseLoader {
         try {
             Optional<Resource> resourceOpt = resourceManager.getResource(location);
             if (resourceOpt.isEmpty()) {
-                LOGGER.warn("找不到姿态资源文件: {}", location);
                 return null;
             }
             

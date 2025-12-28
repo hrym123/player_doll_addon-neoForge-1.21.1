@@ -83,14 +83,12 @@ public class DynamicDollLoader {
             } catch (Exception e) {
                 // 如果 FMLPaths 不可用，使用当前工作目录
                 gameDir = Paths.get(".").toAbsolutePath().normalize();
-                LOGGER.warn("无法使用 FMLPaths，使用当前工作目录: {}", gameDir);
             }
             
             Path targetDir = gameDir.resolve(directoryPath).normalize();
             
             // 检查目录是否存在
             if (!Files.exists(targetDir) || !Files.isDirectory(targetDir)) {
-                LOGGER.warn("玩偶材质目录不存在: {}", targetDir);
                 // 尝试创建目录
                 try {
                     Files.createDirectories(targetDir);
@@ -137,7 +135,6 @@ public class DynamicDollLoader {
         
         // 检查文件名长度
         if (nameWithoutExt.length() < 2) {
-            LOGGER.warn("文件名太短，跳过: {}", fileName);
             return null;
         }
         
@@ -150,7 +147,6 @@ public class DynamicDollLoader {
         } else if (modelType == 'S' || modelType == 's') {
             isAlexModel = false;
         } else {
-            LOGGER.warn("文件名首字符不是S或A，跳过: {} (首字符: {})", fileName, modelType);
             return null;
         }
         
