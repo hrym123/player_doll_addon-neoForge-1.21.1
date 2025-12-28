@@ -74,16 +74,12 @@ public abstract class BaseDollEntity extends Entity {
      * @param tag NBT标签
      */
     public void restoreFromNBT(net.minecraft.nbt.CompoundTag tag) {
-        com.lanye.dolladdon.PlayerDollAddon.LOGGER.debug("[NBT读取] 开始恢复实体状态，NBT内容: {}", tag);
-        
         // 优先恢复动作（如果有）
         if (tag.contains("ActionName", net.minecraft.nbt.Tag.TAG_STRING)) {
             String actionName = tag.getString("ActionName");
-            com.lanye.dolladdon.PlayerDollAddon.LOGGER.debug("[NBT读取] 检测到动作名称: {}", actionName);
             DollAction action = PoseActionManager.getAction(actionName);
             if (action != null) {
                 setAction(action);
-                com.lanye.dolladdon.PlayerDollAddon.LOGGER.debug("[NBT读取] 成功恢复动作: {}", actionName);
                 // 动作已设置，不需要再设置姿态
                 return;
             } else {
@@ -94,11 +90,9 @@ public abstract class BaseDollEntity extends Entity {
         // 优先使用姿态名称恢复（如果保存了）
         if (tag.contains("PoseName", net.minecraft.nbt.Tag.TAG_STRING)) {
             String poseName = tag.getString("PoseName");
-            com.lanye.dolladdon.PlayerDollAddon.LOGGER.debug("[NBT读取] 检测到姿态名称: {}", poseName);
             DollPose pose = PoseActionManager.getPose(poseName);
             if (pose != null) {
                 setPose(pose);
-                com.lanye.dolladdon.PlayerDollAddon.LOGGER.debug("[NBT读取] 成功恢复姿态: {}", poseName);
                 // 更新currentPoseIndex（如果可能）
                 List<String> poseNames = getAvailablePoseNames();
                 int index = poseNames.indexOf(poseName);
@@ -110,7 +104,6 @@ public abstract class BaseDollEntity extends Entity {
                     } else {
                         this.entityData.set(DATA_POSE_INDEX, (byte) 255);
                     }
-                    com.lanye.dolladdon.PlayerDollAddon.LOGGER.debug("[NBT读取] 更新姿态索引为: {}", currentPoseIndex);
                 }
                 return;
             } else {
@@ -121,20 +114,15 @@ public abstract class BaseDollEntity extends Entity {
         // 如果没有姿态名称，尝试使用姿态索引（向后兼容）
         if (tag.contains("PoseIndex")) {
             int savedIndex = tag.getInt("PoseIndex");
-            com.lanye.dolladdon.PlayerDollAddon.LOGGER.debug("[NBT读取] 检测到姿态索引: {}", savedIndex);
             this.currentPoseIndex = savedIndex;
             // 加载时恢复姿态
             loadPoseByIndex();
             // 同步到客户端
             if (currentPoseIndex >= 0 && currentPoseIndex < 255) {
                 this.entityData.set(DATA_POSE_INDEX, (byte) (currentPoseIndex & 0xFF));
-                com.lanye.dolladdon.PlayerDollAddon.LOGGER.debug("[NBT读取] 通过索引恢复姿态，索引: {}", currentPoseIndex);
             } else {
                 this.entityData.set(DATA_POSE_INDEX, (byte) 255);
-                com.lanye.dolladdon.PlayerDollAddon.LOGGER.debug("[NBT读取] 姿态索引无效，使用默认姿态");
             }
-        } else {
-            com.lanye.dolladdon.PlayerDollAddon.LOGGER.debug("[NBT读取] 未找到动作或姿态信息，使用默认状态");
         }
     }
     
@@ -143,7 +131,6 @@ public abstract class BaseDollEntity extends Entity {
         // 如果当前有动作，保存动作名称
         if (currentAction != null) {
             tag.putString("ActionName", currentAction.getName());
-            com.lanye.dolladdon.PlayerDollAddon.LOGGER.debug("[NBT保存] 保存动作名称: {}", currentAction.getName());
         }
         
         // 保存当前姿态名称（而不是索引）
@@ -151,20 +138,13 @@ public abstract class BaseDollEntity extends Entity {
             String poseName = currentPose.getName();
             if (poseName != null && !poseName.isEmpty()) {
                 tag.putString("PoseName", poseName);
-                com.lanye.dolladdon.PlayerDollAddon.LOGGER.debug("[NBT保存] 保存姿态名称: {}", poseName);
             }
         }
         
         // 为了向后兼容，也保存姿态索引
         if (this.currentPoseIndex >= 0) {
             tag.putInt("PoseIndex", this.currentPoseIndex);
-            com.lanye.dolladdon.PlayerDollAddon.LOGGER.debug("[NBT保存] 保存姿态索引: {}", this.currentPoseIndex);
-        } else {
-            com.lanye.dolladdon.PlayerDollAddon.LOGGER.debug("[NBT保存] 当前姿态索引为-1，不保存");
         }
-        
-        // 记录完整的NBT内容
-        com.lanye.dolladdon.PlayerDollAddon.LOGGER.debug("[NBT保存] 完整NBT内容: {}", tag);
     }
     
     @Override
@@ -254,27 +234,14 @@ public abstract class BaseDollEntity extends Entity {
     @Override
     public InteractionResult interact(Player player, InteractionHand hand) {
         boolean isSneaking = player.isShiftKeyDown();
-        com.lanye.dolladdon.PlayerDollAddon.LOGGER.debug("[交互] 玩家{}右键交互，潜行状态: {}", player.getName().getString(), isSneaking);
         
         if (!this.level().isClientSide) {
             // 如果玩家潜行，则破坏实体并掉落物品
             if (isSneaking) {
-                com.lanye.dolladdon.PlayerDollAddon.LOGGER.debug("[交互] 玩家潜行，执行破坏并掉落物品");
                 return handleBreakAndDrop(player);
             } else {
                 // 循环切换到下一个姿态
-                com.lanye.dolladdon.PlayerDollAddon.LOGGER.debug("[交互] 玩家未潜行，循环切换姿态");
-                // 记录切换前的状态
-                String beforePoseName = currentPose != null ? currentPose.getName() : "null";
-                int beforeIndex = currentPoseIndex;
-                com.lanye.dolladdon.PlayerDollAddon.LOGGER.debug("[交互] 切换前 - 姿态名称: {}, 姿态索引: {}", beforePoseName, beforeIndex);
-                
                 cycleToNextPose(player);
-                
-                // 记录切换后的状态
-                String afterPoseName = currentPose != null ? currentPose.getName() : "null";
-                int afterIndex = currentPoseIndex;
-                com.lanye.dolladdon.PlayerDollAddon.LOGGER.debug("[交互] 切换后 - 姿态名称: {}, 姿态索引: {}", afterPoseName, afterIndex);
                 
                 // 播放交互音效
                 this.level().playSound(null, this.getX(), this.getY(), this.getZ(),
@@ -294,27 +261,16 @@ public abstract class BaseDollEntity extends Entity {
      * 处理破坏并掉落物品
      */
     private InteractionResult handleBreakAndDrop(Player player) {
-        com.lanye.dolladdon.PlayerDollAddon.LOGGER.debug("[破坏掉落] 开始处理破坏并掉落物品");
-        
-        // 记录当前实体状态
-        String currentPoseName = currentPose != null ? currentPose.getName() : "null";
-        String currentActionName = currentAction != null ? currentAction.getName() : "null";
-        com.lanye.dolladdon.PlayerDollAddon.LOGGER.debug("[破坏掉落] 当前实体状态 - 姿态: {}, 动作: {}, 姿态索引: {}", 
-            currentPoseName, currentActionName, currentPoseIndex);
-        
         // 创建物品堆
         ItemStack itemStack = getDollItemStack();
-        com.lanye.dolladdon.PlayerDollAddon.LOGGER.debug("[破坏掉落] 创建物品堆: {}", itemStack.getItem());
         
         // 保存NBT标签到物品
         net.minecraft.nbt.CompoundTag entityTag = new net.minecraft.nbt.CompoundTag();
         this.addAdditionalSaveData(entityTag);
-        com.lanye.dolladdon.PlayerDollAddon.LOGGER.debug("[破坏掉落] 实体NBT已保存，内容: {}", entityTag);
         
         // 使用数据组件API保存NBT到custom_data组件
         net.minecraft.nbt.CompoundTag customDataTag = new net.minecraft.nbt.CompoundTag();
         customDataTag.put("EntityData", entityTag);
-        com.lanye.dolladdon.PlayerDollAddon.LOGGER.debug("[破坏掉落] 准备保存到custom_data，内容: {}", customDataTag);
         
         // 设置custom_data组件（合并现有的custom_data，如果有的话）
         var existingData = itemStack.get(net.minecraft.core.component.DataComponents.CUSTOM_DATA);
@@ -335,8 +291,6 @@ public abstract class BaseDollEntity extends Entity {
         // 在 Minecraft 1.21.1 中，需要使用 CustomData 对象包装 CompoundTag
         boolean saved = false;
         try {
-            com.lanye.dolladdon.PlayerDollAddon.LOGGER.debug("[破坏掉落] 尝试保存NBT到custom_data组件");
-            
             // 尝试使用 CustomData.of() 创建（尝试不同的包路径）
             String[] possiblePaths = {
                 "net.minecraft.core.component.types.CustomData",
@@ -350,13 +304,12 @@ public abstract class BaseDollEntity extends Entity {
                     Class<?> customDataClass = Class.forName(className);
                     java.lang.reflect.Method ofMethod = customDataClass.getMethod("of", net.minecraft.nbt.CompoundTag.class);
                     customDataComponent = ofMethod.invoke(null, finalData);
-                    com.lanye.dolladdon.PlayerDollAddon.LOGGER.info("[破坏掉落] ✅ 成功通过{}创建CustomData对象", className);
                     break;
                 } catch (ClassNotFoundException e2) {
                     // 继续尝试下一个路径
                     continue;
                 } catch (Exception e3) {
-                    com.lanye.dolladdon.PlayerDollAddon.LOGGER.debug("[破坏掉落] 尝试{}失败: {}", className, e3.getMessage());
+                    // 继续尝试下一个路径
                 }
             }
             
@@ -367,52 +320,19 @@ public abstract class BaseDollEntity extends Entity {
                         net.minecraft.core.component.DataComponentType.class, Object.class);
                     setMethod.invoke(itemStack, net.minecraft.core.component.DataComponents.CUSTOM_DATA, customDataComponent);
                     saved = true;
-                    com.lanye.dolladdon.PlayerDollAddon.LOGGER.info("[破坏掉落] ✅ 成功设置custom_data组件到ItemStack");
                 } catch (Exception e) {
-                    com.lanye.dolladdon.PlayerDollAddon.LOGGER.error("[破坏掉落] ❌ 设置custom_data组件失败", e);
+                    com.lanye.dolladdon.PlayerDollAddon.LOGGER.error("[破坏掉落] 设置custom_data组件失败", e);
                 }
             } else {
                 // 如果所有反射方法都失败，无法创建CustomData对象
-                com.lanye.dolladdon.PlayerDollAddon.LOGGER.error("[破坏掉落] ❌ 无法创建CustomData对象，所有包路径都失败");
-            }
-            
-            // 验证保存是否成功
-            if (saved) {
-                var savedData = itemStack.get(net.minecraft.core.component.DataComponents.CUSTOM_DATA);
-                if (savedData != null) {
-                    var savedTag = savedData.copyTag();
-                    if (savedTag != null && savedTag.contains("EntityData")) {
-                        var entityDataTag = savedTag.getCompound("EntityData");
-                        com.lanye.dolladdon.PlayerDollAddon.LOGGER.info("[破坏掉落] ✅ 验证成功：读取到的EntityData内容: {}", entityDataTag);
-                    } else {
-                        com.lanye.dolladdon.PlayerDollAddon.LOGGER.warn("[破坏掉落] ⚠️ 验证：custom_data存在但EntityData为空，内容: {}", savedTag);
-                        saved = false; // 标记为未成功保存
-                    }
-                } else {
-                    com.lanye.dolladdon.PlayerDollAddon.LOGGER.warn("[破坏掉落] ⚠️ 验证失败：读取到的custom_data为空");
-                    saved = false; // 标记为未成功保存
-                }
+                com.lanye.dolladdon.PlayerDollAddon.LOGGER.error("[破坏掉落] 无法创建CustomData对象，所有包路径都失败");
             }
         } catch (Exception e) {
-            com.lanye.dolladdon.PlayerDollAddon.LOGGER.error("[破坏掉落] ❌ 所有NBT保存方法都失败", e);
+            com.lanye.dolladdon.PlayerDollAddon.LOGGER.error("[破坏掉落] NBT保存失败", e);
         }
         
         if (!saved) {
-            com.lanye.dolladdon.PlayerDollAddon.LOGGER.error("[破坏掉落] ❌ 无法保存NBT标签到物品，掉落物可能不包含实体状态信息");
-        }
-        
-        // 验证掉落物品的NBT（最终验证）
-        var finalCustomData = itemStack.get(net.minecraft.core.component.DataComponents.CUSTOM_DATA);
-        if (finalCustomData != null) {
-            var finalTag = finalCustomData.copyTag();
-            if (finalTag != null && finalTag.contains("EntityData")) {
-                var finalEntityTag = finalTag.getCompound("EntityData");
-                com.lanye.dolladdon.PlayerDollAddon.LOGGER.info("[破坏掉落] ✅ 最终验证：掉落物品包含NBT，EntityData内容: {}", finalEntityTag);
-            } else {
-                com.lanye.dolladdon.PlayerDollAddon.LOGGER.warn("[破坏掉落] ⚠️ 最终验证：custom_data存在但EntityData为空");
-            }
-        } else {
-            com.lanye.dolladdon.PlayerDollAddon.LOGGER.error("[破坏掉落] ❌ 最终验证失败：掉落物品不包含custom_data组件");
+            com.lanye.dolladdon.PlayerDollAddon.LOGGER.error("[破坏掉落] 无法保存NBT标签到物品，掉落物可能不包含实体状态信息");
         }
         
         // 掉落物品
@@ -425,7 +345,6 @@ public abstract class BaseDollEntity extends Entity {
         );
         itemEntity.setDefaultPickUpDelay();
         this.level().addFreshEntity(itemEntity);
-        com.lanye.dolladdon.PlayerDollAddon.LOGGER.info("[破坏掉落] ✅ 物品已掉落，位置: ({}, {}, {})", this.getX(), this.getY(), this.getZ());
         
         // 播放破坏音效
         this.level().playSound(null, this.getX(), this.getY(), this.getZ(),
@@ -471,12 +390,10 @@ public abstract class BaseDollEntity extends Entity {
      * 当处于默认状态（standing）时，第一次切换会跳过standing，直接切换到下一个姿态
      */
     private void cycleToNextPose(Player player) {
-        com.lanye.dolladdon.PlayerDollAddon.LOGGER.debug("[切换姿态] 开始循环切换姿态");
         List<String> poseNames = getAvailablePoseNames();
-        com.lanye.dolladdon.PlayerDollAddon.LOGGER.debug("[切换姿态] 可用姿态数量: {}", poseNames.size());
         
         if (poseNames.isEmpty()) {
-            com.lanye.dolladdon.PlayerDollAddon.LOGGER.warn("[切换姿态] ⚠️ 没有可用的姿态");
+            com.lanye.dolladdon.PlayerDollAddon.LOGGER.warn("[切换姿态] 没有可用的姿态");
             if (player != null) {
                 // 显示在动作栏（物品栏上方）
                 player.displayClientMessage(Component.literal("没有可用的姿态"), true);
@@ -486,21 +403,17 @@ public abstract class BaseDollEntity extends Entity {
         
         // 停止当前动作
         stopAction();
-        com.lanye.dolladdon.PlayerDollAddon.LOGGER.debug("[切换姿态] 已停止当前动作");
         
         // 如果当前索引无效（-1表示默认standing状态），需要特殊处理
         if (currentPoseIndex < 0) {
-            com.lanye.dolladdon.PlayerDollAddon.LOGGER.debug("[切换姿态] 当前索引为-1（默认状态）");
             // 处于默认状态，跳过第一个（standing），直接跳到第二个
             if (poseNames.size() > 1) {
                 currentPoseIndex = 1; // 跳过索引0（standing），直接到索引1
-                com.lanye.dolladdon.PlayerDollAddon.LOGGER.debug("[切换姿态] 跳过standing，设置索引为: {}", currentPoseIndex);
             } else {
                 // 如果只有一个姿态（standing），则保持在默认状态
                 currentPoseIndex = -1;
                 // 设置为255表示使用默认姿态
                 this.entityData.set(DATA_POSE_INDEX, (byte) 255);
-                com.lanye.dolladdon.PlayerDollAddon.LOGGER.debug("[切换姿态] 只有standing姿态，保持在默认状态");
                 if (player != null) {
                     player.displayClientMessage(Component.literal("只有standing姿态可用"), true);
                 }
@@ -508,31 +421,25 @@ public abstract class BaseDollEntity extends Entity {
             }
         } else if (currentPoseIndex >= poseNames.size()) {
             // 索引超出范围，重置为0
-            com.lanye.dolladdon.PlayerDollAddon.LOGGER.debug("[切换姿态] 当前索引超出范围，重置为0");
             currentPoseIndex = 0;
         } else {
             // 切换到下一个姿态
-            int oldIndex = currentPoseIndex;
             currentPoseIndex++;
             if (currentPoseIndex >= poseNames.size()) {
                 currentPoseIndex = 0; // 循环回到第一个（standing）
             }
-            com.lanye.dolladdon.PlayerDollAddon.LOGGER.debug("[切换姿态] 从索引 {} 切换到 {}", oldIndex, currentPoseIndex);
         }
         
         // 同步姿态索引到客户端
         byte indexToSync = (byte) (currentPoseIndex & 0xFF);
         this.entityData.set(DATA_POSE_INDEX, indexToSync);
-        com.lanye.dolladdon.PlayerDollAddon.LOGGER.debug("[切换姿态] 同步姿态索引到客户端: {}", indexToSync);
         
         // 加载新姿态
         String poseName = poseNames.get(currentPoseIndex);
-        com.lanye.dolladdon.PlayerDollAddon.LOGGER.debug("[切换姿态] 加载姿态: {} (索引: {})", poseName, currentPoseIndex);
         DollPose pose = PoseActionManager.getPose(poseName);
         
         if (pose != null) {
             setPose(pose);
-            com.lanye.dolladdon.PlayerDollAddon.LOGGER.debug("[切换姿态] ✅ 成功设置姿态: {}", poseName);
             // 发送消息给玩家（优先使用中文名称，显示在动作栏）
             if (player != null) {
                 String displayName = pose.getDisplayName();
