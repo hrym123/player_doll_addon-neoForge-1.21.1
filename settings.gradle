@@ -1,0 +1,20 @@
+pluginManagement {
+    repositories {
+        // 使用阿里云镜像加速插件下载
+        maven { url 'https://maven.aliyun.com/repository/gradle-plugin' }
+        maven { url 'https://maven.aliyun.com/repository/public' }
+        // Fabric Maven 仓库（必须保留，用于下载 Fabric Loom 插件）
+        maven {
+            name = 'Fabric'
+            url = 'https://maven.fabricmc.net/'
+        }
+        gradlePluginPortal()
+    }
+}
+
+plugins {
+    id 'org.gradle.toolchains.foojay-resolver-convention' version '1.0.0'
+}
+
+rootProject.name = 'player_doll_addon'
+

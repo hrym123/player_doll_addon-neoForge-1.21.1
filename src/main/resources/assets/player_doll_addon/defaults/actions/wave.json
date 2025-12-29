@@ -1,0 +1,21 @@
+{
+  "name": "wave",
+  "looping": false,
+  "keyframes": [
+    {
+      "tick": 0,
+      "pose": "standing"
+    },
+    {
+      "tick": 5,
+      "pose": {
+        "name": "wave_up",
+        "rightArm": [-90, 0, 0]
+      }
+    },
+    {
+      "tick": 10,
+      "pose": "standing"
+    }
+  ]
+}
