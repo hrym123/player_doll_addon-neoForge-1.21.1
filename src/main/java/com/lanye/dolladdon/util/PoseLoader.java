@@ -7,9 +7,10 @@ import com.google.gson.JsonObject;
 import com.lanye.dolladdon.PlayerDollAddon;
 import com.lanye.dolladdon.api.pose.DollPose;
 import com.lanye.dolladdon.api.pose.SimpleDollPose;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.packs.resources.Resource;
-import net.minecraft.server.packs.resources.ResourceManager;
+import net.minecraft.util.Identifier;
+import net.minecraft.resource.Resource;
+import net.minecraft.resource.ResourceManager;
+import net.minecraft.resource.ResourceType;
 import org.slf4j.Logger;
 
 import java.io.InputStream;
@@ -69,7 +70,7 @@ public class PoseLoader {
      * - 位置偏移的 Y 轴：正数向上，负数向下（与之前相反）
      */
     public static DollPose loadPose(ResourceManager resourceManager, String name) {
-        ResourceLocation location = new ResourceLocation(
+        Identifier location = new Identifier(
             PlayerDollAddon.MODID, 
             "poses/" + name + ".json"
         );
@@ -81,7 +82,7 @@ public class PoseLoader {
             }
             
             Resource resource = resourceOpt.get();
-            try (InputStream inputStream = resource.open();
+            try (InputStream inputStream = resource.open().get();
                  InputStreamReader reader = new InputStreamReader(inputStream, StandardCharsets.UTF_8)) {
                 
                 JsonObject json = GSON.fromJson(reader, JsonObject.class);
@@ -256,15 +257,15 @@ public class PoseLoader {
         
         // 首先从 ResourceManager 加载（资源包中的姿态）
         try {
-            var resources = resourceManager.listResources("poses", path -> path.getPath().endsWith(".json"));
+            var resources = resourceManager.findResources(ResourceType.SERVER_DATA, "poses", path -> path.getPath().endsWith(".json"));
             
             for (var entry : resources.entrySet()) {
-                ResourceLocation location = entry.getKey();
+                Identifier location = entry.getKey();
                 String name = location.getPath().substring("poses/".length(), location.getPath().length() - ".json".length());
                 
                 try {
                     Resource resource = entry.getValue();
-                    try (InputStream inputStream = resource.open();
+                    try (InputStream inputStream = resource.open().get();
                          InputStreamReader reader = new InputStreamReader(inputStream, StandardCharsets.UTF_8)) {
                         
                         JsonObject json = GSON.fromJson(reader, JsonObject.class);

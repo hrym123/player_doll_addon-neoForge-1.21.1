@@ -2,29 +2,29 @@ package com.lanye.dolladdon.dynamic.render;
 
 import com.lanye.dolladdon.base.render.BaseDollRenderer;
 import com.lanye.dolladdon.dynamic.DynamicDollEntity;
-import net.minecraft.client.model.PlayerModel;
-import net.minecraft.client.model.geom.ModelLayers;
-import net.minecraft.client.renderer.entity.EntityRendererProvider;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.entity.player.Player;
+import net.minecraft.client.render.entity.EntityRendererFactory;
+import net.minecraft.client.render.entity.model.EntityModelLayers;
+import net.minecraft.client.render.entity.model.PlayerEntityModel;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.util.Identifier;
 
 /**
  * 动态玩偶实体渲染器
  * 用于从文件加载的玩偶
  */
 public class DynamicDollRenderer extends BaseDollRenderer<DynamicDollEntity> {
-    private final ResourceLocation skinLocation;
+    private final Identifier skinLocation;
     
-    public DynamicDollRenderer(EntityRendererProvider.Context context, ResourceLocation skinLocation, boolean isAlexModel) {
-        super(context, new PlayerModel<>(
-            context.bakeLayer(isAlexModel ? ModelLayers.PLAYER_SLIM : ModelLayers.PLAYER), 
+    public DynamicDollRenderer(EntityRendererFactory.Context context, Identifier skinLocation, boolean isAlexModel) {
+        super(context, new PlayerEntityModel<>(
+            context.getPart(isAlexModel ? EntityModelLayers.PLAYER_SLIM : EntityModelLayers.PLAYER), 
             isAlexModel
         ));
         this.skinLocation = skinLocation;
     }
     
     @Override
-    protected ResourceLocation getSkinLocation(DynamicDollEntity entity) {
+    protected Identifier getSkinLocation(DynamicDollEntity entity) {
         return skinLocation;
     }
 }

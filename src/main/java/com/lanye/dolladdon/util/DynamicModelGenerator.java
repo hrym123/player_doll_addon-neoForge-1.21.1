@@ -1,7 +1,7 @@
 package com.lanye.dolladdon.util;
 
 import com.lanye.dolladdon.PlayerDollAddon;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.Identifier;
 import org.slf4j.Logger;
 
 import java.io.IOException;

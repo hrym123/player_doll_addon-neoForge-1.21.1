@@ -18,16 +18,14 @@ import net.fabricmc.fabric.api.client.rendering.v1.BuiltinItemRendererRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry;
 import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
 import net.fabricmc.fabric.api.resource.ResourcePackActivationType;
+import net.fabricmc.fabric.api.resource.SimpleSynchronousResourceReloadListener;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.client.Minecraft;
-import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.packs.PackType;
-import net.minecraft.server.packs.repository.Pack;
-import net.minecraft.server.packs.repository.PackRepository;
-import net.minecraft.server.packs.resources.ResourceManager;
-import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.resource.ResourceManager;
+import net.minecraft.resource.ResourceType;
+import net.minecraft.text.Text;
+import net.minecraft.util.Identifier;
 
 import java.nio.file.Path;
 
@@ -82,14 +80,14 @@ public class PlayerDollAddonClient implements ClientModInitializer {
      * 注册物品渲染器
      */
     private void registerItemRenderers() {
-        Minecraft minecraft = Minecraft.getInstance();
+        MinecraftClient client = MinecraftClient.getInstance();
         
         // 注册史蒂夫玩偶物品渲染器
         BuiltinItemRendererRegistry.INSTANCE.register(
             ModItems.STEVE_DOLL,
             new SteveDollItemRenderer(
-                minecraft.getBlockEntityRenderDispatcher(),
-                minecraft.getEntityModels()
+                client,
+                client.getEntityModelLoader()
             )
         );
         
@@ -97,8 +95,8 @@ public class PlayerDollAddonClient implements ClientModInitializer {
         BuiltinItemRendererRegistry.INSTANCE.register(
             ModItems.ALEX_DOLL,
             new AlexDollItemRenderer(
-                minecraft.getBlockEntityRenderDispatcher(),
-                minecraft.getEntityModels()
+                client,
+                client.getEntityModelLoader()
             )
         );
         
@@ -109,8 +107,8 @@ public class PlayerDollAddonClient implements ClientModInitializer {
                 BuiltinItemRendererRegistry.INSTANCE.register(
                     item,
                     new DynamicDollItemRenderer(
-                        minecraft.getBlockEntityRenderDispatcher(),
-                        minecraft.getEntityModels(),
+                        client,
+                        client.getEntityModelLoader(),
                         dynamicItem.getTextureLocation(),
                         dynamicItem.isAlexModel()
                     )
@@ -132,8 +130,8 @@ public class PlayerDollAddonClient implements ClientModInitializer {
             
             // 使用 Fabric 的 ResourceManagerHelper 注册资源包
             ResourceManagerHelper.registerBuiltinResourcePack(
-                new ResourceLocation(PlayerDollAddon.MODID, "dynamic_doll_resources"),
-                Component.literal("Dynamic Doll Resources"),
+                new Identifier(PlayerDollAddon.MODID, "dynamic_doll_resources"),
+                Text.literal("Dynamic Doll Resources"),
                 ResourcePackActivationType.NORMAL
             );
             
@@ -152,10 +150,15 @@ public class PlayerDollAddonClient implements ClientModInitializer {
      * 当执行 F3+T 重新加载资源时会触发此监听器
      */
     private void registerResourceReloadListener() {
-        ResourceManagerHelper.get(PackType.CLIENT_RESOURCES).registerReloadListener(
-            new ResourceManagerReloadListener() {
+        ResourceManagerHelper.get(ResourceType.CLIENT_RESOURCES).registerReloadListener(
+            new SimpleSynchronousResourceReloadListener() {
                 @Override
-                public void onResourceManagerReload(ResourceManager resourceManager) {
+                public Identifier getFabricId() {
+                    return new Identifier(PlayerDollAddon.MODID, "pose_action_reload");
+                }
+                
+                @Override
+                public void reload(ResourceManager resourceManager) {
                     try {
                         PoseActionManager.loadResources(resourceManager);
                     } catch (Exception e) {
@@ -181,10 +184,10 @@ public class PlayerDollAddonClient implements ClientModInitializer {
                     return;
                 }
                 
-                net.minecraft.Util.ioPool().execute(() -> {
-                    Minecraft minecraft = Minecraft.getInstance();
-                    if (minecraft != null && minecraft.getResourceManager() != null) {
-                        PoseActionManager.loadResources(minecraft.getResourceManager());
+                net.minecraft.util.Util.getIoWorkerExecutor().execute(() -> {
+                    MinecraftClient client = MinecraftClient.getInstance();
+                    if (client != null && client.getResourceManager() != null) {
+                        PoseActionManager.loadResources(client.getResourceManager());
                     }
                 });
             });

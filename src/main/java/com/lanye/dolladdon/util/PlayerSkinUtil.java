@@ -2,12 +2,12 @@ package com.lanye.dolladdon.util;
 
 import com.lanye.dolladdon.PlayerDollAddon;
 import com.mojang.authlib.GameProfile;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.multiplayer.PlayerInfo;
-import net.minecraft.client.player.AbstractClientPlayer;
-import net.minecraft.client.resources.DefaultPlayerSkin;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.entity.player.Player;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.network.PlayerListEntry;
+import net.minecraft.client.network.AbstractClientPlayerEntity;
+import net.minecraft.client.util.DefaultSkinHelper;
+import net.minecraft.util.Identifier;
+import net.minecraft.entity.player.PlayerEntity;
 import org.jetbrains.annotations.Nullable;
 
 import java.lang.reflect.Method;
@@ -107,9 +107,9 @@ public class PlayerSkinUtil {
         private final String modelName;
         private final UUID uuid;
         private final boolean isAlexModel;
-        private final ResourceLocation skinTexture;
+        private final Identifier skinTexture;
         
-        public DefaultModelInfo(String modelName, UUID uuid, boolean isAlexModel, ResourceLocation skinTexture) {
+        public DefaultModelInfo(String modelName, UUID uuid, boolean isAlexModel, Identifier skinTexture) {
             this.modelName = modelName;
             this.uuid = uuid;
             this.isAlexModel = isAlexModel;
@@ -128,7 +128,7 @@ public class PlayerSkinUtil {
             return isAlexModel;
         }
         
-        public ResourceLocation getSkinTexture() {
+        public Identifier getSkinTexture() {
             return skinTexture;
         }
     }
@@ -148,7 +148,7 @@ public class PlayerSkinUtil {
             // Steve是固定的粗手臂模型
             // 直接使用Steve的默认皮肤资源路径
             // Minecraft 1.19+ 中，Steve的默认皮肤路径是 minecraft:textures/entity/player/wide/steve.png
-            ResourceLocation steveTexture = new ResourceLocation("minecraft", "textures/entity/player/wide/steve.png");
+            Identifier steveTexture = new Identifier("minecraft", "textures/entity/player/wide/steve.png");
             
             steveModelInfo = new DefaultModelInfo(
                 "Steve",
@@ -162,7 +162,7 @@ public class PlayerSkinUtil {
             // Alex是固定的细手臂模型
             // 直接使用Alex的默认皮肤资源路径
             // Minecraft 1.19+ 中，Alex的默认皮肤路径是 minecraft:textures/entity/player/slim/alex.png
-            ResourceLocation alexTexture = new ResourceLocation("minecraft", "textures/entity/player/slim/alex.png");
+            Identifier alexTexture = new Identifier("minecraft", "textures/entity/player/slim/alex.png");
             
             alexModelInfo = new DefaultModelInfo(
                 "Alex",
@@ -182,7 +182,7 @@ public class PlayerSkinUtil {
     private static UUID findAlexUUID() {
         // 首先尝试使用预定义的 ALEX_UUID (0, 1)
         // UUID(0, 1) 的哈希值是 1，应该对应细手臂模型
-        var alexSkin = DefaultPlayerSkin.get(ALEX_UUID);
+        var alexSkin = DefaultSkinHelper.get(ALEX_UUID);
         String modelType = alexSkin.model().toString();
         
         if ("slim".equals(modelType)) {
@@ -197,7 +197,7 @@ public class PlayerSkinUtil {
         };
         
         for (UUID uuid : alexUUIDs) {
-            var skin = DefaultPlayerSkin.get(uuid);
+            var skin = DefaultSkinHelper.get(uuid);
             String model = skin.model().toString();
             if ("slim".equals(model)) {
                 return uuid;
@@ -208,7 +208,7 @@ public class PlayerSkinUtil {
         // 通过不断尝试，直到找到一个被识别为slim模型的UUID
         for (long i = 1; i < 100; i++) {
             UUID testUUID = new UUID(0L, i);
-            var skin = DefaultPlayerSkin.get(testUUID);
+            var skin = DefaultSkinHelper.get(testUUID);
             if ("slim".equals(skin.model().toString())) {
                 return testUUID;
             }
@@ -239,14 +239,14 @@ public class PlayerSkinUtil {
     /**
      * 获取 Steve 的默认皮肤（粗手臂）
      */
-    public static ResourceLocation getSteveSkin() {
+    public static Identifier getSteveSkin() {
         return getSteveModel().getSkinTexture();
     }
     
     /**
      * 获取 Alex 的默认皮肤（细手臂）
      */
-    public static ResourceLocation getAlexSkin() {
+    public static Identifier getAlexSkin() {
         return getAlexModel().getSkinTexture();
     }
     
@@ -264,7 +264,7 @@ public class PlayerSkinUtil {
      * @param playerName 玩家名称（可选，用于 MCCustomSkinLoader）
      * @return 皮肤纹理位置
      */
-    public static ResourceLocation getSkinLocation(@Nullable UUID playerUUID, @Nullable String playerName) {
+    public static Identifier getSkinLocation(@Nullable UUID playerUUID, @Nullable String playerName) {
         if (playerUUID == null) {
             // UUID为null是正常情况（某些实体可能没有设置玩家信息），使用Steve默认皮肤
             return getSteveSkin();
@@ -272,7 +272,7 @@ public class PlayerSkinUtil {
         
         try {
             // 首先检查是否是固定的默认模型UUID
-            // Steve和Alex是固定的模型，直接通过UUID判断，不需要通过DefaultPlayerSkin
+            // Steve和Alex是固定的模型，直接通过UUID判断，不需要通过DefaultSkinHelper
             boolean isSteve = playerUUID.equals(STEVE_UUID);
             boolean isAlex = playerUUID.equals(ALEX_UUID);
             
@@ -305,16 +305,16 @@ public class PlayerSkinUtil {
             }
             
             // 获取基于UUID的默认皮肤信息
-            var defaultSkin = DefaultPlayerSkin.get(playerUUID);
+            var defaultSkin = DefaultSkinHelper.get(playerUUID);
             String skinModel = defaultSkin.model().toString();
-            ResourceLocation texture = defaultSkin.texture();
+            Identifier texture = defaultSkin.texture();
             
             // 检查皮肤模型类型是否与玩家模型类型匹配
             boolean skinIsAlex = "slim".equals(skinModel);
             boolean modelMatches = (isAlexModel && skinIsAlex) || (!isAlexModel && !skinIsAlex);
             
             // 如果 MCCustomSkinLoader 提供了皮肤，且模型类型匹配，使用自定义皮肤
-            // 注意：MCCustomSkinLoader 的 Mixin 会拦截 DefaultPlayerSkin 的调用并替换为自定义皮肤
+            // 注意：MCCustomSkinLoader 的 Mixin 会拦截 DefaultSkinHelper 的调用并替换为自定义皮肤
             if (hasCustomSkin && modelMatches) {
                 return texture;
             }
@@ -337,7 +337,7 @@ public class PlayerSkinUtil {
                 if (skinIsAlex || !hasCustomSkin) {
                     // 如果默认皮肤是Alex类型但玩家是Steve模型，强制使用Steve默认皮肤
                     // 或者如果没有自定义皮肤，也使用Steve默认皮肤（更安全）
-                    ResourceLocation steveTexture = getSteveSkin();
+                    Identifier steveTexture = getSteveSkin();
                     return steveTexture;
                 }
                 // 如果默认皮肤已经是Steve类型，且可能有自定义皮肤，可以使用它
@@ -356,7 +356,7 @@ public class PlayerSkinUtil {
      * @param playerUUID 玩家UUID
      * @return 皮肤纹理位置
      */
-    public static ResourceLocation getSkinLocation(@Nullable UUID playerUUID) {
+    public static Identifier getSkinLocation(@Nullable UUID playerUUID) {
         return getSkinLocation(playerUUID, null);
     }
     
@@ -365,7 +365,7 @@ public class PlayerSkinUtil {
      * Steve和Alex是固定的模型，不需要通过UUID来判断模型类型
      * - 如果UUID是STEVE_UUID，固定返回false（粗手臂）
      * - 如果UUID是ALEX_UUID，固定返回true（细手臂）
-     * - 其他UUID通过MCCustomSkinLoader或DefaultPlayerSkin来判断
+     * - 其他UUID通过MCCustomSkinLoader或DefaultSkinHelper来判断
      * 
      * @param playerUUID 玩家UUID
      * @param playerName 玩家名称（可选，用于 MCCustomSkinLoader）
@@ -379,7 +379,7 @@ public class PlayerSkinUtil {
         
         try {
             // 首先检查是否是固定的默认模型UUID
-            // Steve和Alex是固定的模型，直接通过UUID判断，不需要通过DefaultPlayerSkin
+            // Steve和Alex是固定的模型，直接通过UUID判断，不需要通过DefaultSkinHelper
             boolean isSteve = playerUUID.equals(STEVE_UUID);
             boolean isAlex = playerUUID.equals(ALEX_UUID);
             
@@ -417,7 +417,7 @@ public class PlayerSkinUtil {
             }
             
             // 使用默认方法
-            String defaultModel = DefaultPlayerSkin.get(playerUUID).model().toString();
+            String defaultModel = DefaultSkinHelper.get(playerUUID).model().toString();
             return "slim".equals(defaultModel);
         } catch (Exception e) {
             // 如果检测过程中出现任何错误，默认返回false（Steve模型）

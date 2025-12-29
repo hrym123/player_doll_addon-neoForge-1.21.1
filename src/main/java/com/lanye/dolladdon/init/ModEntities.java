@@ -5,10 +5,10 @@ import com.lanye.dolladdon.base.DollEntityFactory;
 import com.lanye.dolladdon.dynamic.DynamicDollEntity;
 import com.lanye.dolladdon.impl.entity.AlexDollEntity;
 import com.lanye.dolladdon.impl.entity.SteveDollEntity;
-import net.minecraft.core.Registry;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.entity.EntityType;
+import net.minecraft.util.Identifier;
+import net.minecraft.registry.Registries;
+import net.minecraft.registry.Registry;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -28,14 +28,14 @@ public class ModEntities {
      */
     public static void register() {
         STEVE_DOLL = Registry.register(
-                BuiltInRegistries.ENTITY_TYPE,
-                new ResourceLocation(PlayerDollAddon.MODID, "steve_doll"),
+                Registries.ENTITY_TYPE,
+                new Identifier(PlayerDollAddon.MODID, "steve_doll"),
                 DollEntityFactory.createDollEntityType("steve_doll", SteveDollEntity::new)
         );
         
         ALEX_DOLL = Registry.register(
-                BuiltInRegistries.ENTITY_TYPE,
-                new ResourceLocation(PlayerDollAddon.MODID, "alex_doll"),
+                Registries.ENTITY_TYPE,
+                new Identifier(PlayerDollAddon.MODID, "alex_doll"),
                 DollEntityFactory.createDollEntityType("alex_doll", AlexDollEntity::new)
         );
     }
@@ -47,8 +47,8 @@ public class ModEntities {
      */
     public static EntityType<DynamicDollEntity> registerDynamicDoll(String registryName) {
         EntityType<DynamicDollEntity> entityType = Registry.register(
-                BuiltInRegistries.ENTITY_TYPE,
-                new ResourceLocation(PlayerDollAddon.MODID, registryName),
+                Registries.ENTITY_TYPE,
+                new Identifier(PlayerDollAddon.MODID, registryName),
                 DollEntityFactory.createDollEntityType(registryName, DynamicDollEntity::new)
         );
         DYNAMIC_DOLLS.put(registryName, entityType);

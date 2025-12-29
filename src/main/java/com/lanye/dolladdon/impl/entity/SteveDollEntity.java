@@ -3,9 +3,9 @@ package com.lanye.dolladdon.impl.entity;
 import com.lanye.dolladdon.base.entity.BaseDollEntity;
 import com.lanye.dolladdon.init.ModEntities;
 import com.lanye.dolladdon.init.ModItems;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
+import net.minecraft.entity.EntityType;
+import net.minecraft.item.ItemStack;
+import net.minecraft.world.World;
 
 /**
  * 史蒂夫玩偶实体
@@ -13,17 +13,17 @@ import net.minecraft.world.level.Level;
  */
 public class SteveDollEntity extends BaseDollEntity {
     
-    public SteveDollEntity(EntityType<? extends SteveDollEntity> entityType, Level level) {
-        super(entityType, level);
+    public SteveDollEntity(EntityType<? extends SteveDollEntity> entityType, World world) {
+        super(entityType, world);
     }
     
-    public SteveDollEntity(Level level, double x, double y, double z) {
-        super(ModEntities.STEVE_DOLL.get(), level, x, y, z);
+    public SteveDollEntity(World world, double x, double y, double z) {
+        super(ModEntities.STEVE_DOLL, world, x, y, z);
     }
     
     @Override
     protected ItemStack getDollItemStack() {
-        return new ItemStack(ModItems.STEVE_DOLL.get());
+        return new ItemStack(ModItems.STEVE_DOLL);
     }
 }
 

@@ -21,7 +21,7 @@ import net.minecraft.world.event.GameEvent;
 public abstract class BaseDollItem extends Item {
     
     public BaseDollItem() {
-        super(new Item.Properties());
+        super(new Item.Settings());
     }
     
     /**

@@ -3,10 +3,11 @@ package com.lanye.dolladdon.impl.render;
 import com.lanye.dolladdon.base.render.BaseDollRenderer;
 import com.lanye.dolladdon.impl.entity.AlexDollEntity;
 import com.lanye.dolladdon.util.PlayerSkinUtil;
-import net.minecraft.client.model.PlayerModel;
-import net.minecraft.client.model.geom.ModelLayers;
-import net.minecraft.client.renderer.entity.EntityRendererProvider;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.client.render.entity.EntityRendererFactory;
+import net.minecraft.client.render.entity.model.EntityModelLayers;
+import net.minecraft.client.render.entity.model.PlayerEntityModel;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.util.Identifier;
 
 /**
  * 艾利克斯玩偶实体渲染器
@@ -14,12 +15,12 @@ import net.minecraft.resources.ResourceLocation;
  */
 public class AlexDollRenderer extends BaseDollRenderer<AlexDollEntity> {
     
-    public AlexDollRenderer(EntityRendererProvider.Context context) {
-        super(context, new PlayerModel<>(context.bakeLayer(ModelLayers.PLAYER_SLIM), true));
+    public AlexDollRenderer(EntityRendererFactory.Context context) {
+        super(context, new PlayerEntityModel<>(context.getPart(EntityModelLayers.PLAYER_SLIM), true));
     }
     
     @Override
-    protected ResourceLocation getSkinLocation(AlexDollEntity entity) {
+    protected Identifier getSkinLocation(AlexDollEntity entity) {
         return PlayerSkinUtil.getAlexSkin();
     }
 }

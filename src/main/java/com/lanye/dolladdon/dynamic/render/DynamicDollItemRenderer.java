@@ -1,24 +1,25 @@
 package com.lanye.dolladdon.dynamic.render;
 
 import com.lanye.dolladdon.base.render.BaseDollItemRenderer;
-import net.minecraft.client.model.PlayerModel;
-import net.minecraft.client.model.geom.EntityModelSet;
-import net.minecraft.client.model.geom.ModelLayers;
-import net.minecraft.client.renderer.blockentity.BlockEntityRenderDispatcher;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.render.entity.model.EntityModelLoader;
+import net.minecraft.client.render.entity.model.EntityModelLayers;
+import net.minecraft.client.render.entity.model.PlayerEntityModel;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.util.Identifier;
 
 /**
  * 动态玩偶物品渲染器
  * 用于从文件加载的玩偶
  */
 public class DynamicDollItemRenderer extends BaseDollItemRenderer {
-    private final ResourceLocation textureLocation;
+    private final Identifier textureLocation;
     private final boolean isAlexModel;
     
-    public DynamicDollItemRenderer(BlockEntityRenderDispatcher dispatcher, EntityModelSet modelSet, 
-                                  ResourceLocation textureLocation, boolean isAlexModel) {
-        super(dispatcher, modelSet, new PlayerModel<>(
-            modelSet.bakeLayer(isAlexModel ? ModelLayers.PLAYER_SLIM : ModelLayers.PLAYER), 
+    public DynamicDollItemRenderer(MinecraftClient client, EntityModelLoader modelLoader, 
+                                  Identifier textureLocation, boolean isAlexModel) {
+        super(client, new PlayerEntityModel<>(
+            modelLoader.getModelPart(isAlexModel ? EntityModelLayers.PLAYER_SLIM : EntityModelLayers.PLAYER), 
             isAlexModel
         ));
         this.textureLocation = textureLocation;
@@ -26,7 +27,7 @@ public class DynamicDollItemRenderer extends BaseDollItemRenderer {
     }
     
     @Override
-    protected ResourceLocation getSkinLocation() {
+    protected Identifier getSkinLocation() {
         return textureLocation;
     }
 }

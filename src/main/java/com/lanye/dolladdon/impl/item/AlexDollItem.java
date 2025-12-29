@@ -3,7 +3,7 @@ package com.lanye.dolladdon.impl.item;
 import com.lanye.dolladdon.base.item.BaseDollItem;
 import com.lanye.dolladdon.impl.entity.AlexDollEntity;
 import com.lanye.dolladdon.base.entity.BaseDollEntity;
-import net.minecraft.world.level.Level;
+import net.minecraft.world.World;
 
 /**
  * 艾利克斯玩偶物品
@@ -12,8 +12,8 @@ import net.minecraft.world.level.Level;
 public class AlexDollItem extends BaseDollItem {
     
     @Override
-    protected BaseDollEntity createDollEntity(Level level, double x, double y, double z) {
-        return new AlexDollEntity(level, x, y, z);
+    protected BaseDollEntity createDollEntity(World world, double x, double y, double z) {
+        return new AlexDollEntity(world, x, y, z);
     }
 }
 

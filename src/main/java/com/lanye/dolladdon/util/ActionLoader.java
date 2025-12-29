@@ -10,9 +10,10 @@ import com.lanye.dolladdon.api.action.ActionKeyframe;
 import com.lanye.dolladdon.api.action.DollAction;
 import com.lanye.dolladdon.api.action.SimpleDollAction;
 import com.lanye.dolladdon.api.pose.DollPose;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.packs.resources.Resource;
-import net.minecraft.server.packs.resources.ResourceManager;
+import net.minecraft.util.Identifier;
+import net.minecraft.resource.Resource;
+import net.minecraft.resource.ResourceManager;
+import net.minecraft.resource.ResourceType;
 import org.slf4j.Logger;
 
 import java.io.InputStream;
@@ -59,7 +60,7 @@ public class ActionLoader {
      * }
      */
     public static DollAction loadAction(ResourceManager resourceManager, String name) {
-        ResourceLocation location = new ResourceLocation(
+        Identifier location = new Identifier(
             PlayerDollAddon.MODID, 
             "actions/" + name + ".json"
         );
@@ -71,7 +72,7 @@ public class ActionLoader {
             }
             
             Resource resource = resourceOpt.get();
-            try (InputStream inputStream = resource.open();
+            try (InputStream inputStream = resource.open().get();
                  InputStreamReader reader = new InputStreamReader(inputStream, StandardCharsets.UTF_8)) {
                 
                 JsonObject json = GSON.fromJson(reader, JsonObject.class);
@@ -227,10 +228,10 @@ public class ActionLoader {
         
         // 首先从 ResourceManager 加载（资源包中的动作）
         try {
-            var resources = resourceManager.listResources("actions", path -> path.getPath().endsWith(".json"));
+            var resources = resourceManager.findResources(ResourceType.SERVER_DATA, "actions", path -> path.getPath().endsWith(".json"));
             
             for (var entry : resources.entrySet()) {
-                ResourceLocation location = entry.getKey();
+                Identifier location = entry.getKey();
                 String name = location.getPath().substring("actions/".length(), location.getPath().length() - ".json".length());
                 
                 try {

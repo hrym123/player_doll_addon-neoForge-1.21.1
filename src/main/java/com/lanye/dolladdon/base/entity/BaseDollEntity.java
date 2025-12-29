@@ -33,9 +33,9 @@ import java.util.Map;
  * 提供所有玩偶实体的共同功能
  */
 public abstract class BaseDollEntity extends Entity {
-    private static final TrackedData<Byte> DATA_CLIENT_FLAGS = DataTracker.startTracking(BaseDollEntity.class, TrackedDataHandlerRegistry.BYTE);
+    private static final TrackedData<Byte> DATA_CLIENT_FLAGS = DataTracker.registerData(BaseDollEntity.class, TrackedDataHandlerRegistry.BYTE);
     // 同步姿态索引到客户端（使用Byte，支持0-255个姿态，足够使用）
-    private static final TrackedData<Byte> DATA_POSE_INDEX = DataTracker.startTracking(BaseDollEntity.class, TrackedDataHandlerRegistry.BYTE);
+    private static final TrackedData<Byte> DATA_POSE_INDEX = DataTracker.registerData(BaseDollEntity.class, TrackedDataHandlerRegistry.BYTE);
     
     // 姿态和动作相关字段
     private DollPose currentPose;
@@ -269,7 +269,7 @@ public abstract class BaseDollEntity extends Entity {
      */
     @Override
     public void move(MovementType movementType, Vec3d movement) {
-        super.move(moverType, movement);
+        super.move(movementType, movement);
         // 父类的move()方法会根据EntityType的尺寸重置碰撞箱，所以需要立即恢复自定义碰撞箱
         // 如果getDimensions()正常工作，这行代码可能不再需要
         updateBoundingBox();

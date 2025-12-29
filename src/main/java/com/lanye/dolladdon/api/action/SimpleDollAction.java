@@ -1,6 +1,7 @@
 package com.lanye.dolladdon.api.action;
 
 import com.lanye.dolladdon.api.pose.DollPose;
+import net.minecraft.util.math.MathHelper;
 
 /**
  * 简单的玩偶动作实现
@@ -88,7 +89,7 @@ public class SimpleDollAction implements DollAction {
         // 计算插值比例
         int tickDiff = nextKeyframe.getTick() - prevKeyframe.getTick();
         float t = tickDiff > 0 ? (float)(actualTick - prevKeyframe.getTick()) / tickDiff : 0.0F;
-        t = Mth.clamp(t, 0.0F, 1.0F);
+        t = MathHelper.clamp(t, 0.0F, 1.0F);
         
         // 在两个姿态之间插值
         return interpolatePoses(prevKeyframe.getPose(), nextKeyframe.getPose(), t);
@@ -127,9 +128,9 @@ public class SimpleDollAction implements DollAction {
         
         private float[] interpolate(float[] arr1, float[] arr2) {
             return new float[]{
-                Mth.lerp(t, arr1[0], arr2[0]),
-                Mth.lerp(t, arr1[1], arr2[1]),
-                Mth.lerp(t, arr1[2], arr2[2])
+                MathHelper.lerp(t, arr1[0], arr2[0]),
+                MathHelper.lerp(t, arr1[1], arr2[1]),
+                MathHelper.lerp(t, arr1[2], arr2[2])
             };
         }
         

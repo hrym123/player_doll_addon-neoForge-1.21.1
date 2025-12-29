@@ -19,7 +19,7 @@ public class DollEntityFactory {
      */
     public static <T extends BaseDollEntity> EntityType<T> createDollEntityType(
             String name, EntityType.EntityFactory<T> entityFactory) {
-        return EntityType.Builder.<T>create(SpawnGroup.MISC, entityFactory)
+        return EntityType.Builder.<T>create(entityFactory, SpawnGroup.MISC)
                 .setDimensions(0.6f, 1f) // 玩偶碰撞箱基础大小：宽0.6，高1.0（实际碰撞箱会根据姿态的scale动态调整）
                 .maxTrackingRange(10)
                 .trackingTickInterval(20)

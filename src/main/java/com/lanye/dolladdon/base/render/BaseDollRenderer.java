@@ -9,7 +9,8 @@ import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.Vec3f;
+import org.joml.Quaternionf;
+import org.joml.Vector3f;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 /**
@@ -41,8 +42,8 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
         float yRot = MathHelper.lerp(partialTick, entity.prevYaw, entity.getYaw());
         float xRot = MathHelper.lerp(partialTick, entity.prevPitch, entity.getPitch());
         
-        matrixStack.multiply(Vec3f.POSITIVE_Y.getDegreesQuaternion(180.0F - yRot));
-        matrixStack.multiply(Vec3f.POSITIVE_X.getDegreesQuaternion(xRot));
+        matrixStack.multiply(new Quaternionf().rotateY((float) Math.toRadians(180.0F - yRot)));
+        matrixStack.multiply(new Quaternionf().rotateX((float) Math.toRadians(xRot)));
         
         float modelScale = 0.5F; 
         
@@ -155,9 +156,9 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
             matrixStack.translate(0.0, rotationCenterY, 0.0);
             
             // 应用身体旋转（只在这里应用，不在 setRotation 中设置）
-            matrixStack.multiply(Vec3f.POSITIVE_X.getRadiansQuaternion(bodyRotX));
-            matrixStack.multiply(Vec3f.POSITIVE_Y.getRadiansQuaternion(bodyRotY));
-            matrixStack.multiply(Vec3f.POSITIVE_Z.getRadiansQuaternion(bodyRotZ));
+            matrixStack.multiply(new Quaternionf().rotateX(bodyRotX));
+            matrixStack.multiply(new Quaternionf().rotateY(bodyRotY));
+            matrixStack.multiply(new Quaternionf().rotateZ(bodyRotZ));
             
             // 移回旋转中心
             matrixStack.translate(0.0, -rotationCenterY, 0.0);
@@ -165,10 +166,10 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
             // 注意：头部和手臂的旋转值已经是相对于身体的，所以保持它们的旋转值
             playerModel.body.setAngles(0, 0, 0); // 确保身体不额外旋转（旋转已通过 MatrixStack 应用）
             // 头部和手臂保持它们自己的相对旋转值（headRotX等已经在上面设置）
-            renderPartWithTransform(poseStack, playerModel.body, baseVertexConsumer, packedLight, overlay, bodyPosition, bodyScale);
-            renderPartWithTransform(poseStack, playerModel.head, baseVertexConsumer, packedLight, overlay, headPosition, headScale);
-            renderPartWithTransform(poseStack, playerModel.rightArm, baseVertexConsumer, packedLight, overlay, rightArmPosition, rightArmScale);
-            renderPartWithTransform(poseStack, playerModel.leftArm, baseVertexConsumer, packedLight, overlay, leftArmPosition, leftArmScale);
+            renderPartWithTransform(matrixStack, playerModel.body, baseVertexConsumer, light, overlay, bodyPosition, bodyScale);
+            renderPartWithTransform(matrixStack, playerModel.head, baseVertexConsumer, light, overlay, headPosition, headScale);
+            renderPartWithTransform(matrixStack, playerModel.rightArm, baseVertexConsumer, light, overlay, rightArmPosition, rightArmScale);
+            renderPartWithTransform(matrixStack, playerModel.leftArm, baseVertexConsumer, light, overlay, leftArmPosition, leftArmScale);
             renderPartWithTransform(matrixStack, playerModel.rightLeg, baseVertexConsumer, light, overlay, rightLegPosition, rightLegScale);
             renderPartWithTransform(matrixStack, playerModel.leftLeg, baseVertexConsumer, light, overlay, leftLegPosition, leftLegScale);
             matrixStack.pop();
@@ -195,17 +196,17 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
             matrixStack.translate(0.0, rotationCenterY, 0.0);
             
             // 应用身体旋转（只在这里应用，不在 setRotation 中设置）
-            matrixStack.multiply(Vec3f.POSITIVE_X.getRadiansQuaternion(bodyRotX));
-            matrixStack.multiply(Vec3f.POSITIVE_Y.getRadiansQuaternion(bodyRotY));
-            matrixStack.multiply(Vec3f.POSITIVE_Z.getRadiansQuaternion(bodyRotZ));
+            matrixStack.multiply(new Quaternionf().rotateX(bodyRotX));
+            matrixStack.multiply(new Quaternionf().rotateY(bodyRotY));
+            matrixStack.multiply(new Quaternionf().rotateZ(bodyRotZ));
             
             // 移回旋转中心
             matrixStack.translate(0.0, -rotationCenterY, 0.0);
             // 在旋转后的坐标系中 渲染所有外层部分
             // hat层（头发外层），使用 headScale 和 hatScale 的组合
-            renderPartWithTransform(poseStack, playerModel.hat, overlayVertexConsumer, packedLight, overlay, hatPosition, hatCombinedScale);
+            renderPartWithTransform(matrixStack, playerModel.hat, overlayVertexConsumer, light, overlay, hatPosition, hatCombinedScale);
             // 手臂外层（保持它们自己的旋转值）
-            renderArmOverlayParts(poseStack, overlayVertexConsumer, packedLight, overlay, rightArmPosition, rightArmScale, leftArmPosition, leftArmScale);
+            renderArmOverlayParts(matrixStack, overlayVertexConsumer, light, overlay, rightArmPosition, rightArmScale, leftArmPosition, leftArmScale);
             // 身体和腿部外层（jacket 的旋转设为0）
             setBodyOverlayRotation(0, 0, 0); // 确保身体外层不额外旋转
             renderBodyLegOverlayParts(matrixStack, overlayVertexConsumer, light, overlay, bodyPosition, bodyScale, rightLegPosition, rightLegScale, leftLegPosition, leftLegScale);

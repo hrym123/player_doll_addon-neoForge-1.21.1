@@ -2,7 +2,7 @@ package com.lanye.dolladdon.util;
 
 import com.lanye.dolladdon.PlayerDollAddon;
 import com.lanye.dolladdon.util.DynamicTextureManager;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.Identifier;
 import org.slf4j.Logger;
 
 import java.io.File;
@@ -30,11 +30,11 @@ public class DynamicDollLoader {
         private final String fileName;           // 原始文件名（不含扩展名）
         private final String displayName;        // 显示名称（处理后的）
         private final boolean isAlexModel;       // 是否为Alex模型（细手臂）
-        private final ResourceLocation textureLocation; // 纹理资源位置
+        private final Identifier textureLocation; // 纹理资源位置
         private final Path filePath;             // 文件路径
         
         public DollInfo(String fileName, String displayName, boolean isAlexModel, 
-                       ResourceLocation textureLocation, Path filePath) {
+                       Identifier textureLocation, Path filePath) {
             this.fileName = fileName;
             this.displayName = displayName;
             this.isAlexModel = isAlexModel;
@@ -54,7 +54,7 @@ public class DynamicDollLoader {
             return isAlexModel;
         }
         
-        public ResourceLocation getTextureLocation() {
+        public Identifier getTextureLocation() {
             return textureLocation;
         }
         
@@ -146,23 +146,23 @@ public class DynamicDollLoader {
         // 处理名称：单个下划线替换为空格，双下划线替换为单个下划线
         String displayName = processDisplayName(namePart);
         
-        // 计算文件哈希值（用于 ResourceLocation，因为 ResourceLocation 不支持中文字符）
+        // 计算文件哈希值（用于 Identifier，因为 Identifier 不支持中文字符）
         String fileHash = calculateFileHash(filePath);
         if (fileHash == null) {
             LOGGER.error("无法计算文件哈希值，跳过: {}", fileName);
             return null;
         }
         
-        // 使用哈希值作为资源路径（确保符合 ResourceLocation 的要求：只包含 [a-z0-9/._-]）
+        // 使用哈希值作为资源路径（确保符合 Identifier 的要求：只包含 [a-z0-9/._-]）
         String resourcePath = "textures/entity/" + fileHash;
-        ResourceLocation textureLocation;
+        Identifier textureLocation;
         try {
-            textureLocation = new ResourceLocation(
+            textureLocation = new Identifier(
                 PlayerDollAddon.MODID, 
                 resourcePath
             );
         } catch (Exception e) {
-            LOGGER.error("创建 ResourceLocation 失败: {} (资源路径: {})", fileName, resourcePath, e);
+            LOGGER.error("创建 Identifier 失败: {} (资源路径: {})", fileName, resourcePath, e);
             return null;
         }
         
@@ -194,7 +194,7 @@ public class DynamicDollLoader {
     
     /**
      * 计算文件的 MD5 哈希值
-     * 用于生成符合 ResourceLocation 规范的标识符（只包含 [a-z0-9]）
+     * 用于生成符合 Identifier 规范的标识符（只包含 [a-z0-9]）
      * @param filePath 文件路径
      * @return 文件的 MD5 哈希值（小写字符串），如果失败返回 null
      */

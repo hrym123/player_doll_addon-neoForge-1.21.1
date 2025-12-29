@@ -4,6 +4,10 @@ import com.lanye.dolladdon.api.action.DollAction;
 import com.lanye.dolladdon.api.pose.DollPose;
 import com.lanye.dolladdon.api.pose.SimpleDollPose;
 import com.lanye.dolladdon.util.PoseActionManager;
+import com.lanye.dolladdon.api.action.DollAction;
+import com.lanye.dolladdon.api.pose.DollPose;
+import com.lanye.dolladdon.api.pose.SimpleDollPose;
+import com.lanye.dolladdon.util.PoseActionManager;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.model.ModelPart;
 import net.minecraft.client.render.VertexConsumer;
@@ -15,17 +19,18 @@ import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.Vec3f;
+import org.joml.Quaternionf;
 
 /**
  * 玩偶物品渲染器基类
  * 提供所有玩偶物品渲染器的共同功能
  */
-public abstract class BaseDollItemRenderer extends ItemRenderer {
+public abstract class BaseDollItemRenderer {
     protected final PlayerEntityModel<PlayerEntity> playerModel;
+    protected final MinecraftClient client;
     
-    protected BaseDollItemRenderer(MinecraftClient client, BlockEntityRenderDispatcher dispatcher, EntityModelLoader modelLoader, PlayerEntityModel<PlayerEntity> playerModel) {
-        super(client, dispatcher, modelLoader);
+    protected BaseDollItemRenderer(MinecraftClient client, PlayerEntityModel<PlayerEntity> playerModel) {
+        this.client = client;
         this.playerModel = playerModel;
     }
     
@@ -35,7 +40,6 @@ public abstract class BaseDollItemRenderer extends ItemRenderer {
      */
     protected abstract Identifier getSkinLocation();
     
-    @Override
     public void render(ItemStack stack, net.minecraft.client.render.model.json.ModelTransformationMode transformType, MatrixStack matrixStack,
                              VertexConsumerProvider vertexConsumerProvider, int light, int overlay) {
         matrixStack.push();
@@ -129,9 +133,9 @@ public abstract class BaseDollItemRenderer extends ItemRenderer {
             // 移动到身体的旋转中心（身体和头连接处，Y坐标约为0.375）
             matrixStack.translate(0.0, 0.375, 0.0);
             // 应用身体旋转（只在这里应用，不在 setAngles 中设置）
-            matrixStack.multiply(Vec3f.POSITIVE_X.getRadiansQuaternion(bodyRotX));
-            matrixStack.multiply(Vec3f.POSITIVE_Y.getRadiansQuaternion(bodyRotY));
-            matrixStack.multiply(Vec3f.POSITIVE_Z.getRadiansQuaternion(bodyRotZ));
+            matrixStack.multiply(new Quaternionf().rotateX(bodyRotX));
+            matrixStack.multiply(new Quaternionf().rotateY(bodyRotY));
+            matrixStack.multiply(new Quaternionf().rotateZ(bodyRotZ));
             // 移回
             matrixStack.translate(0.0, -0.375, 0.0);
             // 在旋转后的坐标系中渲染身体、头部、手臂和腿部
@@ -165,9 +169,9 @@ public abstract class BaseDollItemRenderer extends ItemRenderer {
             // 移动到身体的旋转中心（身体和头连接处，Y坐标约为0.375）
             matrixStack.translate(0.0, 0.375, 0.0);
             // 应用身体旋转（只在这里应用，不在 setAngles 中设置）
-            matrixStack.multiply(Vec3f.POSITIVE_X.getRadiansQuaternion(bodyRotX));
-            matrixStack.multiply(Vec3f.POSITIVE_Y.getRadiansQuaternion(bodyRotY));
-            matrixStack.multiply(Vec3f.POSITIVE_Z.getRadiansQuaternion(bodyRotZ));
+            matrixStack.multiply(new Quaternionf().rotateX(bodyRotX));
+            matrixStack.multiply(new Quaternionf().rotateY(bodyRotY));
+            matrixStack.multiply(new Quaternionf().rotateZ(bodyRotZ));
             // 移回
             matrixStack.translate(0.0, -0.375, 0.0);
             // 在旋转后的坐标系中渲染所有外层部分
@@ -206,7 +210,7 @@ public abstract class BaseDollItemRenderer extends ItemRenderer {
             // GUI 中：居中显示
             matrixStack.translate(0.5, 0.75, 0.0);
             matrixStack.scale(0.5F * modelScale, 0.5F * modelScale, 0.5F * modelScale);
-            matrixStack.multiply(Vec3f.POSITIVE_Y.getDegreesQuaternion(-155.0F));
+            matrixStack.multiply(new Quaternionf().rotateY((float) Math.toRadians(-155.0F)));
         } else if (transformType == net.minecraft.client.render.model.json.ModelTransformationMode.FIRST_PERSON_LEFT_HAND || 
                    transformType == net.minecraft.client.render.model.json.ModelTransformationMode.FIRST_PERSON_RIGHT_HAND) {
             matrixStack.translate(0.5, 1, 0.5);
@@ -214,10 +218,10 @@ public abstract class BaseDollItemRenderer extends ItemRenderer {
             // 旋转
             if (transformType == net.minecraft.client.render.model.json.ModelTransformationMode.FIRST_PERSON_LEFT_HAND) {
                 // 第一人称左手
-                matrixStack.multiply(Vec3f.POSITIVE_Y.getDegreesQuaternion(-45.0F));
+                matrixStack.multiply(new Quaternionf().rotateY((float) Math.toRadians(-45.0F)));
             } else{
                 // 第一人称右手
-                matrixStack.multiply(Vec3f.POSITIVE_Y.getDegreesQuaternion(15.0F));
+                matrixStack.multiply(new Quaternionf().rotateY((float) Math.toRadians(15.0F)));
             }
         } else if (transformType == net.minecraft.client.render.model.json.ModelTransformationMode.THIRD_PERSON_LEFT_HAND || 
                    transformType == net.minecraft.client.render.model.json.ModelTransformationMode.THIRD_PERSON_RIGHT_HAND) {

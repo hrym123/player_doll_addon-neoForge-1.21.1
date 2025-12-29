@@ -3,7 +3,7 @@ package com.lanye.dolladdon.util;
 import com.lanye.dolladdon.PlayerDollAddon;
 import com.lanye.dolladdon.api.action.DollAction;
 import com.lanye.dolladdon.api.pose.DollPose;
-import net.minecraft.server.packs.resources.ResourceManager;
+import net.minecraft.resource.ResourceManager;
 import org.slf4j.Logger;
 
 import java.nio.file.Path;

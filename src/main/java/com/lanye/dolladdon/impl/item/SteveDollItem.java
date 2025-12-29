@@ -3,7 +3,8 @@ package com.lanye.dolladdon.impl.item;
 import com.lanye.dolladdon.base.item.BaseDollItem;
 import com.lanye.dolladdon.base.entity.BaseDollEntity;
 import com.lanye.dolladdon.impl.entity.SteveDollEntity;
-import net.minecraft.world.level.Level;
+import com.lanye.dolladdon.init.ModEntities;
+import net.minecraft.world.World;
 
 /**
  * 史蒂夫玩偶物品
@@ -12,8 +13,8 @@ import net.minecraft.world.level.Level;
 public class SteveDollItem extends BaseDollItem {
     
     @Override
-    protected BaseDollEntity createDollEntity(Level level, double x, double y, double z) {
-        return new SteveDollEntity(level, x, y, z);
+    protected BaseDollEntity createDollEntity(World world, double x, double y, double z) {
+        return new SteveDollEntity(ModEntities.STEVE_DOLL, world, x, y, z);
     }
 }
 

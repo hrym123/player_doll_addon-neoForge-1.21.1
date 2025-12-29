@@ -4,11 +4,11 @@ import com.lanye.dolladdon.PlayerDollAddon;
 import com.lanye.dolladdon.dynamic.DynamicDollItem;
 import com.lanye.dolladdon.impl.item.AlexDollItem;
 import com.lanye.dolladdon.impl.item.SteveDollItem;
-import net.minecraft.core.Registry;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.item.Item;
+import net.minecraft.entity.EntityType;
+import net.minecraft.item.Item;
+import net.minecraft.util.Identifier;
+import net.minecraft.registry.Registries;
+import net.minecraft.registry.Registry;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -28,14 +28,14 @@ public class ModItems {
      */
     public static void register() {
         STEVE_DOLL = Registry.register(
-                BuiltInRegistries.ITEM,
-                new ResourceLocation(PlayerDollAddon.MODID, "steve_doll"),
+                Registries.ITEM,
+                new Identifier(PlayerDollAddon.MODID, "steve_doll"),
                 new SteveDollItem()
         );
         
         ALEX_DOLL = Registry.register(
-                BuiltInRegistries.ITEM,
-                new ResourceLocation(PlayerDollAddon.MODID, "alex_doll"),
+                Registries.ITEM,
+                new Identifier(PlayerDollAddon.MODID, "alex_doll"),
                 new AlexDollItem()
         );
     }
@@ -51,12 +51,12 @@ public class ModItems {
      */
     public static Item registerDynamicDoll(String registryName, 
                                             EntityType<com.lanye.dolladdon.dynamic.DynamicDollEntity> entityType,
-                                            ResourceLocation textureLocation, 
-                                            boolean isAlexModel,
-                                            String displayName) {
+                                            Identifier textureLocation, 
+                                                                     boolean isAlexModel,
+                                                                     String displayName) {
         Item item = Registry.register(
-                BuiltInRegistries.ITEM,
-                new ResourceLocation(PlayerDollAddon.MODID, registryName),
+                Registries.ITEM,
+                new Identifier(PlayerDollAddon.MODID, registryName),
                 new DynamicDollItem(entityType, textureLocation, isAlexModel, displayName)
         );
         DYNAMIC_DOLLS.put(registryName, item);
