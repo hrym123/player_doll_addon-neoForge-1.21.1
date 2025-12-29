@@ -1,17 +1,18 @@
 package com.lanye.dolladdon.init;
 
+import java.util.HashMap;
+import java.util.Map;
+
+import net.minecraft.entity.EntityType;
+import net.minecraft.registry.Registries;
+import net.minecraft.registry.Registry;
+import net.minecraft.util.Identifier;
+
 import com.lanye.dolladdon.PlayerDollAddon;
 import com.lanye.dolladdon.base.DollEntityFactory;
 import com.lanye.dolladdon.dynamic.DynamicDollEntity;
 import com.lanye.dolladdon.impl.entity.AlexDollEntity;
 import com.lanye.dolladdon.impl.entity.SteveDollEntity;
-import net.minecraft.entity.EntityType;
-import net.minecraft.util.Identifier;
-import net.minecraft.registry.Registries;
-import net.minecraft.registry.Registry;
-
-import java.util.HashMap;
-import java.util.Map;
 
 public class ModEntities {
     // 史蒂夫玩偶实体（固定模型：粗手臂 + Steve默认皮肤）

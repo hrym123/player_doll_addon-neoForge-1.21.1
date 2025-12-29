@@ -2,7 +2,6 @@ package com.lanye.dolladdon;
 
 import com.lanye.dolladdon.init.ModEntities;
 import com.lanye.dolladdon.init.ModItems;
-import com.lanye.dolladdon.util.DynamicDollLoader;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.itemgroup.v1.FabricItemGroup;
 import net.minecraft.item.ItemGroup;

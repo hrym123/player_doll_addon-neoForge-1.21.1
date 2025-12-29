@@ -3,7 +3,6 @@ package com.lanye.dolladdon.base.entity;
 import com.lanye.dolladdon.api.action.DollAction;
 import com.lanye.dolladdon.api.pose.DollPose;
 import com.lanye.dolladdon.api.pose.SimpleDollPose;
-import com.lanye.dolladdon.util.PoseActionManager;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityDimensions;
 import net.minecraft.entity.EntityPose;
@@ -49,7 +48,6 @@ public abstract class BaseDollEntity extends Entity {
         super(entityType, world);
         this.noClip = false; // 有物理碰撞
         // 默认使用standing姿态
-        DollPose standingPose = PoseActionManager.getPose("standing");
         this.currentPose = standingPose != null ? standingPose : SimpleDollPose.createDefaultStandingPose();
         // 初始化时设置为255（默认姿态）
         if (!world.isClient) {

@@ -3,15 +3,8 @@ package com.lanye.dolladdon.base.render;
 import com.lanye.dolladdon.api.action.DollAction;
 import com.lanye.dolladdon.api.pose.DollPose;
 import com.lanye.dolladdon.api.pose.SimpleDollPose;
-import com.lanye.dolladdon.util.PoseActionManager;
-import com.lanye.dolladdon.api.action.DollAction;
-import com.lanye.dolladdon.api.pose.DollPose;
-import com.lanye.dolladdon.api.pose.SimpleDollPose;
-import com.lanye.dolladdon.util.PoseActionManager;
 import net.fabricmc.fabric.api.client.rendering.v1.BuiltinItemRendererRegistry;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.model.ModelPart;
-import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.entity.model.EntityModelLoader;
 import net.minecraft.client.render.entity.model.PlayerEntityModel;
@@ -19,7 +12,6 @@ import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.Identifier;
-import net.minecraft.util.math.MathHelper;
 import org.joml.Quaternionf;
 
 /**
