@@ -131,6 +131,7 @@ public class PlayerDollAddonClient implements ClientModInitializer {
             // 使用 Fabric 的 ResourceManagerHelper 注册资源包
             ResourceManagerHelper.registerBuiltinResourcePack(
                 new Identifier(PlayerDollAddon.MODID, "dynamic_doll_resources"),
+                FabricLoader.getInstance().getModContainer(PlayerDollAddon.MODID).orElse(null),
                 Text.literal("Dynamic Doll Resources"),
                 ResourcePackActivationType.NORMAL
             );
@@ -176,7 +177,7 @@ public class PlayerDollAddonClient implements ClientModInitializer {
     private void registerClientConnectionEvents() {
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
             // 延迟加载，确保资源管理器已完全初始化
-            net.minecraft.Util.backgroundExecutor().execute(() -> {
+            net.minecraft.util.Util.getIoWorkerExecutor().execute(() -> {
                 try {
                     Thread.sleep(100); // 等待资源管理器完全初始化
                 } catch (InterruptedException e) {
@@ -185,8 +186,8 @@ public class PlayerDollAddonClient implements ClientModInitializer {
                 }
                 
                 net.minecraft.util.Util.getIoWorkerExecutor().execute(() -> {
-                    MinecraftClient client = MinecraftClient.getInstance();
-                    if (client != null && client.getResourceManager() != null) {
+                    MinecraftClient mcClient = MinecraftClient.getInstance();
+                    if (mcClient != null && mcClient.getResourceManager() != null) {
                         PoseActionManager.loadResources(client.getResourceManager());
                     }
                 });

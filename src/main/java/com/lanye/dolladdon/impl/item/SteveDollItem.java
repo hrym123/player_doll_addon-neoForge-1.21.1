@@ -14,7 +14,7 @@ public class SteveDollItem extends BaseDollItem {
     
     @Override
     protected BaseDollEntity createDollEntity(World world, double x, double y, double z) {
-        return new SteveDollEntity(ModEntities.STEVE_DOLL, world, x, y, z);
+        return new SteveDollEntity(world, x, y, z);
     }
 }
 

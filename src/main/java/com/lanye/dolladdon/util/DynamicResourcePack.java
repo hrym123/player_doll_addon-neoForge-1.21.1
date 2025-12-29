@@ -17,7 +17,6 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashSet;
-import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -34,13 +33,13 @@ public class DynamicResourcePack implements ResourcePack {
     
     @Override
     @Nullable
-    public InputStream openRoot(String... paths) {
+    public net.minecraft.resource.InputSupplier<InputStream> openRoot(String... paths) {
         return null;
     }
     
     @Override
     @Nullable
-    public InputStream open(ResourceType type, Identifier location) {
+    public net.minecraft.resource.InputSupplier<InputStream> open(ResourceType type, Identifier location) {
         String namespace = location.getNamespace();
         String path = location.getPath();
         
@@ -53,11 +52,7 @@ public class DynamicResourcePack implements ResourcePack {
         if (path.startsWith("textures/entity/")) {
             Path texturePath = DynamicTextureManager.getTexturePath(location);
             if (texturePath != null && Files.exists(texturePath) && Files.isRegularFile(texturePath)) {
-                try {
-                    return Files.newInputStream(texturePath);
-                } catch (IOException e) {
-                    LOGGER.error("打开纹理文件失败: {}", location, e);
-                }
+                return () -> Files.newInputStream(texturePath);
             }
         }
         
@@ -87,7 +82,7 @@ public class DynamicResourcePack implements ResourcePack {
                         Path filePath = entry.getValue();
                         if (Files.exists(filePath) && Files.isRegularFile(filePath)) {
                             try {
-                                consumer.accept(location, Files.newInputStream(filePath));
+                                consumer.accept(location, () -> Files.newInputStream(filePath));
                             } catch (Exception e) {
                                 LOGGER.error("列出纹理资源失败: {}", location, e);
                             }
@@ -103,6 +98,11 @@ public class DynamicResourcePack implements ResourcePack {
         Set<String> namespaces = new HashSet<>();
         namespaces.add(PlayerDollAddon.MODID);
         return namespaces;
+    }
+    
+    @Override
+    public <T> T parseMetadata(net.minecraft.resource.metadata.ResourceMetadataReader<T> metaReader) throws IOException {
+        return null;
     }
     
     @Override

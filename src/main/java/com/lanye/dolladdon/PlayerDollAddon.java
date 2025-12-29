@@ -32,18 +32,18 @@ public class PlayerDollAddon implements ModInitializer {
     public static final ItemGroup PLAYER_DOLL_TAB = FabricItemGroup.builder()
             .icon(() -> new ItemStack(ModItems.STEVE_DOLL))
             .displayName(Text.translatable("itemGroup.player_doll_addon.player_doll_tab"))
-            .displayItems((parameters, output) -> {
+            .entries((displayContext, entries) -> {
                 // 添加史蒂夫玩偶物品（固定模型：粗手臂 + Steve默认皮肤）
-                output.accept(new ItemStack(ModItems.STEVE_DOLL));
+                entries.add(new ItemStack(ModItems.STEVE_DOLL));
                 
                 // 添加艾利克斯玩偶物品（固定模型：细手臂 + Alex默认皮肤）
-                output.accept(new ItemStack(ModItems.ALEX_DOLL));
+                entries.add(new ItemStack(ModItems.ALEX_DOLL));
                 
                 // 添加动态注册的玩偶物品
                 for (var entry : ModItems.DYNAMIC_DOLLS.entrySet()) {
                     try {
                         ItemStack stack = new ItemStack(entry.getValue());
-                        output.accept(stack);
+                        entries.add(stack);
                     } catch (Exception e) {
                         LOGGER.error("添加动态玩偶到物品栏失败: {}", entry.getKey(), e);
                     }

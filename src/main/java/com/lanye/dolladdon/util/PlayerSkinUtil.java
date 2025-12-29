@@ -182,8 +182,7 @@ public class PlayerSkinUtil {
     private static UUID findAlexUUID() {
         // 首先尝试使用预定义的 ALEX_UUID (0, 1)
         // UUID(0, 1) 的哈希值是 1，应该对应细手臂模型
-        var alexSkin = DefaultSkinHelper.get(ALEX_UUID);
-        String modelType = alexSkin.model().toString();
+        String modelType = DefaultSkinHelper.getModel(ALEX_UUID).toString();
         
         if ("slim".equals(modelType)) {
             return ALEX_UUID;
@@ -197,8 +196,7 @@ public class PlayerSkinUtil {
         };
         
         for (UUID uuid : alexUUIDs) {
-            var skin = DefaultSkinHelper.get(uuid);
-            String model = skin.model().toString();
+            String model = DefaultSkinHelper.getModel(uuid).toString();
             if ("slim".equals(model)) {
                 return uuid;
             }
@@ -208,8 +206,7 @@ public class PlayerSkinUtil {
         // 通过不断尝试，直到找到一个被识别为slim模型的UUID
         for (long i = 1; i < 100; i++) {
             UUID testUUID = new UUID(0L, i);
-            var skin = DefaultSkinHelper.get(testUUID);
-            if ("slim".equals(skin.model().toString())) {
+            if ("slim".equals(DefaultSkinHelper.getModel(testUUID).toString())) {
                 return testUUID;
             }
         }
@@ -305,9 +302,8 @@ public class PlayerSkinUtil {
             }
             
             // 获取基于UUID的默认皮肤信息
-            var defaultSkin = DefaultSkinHelper.get(playerUUID);
-            String skinModel = defaultSkin.model().toString();
-            Identifier texture = defaultSkin.texture();
+            String skinModel = DefaultSkinHelper.getModel(playerUUID).toString();
+            Identifier texture = DefaultSkinHelper.getTexture(playerUUID);
             
             // 检查皮肤模型类型是否与玩家模型类型匹配
             boolean skinIsAlex = "slim".equals(skinModel);
@@ -417,7 +413,7 @@ public class PlayerSkinUtil {
             }
             
             // 使用默认方法
-            String defaultModel = DefaultSkinHelper.get(playerUUID).model().toString();
+            String defaultModel = DefaultSkinHelper.getModel(playerUUID).toString();
             return "slim".equals(defaultModel);
         } catch (Exception e) {
             // 如果检测过程中出现任何错误，默认返回false（Steve模型）

@@ -318,15 +318,15 @@ public abstract class BaseDollEntity extends Entity {
         this.setBoundingBox(newBoundingBox);
     }
     
-    @Override
-    public boolean isPickable() {
-        return true;
-    }
+    // 注意：在 1.20.1 中，isPickable() 和 canBeCollidedWith() 方法可能不存在于 Entity 类中
+    // 如果需要这些功能，可能需要使用其他方法或接口
+    // public boolean isPickable() {
+    //     return true;
+    // }
     
-    @Override
-    public boolean canBeCollidedWith() {
-        return true;
-    }
+    // public boolean canBeCollidedWith() {
+    //     return true;
+    // }
     
     @Override
     public boolean isPushable() {

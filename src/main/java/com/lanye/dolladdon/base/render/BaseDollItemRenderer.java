@@ -8,6 +8,7 @@ import com.lanye.dolladdon.api.action.DollAction;
 import com.lanye.dolladdon.api.pose.DollPose;
 import com.lanye.dolladdon.api.pose.SimpleDollPose;
 import com.lanye.dolladdon.util.PoseActionManager;
+import net.fabricmc.fabric.api.client.rendering.v1.BuiltinItemRendererRegistry;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.model.ModelPart;
 import net.minecraft.client.render.VertexConsumer;
@@ -25,7 +26,7 @@ import org.joml.Quaternionf;
  * 玩偶物品渲染器基类
  * 提供所有玩偶物品渲染器的共同功能
  */
-public abstract class BaseDollItemRenderer {
+public abstract class BaseDollItemRenderer implements BuiltinItemRendererRegistry.DynamicItemRenderer {
     protected final PlayerEntityModel<PlayerEntity> playerModel;
     protected final MinecraftClient client;
     
@@ -40,6 +41,7 @@ public abstract class BaseDollItemRenderer {
      */
     protected abstract Identifier getSkinLocation();
     
+    @Override
     public void render(ItemStack stack, net.minecraft.client.render.model.json.ModelTransformationMode transformType, MatrixStack matrixStack,
                              VertexConsumerProvider vertexConsumerProvider, int light, int overlay) {
         matrixStack.push();

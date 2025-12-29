@@ -13,7 +13,6 @@ import com.lanye.dolladdon.api.pose.DollPose;
 import net.minecraft.util.Identifier;
 import net.minecraft.resource.Resource;
 import net.minecraft.resource.ResourceManager;
-import net.minecraft.resource.ResourceType;
 import org.slf4j.Logger;
 
 import java.io.InputStream;
@@ -72,7 +71,7 @@ public class ActionLoader {
             }
             
             Resource resource = resourceOpt.get();
-            try (InputStream inputStream = resource.open().get();
+            try (InputStream inputStream = resource.getInputStream();
                  InputStreamReader reader = new InputStreamReader(inputStream, StandardCharsets.UTF_8)) {
                 
                 JsonObject json = GSON.fromJson(reader, JsonObject.class);
@@ -228,7 +227,7 @@ public class ActionLoader {
         
         // 首先从 ResourceManager 加载（资源包中的动作）
         try {
-            var resources = resourceManager.findResources(ResourceType.SERVER_DATA, "actions", path -> path.getPath().endsWith(".json"));
+            var resources = resourceManager.findResources("actions", path -> path.getPath().endsWith(".json"));
             
             for (var entry : resources.entrySet()) {
                 Identifier location = entry.getKey();
