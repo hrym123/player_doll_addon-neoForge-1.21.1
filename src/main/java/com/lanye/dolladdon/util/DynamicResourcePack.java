@@ -9,7 +9,6 @@ import org.jetbrains.annotations.Nullable;
 
 import java.io.InputStream;
 import java.util.Set;
-import java.util.function.Predicate;
 import org.slf4j.Logger;
 
 import java.io.IOException;
@@ -67,7 +66,7 @@ public class DynamicResourcePack implements ResourcePack {
     }
     
     @Override
-    public void findResources(ResourceType type, String namespace, String prefix, Predicate<Identifier> pathFilter, net.minecraft.resource.ResourcePack.ResultConsumer consumer) {
+    public void findResources(ResourceType type, String namespace, String prefix, net.minecraft.resource.ResourcePack.ResultConsumer consumer) {
         // 只处理我们mod的资源
         if (!PlayerDollAddon.MODID.equals(namespace)) {
             return;
@@ -78,14 +77,12 @@ public class DynamicResourcePack implements ResourcePack {
             for (var entry : DynamicTextureManager.TEXTURE_PATHS.entrySet()) {
                 Identifier location = entry.getKey();
                 if (location.getNamespace().equals(namespace) && location.getPath().startsWith("textures/entity/")) {
-                    if (pathFilter.test(location)) {
-                        Path filePath = entry.getValue();
-                        if (Files.exists(filePath) && Files.isRegularFile(filePath)) {
-                            try {
-                                consumer.accept(location, () -> Files.newInputStream(filePath));
-                            } catch (Exception e) {
-                                LOGGER.error("列出纹理资源失败: {}", location, e);
-                            }
+                    Path filePath = entry.getValue();
+                    if (Files.exists(filePath) && Files.isRegularFile(filePath)) {
+                        try {
+                            consumer.accept(location, () -> Files.newInputStream(filePath));
+                        } catch (Exception e) {
+                            LOGGER.error("列出纹理资源失败: {}", location, e);
                         }
                     }
                 }

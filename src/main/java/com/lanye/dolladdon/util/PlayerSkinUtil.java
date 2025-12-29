@@ -2,6 +2,7 @@ package com.lanye.dolladdon.util;
 
 import com.lanye.dolladdon.PlayerDollAddon;
 import com.mojang.authlib.GameProfile;
+import com.mojang.authlib.exceptions.MinecraftClientHttpException;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.PlayerListEntry;
 import net.minecraft.client.network.AbstractClientPlayerEntity;
@@ -180,38 +181,56 @@ public class PlayerSkinUtil {
      * - 如果 hashCode() % 2 == 1，使用细手臂模型（Alex）
      */
     private static UUID findAlexUUID() {
-        // 首先尝试使用预定义的 ALEX_UUID (0, 1)
-        // UUID(0, 1) 的哈希值是 1，应该对应细手臂模型
-        String modelType = DefaultSkinHelper.getModel(ALEX_UUID).toString();
-        
-        if ("slim".equals(modelType)) {
-            return ALEX_UUID;
-        }
-        
-        // 如果预定义的UUID不正确，尝试其他已知的Alex UUID
-        // 这些UUID的哈希值应该是奇数
-        UUID[] alexUUIDs = {
-            UUID.fromString("61699b2e-d327-4a01-9f1e-2960b8f5d530"), // Alex的官方UUID
-            UUID.fromString("853c80ef-3c37-49fd-9769-2b76a23cf447"), // 另一个已知的Alex UUID
-        };
-        
-        for (UUID uuid : alexUUIDs) {
-            String model = DefaultSkinHelper.getModel(uuid).toString();
-            if ("slim".equals(model)) {
-                return uuid;
+        try {
+            // 首先尝试使用预定义的 ALEX_UUID (0, 1)
+            // UUID(0, 1) 的哈希值是 1，应该对应细手臂模型
+            String modelType = DefaultSkinHelper.getModel(ALEX_UUID).toString();
+            
+            if ("slim".equals(modelType)) {
+                return ALEX_UUID;
             }
-        }
-        
-        // 如果都找不到，尝试生成一个哈希值为奇数的UUID
-        // 通过不断尝试，直到找到一个被识别为slim模型的UUID
-        for (long i = 1; i < 100; i++) {
-            UUID testUUID = new UUID(0L, i);
-            if ("slim".equals(DefaultSkinHelper.getModel(testUUID).toString())) {
-                return testUUID;
+            
+            // 如果预定义的UUID不正确，尝试其他已知的Alex UUID
+            // 这些UUID的哈希值应该是奇数
+            UUID[] alexUUIDs = {
+                UUID.fromString("61699b2e-d327-4a01-9f1e-2960b8f5d530"), // Alex的官方UUID
+                UUID.fromString("853c80ef-3c37-49fd-9769-2b76a23cf447"), // 另一个已知的Alex UUID
+            };
+            
+            for (UUID uuid : alexUUIDs) {
+                try {
+                    String model = DefaultSkinHelper.getModel(uuid).toString();
+                    if ("slim".equals(model)) {
+                        return uuid;
+                    }
+                } catch (Exception e) {
+                    // 忽略单个UUID的错误（包括401等HTTP错误），继续尝试下一个
+                    continue;
+                }
             }
+            
+            // 如果都找不到，尝试生成一个哈希值为奇数的UUID
+            // 通过不断尝试，直到找到一个被识别为slim模型的UUID
+            for (long i = 1; i < 100; i++) {
+                try {
+                    UUID testUUID = new UUID(0L, i);
+                    if ("slim".equals(DefaultSkinHelper.getModel(testUUID).toString())) {
+                        return testUUID;
+                    }
+                } catch (Exception e) {
+                    // 忽略单个UUID的错误（包括401等HTTP错误），继续尝试下一个
+                    continue;
+                }
+            }
+        } catch (MinecraftClientHttpException e) {
+            // 如果访问在线服务失败（如401错误），使用预定义的UUID
+            PlayerDollAddon.LOGGER.warn("无法访问在线皮肤服务（HTTP错误），使用默认Alex UUID: {}", e.getMessage());
+        } catch (Exception e) {
+            // 捕获其他所有异常
+            PlayerDollAddon.LOGGER.warn("无法访问在线皮肤服务，使用默认Alex UUID: {}", e.getMessage());
         }
         
-        // 如果都找不到，返回预定义的UUID（即使可能不是Alex类型）
+        // 如果都找不到或发生错误，返回预定义的UUID（即使可能不是Alex类型）
         return ALEX_UUID;
     }
     
@@ -302,8 +321,30 @@ public class PlayerSkinUtil {
             }
             
             // 获取基于UUID的默认皮肤信息
-            String skinModel = DefaultSkinHelper.getModel(playerUUID).toString();
-            Identifier texture = DefaultSkinHelper.getTexture(playerUUID);
+            String skinModel;
+            Identifier texture;
+            try {
+                skinModel = DefaultSkinHelper.getModel(playerUUID).toString();
+                texture = DefaultSkinHelper.getTexture(playerUUID);
+            } catch (MinecraftClientHttpException e) {
+                // 如果访问在线服务失败（如401错误），使用本地默认值
+                PlayerDollAddon.LOGGER.warn("无法访问在线皮肤服务获取玩家 {} 的皮肤（HTTP错误），使用默认皮肤: {}", playerUUID, e.getMessage());
+                // 根据模型类型使用对应的默认皮肤
+                if (isAlexModel) {
+                    return getAlexSkin();
+                } else {
+                    return getSteveSkin();
+                }
+            } catch (Exception e) {
+                // 捕获其他所有异常
+                PlayerDollAddon.LOGGER.warn("无法访问在线皮肤服务获取玩家 {} 的皮肤，使用默认皮肤: {}", playerUUID, e.getMessage());
+                // 根据模型类型使用对应的默认皮肤
+                if (isAlexModel) {
+                    return getAlexSkin();
+                } else {
+                    return getSteveSkin();
+                }
+            }
             
             // 检查皮肤模型类型是否与玩家模型类型匹配
             boolean skinIsAlex = "slim".equals(skinModel);
@@ -413,10 +454,22 @@ public class PlayerSkinUtil {
             }
             
             // 使用默认方法
-            String defaultModel = DefaultSkinHelper.getModel(playerUUID).toString();
-            return "slim".equals(defaultModel);
+            try {
+                String defaultModel = DefaultSkinHelper.getModel(playerUUID).toString();
+                return "slim".equals(defaultModel);
+            } catch (MinecraftClientHttpException e) {
+                // 如果访问在线服务失败（如401错误），根据UUID的哈希值判断
+                // UUID的hashCode() % 2 == 1 表示Alex模型
+                PlayerDollAddon.LOGGER.warn("无法访问在线皮肤服务判断玩家 {} 的模型类型（HTTP错误），使用UUID哈希值判断: {}", playerUUID, e.getMessage());
+                return playerUUID.hashCode() % 2 == 1;
+            } catch (Exception e) {
+                // 捕获其他所有异常
+                PlayerDollAddon.LOGGER.warn("无法访问在线皮肤服务判断玩家 {} 的模型类型，使用UUID哈希值判断: {}", playerUUID, e.getMessage());
+                return playerUUID.hashCode() % 2 == 1;
+            }
         } catch (Exception e) {
             // 如果检测过程中出现任何错误，默认返回false（Steve模型）
+            PlayerDollAddon.LOGGER.warn("判断玩家模型类型时发生错误: {}", e.getMessage());
             return false;
         }
     }

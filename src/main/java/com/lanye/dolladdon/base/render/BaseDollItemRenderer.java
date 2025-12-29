@@ -27,12 +27,36 @@ import org.joml.Quaternionf;
  * 提供所有玩偶物品渲染器的共同功能
  */
 public abstract class BaseDollItemRenderer implements BuiltinItemRendererRegistry.DynamicItemRenderer {
-    protected final PlayerEntityModel<PlayerEntity> playerModel;
+    protected PlayerEntityModel<PlayerEntity> playerModel;
     protected final MinecraftClient client;
+    protected final boolean isAlexModel;
     
-    protected BaseDollItemRenderer(MinecraftClient client, PlayerEntityModel<PlayerEntity> playerModel) {
+    protected BaseDollItemRenderer(MinecraftClient client, boolean isAlexModel) {
         this.client = client;
-        this.playerModel = playerModel;
+        this.isAlexModel = isAlexModel;
+        // 模型延迟初始化，在第一次渲染时创建
+    }
+    
+    /**
+     * 获取或创建玩家模型（延迟初始化）
+     */
+    protected PlayerEntityModel<PlayerEntity> getPlayerModel() {
+        if (playerModel == null) {
+            EntityModelLoader modelLoader = client.getEntityModelLoader();
+            if (modelLoader != null) {
+                playerModel = new PlayerEntityModel<>(
+                    modelLoader.getModelPart(isAlexModel ? 
+                        net.minecraft.client.render.entity.model.EntityModelLayers.PLAYER_SLIM : 
+                        net.minecraft.client.render.entity.model.EntityModelLayers.PLAYER), 
+                    isAlexModel
+                );
+            } else {
+                // 如果 modelLoader 仍然为 null，返回 null
+                // 这种情况不应该发生，但为了安全起见
+                return null;
+            }
+        }
+        return playerModel;
     }
     
     /**
@@ -44,6 +68,13 @@ public abstract class BaseDollItemRenderer implements BuiltinItemRendererRegistr
     @Override
     public void render(ItemStack stack, net.minecraft.client.render.model.json.ModelTransformationMode transformType, MatrixStack matrixStack,
                              VertexConsumerProvider vertexConsumerProvider, int light, int overlay) {
+        // 延迟初始化模型
+        PlayerEntityModel<PlayerEntity> playerModel = getPlayerModel();
+        if (playerModel == null) {
+            // 如果模型还未准备好，直接返回
+            return;
+        }
+        
         matrixStack.push();
         
         // 根据显示上下文调整模型的位置、缩放和旋转

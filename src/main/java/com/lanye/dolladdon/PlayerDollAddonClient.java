@@ -85,19 +85,13 @@ public class PlayerDollAddonClient implements ClientModInitializer {
         // 注册史蒂夫玩偶物品渲染器
         BuiltinItemRendererRegistry.INSTANCE.register(
             ModItems.STEVE_DOLL,
-            new SteveDollItemRenderer(
-                client,
-                client.getEntityModelLoader()
-            )
+            new SteveDollItemRenderer(client, null)
         );
         
         // 注册艾利克斯玩偶物品渲染器
         BuiltinItemRendererRegistry.INSTANCE.register(
             ModItems.ALEX_DOLL,
-            new AlexDollItemRenderer(
-                client,
-                client.getEntityModelLoader()
-            )
+            new AlexDollItemRenderer(client, null)
         );
         
         // 注册动态玩偶物品渲染器
@@ -108,7 +102,7 @@ public class PlayerDollAddonClient implements ClientModInitializer {
                     item,
                     new DynamicDollItemRenderer(
                         client,
-                        client.getEntityModelLoader(),
+                        null,
                         dynamicItem.getTextureLocation(),
                         dynamicItem.isAlexModel()
                     )

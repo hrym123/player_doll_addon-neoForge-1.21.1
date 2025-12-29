@@ -3,8 +3,6 @@ package com.lanye.dolladdon.impl.render;
 import com.lanye.dolladdon.base.render.BaseDollItemRenderer;
 import com.lanye.dolladdon.util.PlayerSkinUtil;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.render.entity.model.EntityModelLoader;
-import net.minecraft.client.render.entity.model.PlayerEntityModel;
 import net.minecraft.util.Identifier;
 
 /**
@@ -13,8 +11,8 @@ import net.minecraft.util.Identifier;
  */
 public class AlexDollItemRenderer extends BaseDollItemRenderer {
     
-    public AlexDollItemRenderer(MinecraftClient client, EntityModelLoader modelLoader) {
-        super(client, new PlayerEntityModel<>(modelLoader.getModelPart(net.minecraft.client.render.entity.model.EntityModelLayers.PLAYER_SLIM), true));
+    public AlexDollItemRenderer(MinecraftClient client, @SuppressWarnings("unused") Object unused) {
+        super(client, true); // true 表示使用细手臂模型（Alex）
     }
     
     @Override
