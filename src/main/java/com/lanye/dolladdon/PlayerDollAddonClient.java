@@ -1,63 +1,73 @@
 package com.lanye.dolladdon;
 
 import com.lanye.dolladdon.dynamic.DynamicDollEntity;
+import com.lanye.dolladdon.dynamic.DynamicDollItem;
 import com.lanye.dolladdon.dynamic.render.DynamicDollRenderer;
+import com.lanye.dolladdon.dynamic.render.DynamicDollItemRenderer;
 import com.lanye.dolladdon.impl.render.AlexDollRenderer;
+import com.lanye.dolladdon.impl.render.AlexDollItemRenderer;
 import com.lanye.dolladdon.impl.render.SteveDollRenderer;
+import com.lanye.dolladdon.impl.render.SteveDollItemRenderer;
 import com.lanye.dolladdon.init.ModEntities;
 import com.lanye.dolladdon.init.ModItems;
 import com.lanye.dolladdon.util.DynamicDollLoader;
 import com.lanye.dolladdon.util.DynamicResourcePack;
 import com.lanye.dolladdon.util.PoseActionManager;
-import net.minecraft.client.resources.model.ModelResourceLocation;
+import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.fabric.api.client.rendering.v1.BuiltinItemRendererRegistry;
+import net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry;
+import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
+import net.fabricmc.fabric.api.resource.ResourcePackActivationType;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
+import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.packs.PackLocationInfo;
 import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.repository.Pack;
-import net.minecraft.server.packs.repository.PackSource;
-import net.minecraft.server.packs.repository.PackCompatibility;
-import net.minecraft.server.packs.PackSelectionConfig;
-import net.minecraft.world.flag.FeatureFlagSet;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.ModContainer;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.fml.common.Mod;
-import net.neoforged.neoforge.client.event.EntityRenderersEvent;
-import net.neoforged.neoforge.event.AddPackFindersEvent;
-import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
-import net.neoforged.neoforge.client.event.RegisterClientReloadListenersEvent;
-import net.minecraft.client.Minecraft;
+import net.minecraft.server.packs.repository.PackRepository;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.Collections;
 
-@Mod(value = PlayerDollAddon.MODID, dist = Dist.CLIENT)
-@EventBusSubscriber(modid = PlayerDollAddon.MODID, value = Dist.CLIENT)
-public class PlayerDollAddonClient {
+import java.nio.file.Path;
+
+public class PlayerDollAddonClient implements ClientModInitializer {
     
-    public PlayerDollAddonClient(ModContainer container) {
+    @Override
+    public void onInitializeClient() {
+        // 注册实体渲染器
+        registerEntityRenderers();
+        
+        // 注册物品渲染器
+        registerItemRenderers();
+        
+        // 注册资源包
+        registerResourcePack();
+        
+        // 注册资源重载监听器
+        registerResourceReloadListener();
+        
+        // 注册客户端连接事件
+        registerClientConnectionEvents();
     }
     
-    @SubscribeEvent
-    public static void onRegisterRenderers(EntityRenderersEvent.RegisterRenderers event) {
+    /**
+     * 注册实体渲染器
+     */
+    private void registerEntityRenderers() {
         // 注册史蒂夫玩偶实体渲染器（固定模型）
-        event.registerEntityRenderer(ModEntities.STEVE_DOLL.get(), SteveDollRenderer::new);
+        EntityRendererRegistry.register(ModEntities.STEVE_DOLL, SteveDollRenderer::new);
         // 注册艾利克斯玩偶实体渲染器（固定模型）
-        event.registerEntityRenderer(ModEntities.ALEX_DOLL.get(), AlexDollRenderer::new);
+        EntityRendererRegistry.register(ModEntities.ALEX_DOLL, AlexDollRenderer::new);
         
         // 注册动态玩偶实体渲染器
         // 需要先扫描目录获取信息
         var dollInfos = DynamicDollLoader.scanDirectory(PlayerDollAddon.PNG_DIR);
         for (var dollInfo : dollInfos) {
-            var entityHolder = ModEntities.DYNAMIC_DOLLS.get(dollInfo.getFileName());
-            if (entityHolder != null) {
-                event.registerEntityRenderer(
-                    entityHolder.get(),
+            var entityType = ModEntities.DYNAMIC_DOLLS.get(dollInfo.getFileName());
+            if (entityType != null) {
+                EntityRendererRegistry.register(
+                    entityType,
                     context -> new DynamicDollRenderer(
                         context,
                         dollInfo.getTextureLocation(),
@@ -69,59 +79,71 @@ public class PlayerDollAddonClient {
     }
     
     /**
+     * 注册物品渲染器
+     */
+    private void registerItemRenderers() {
+        Minecraft minecraft = Minecraft.getInstance();
+        
+        // 注册史蒂夫玩偶物品渲染器
+        BuiltinItemRendererRegistry.INSTANCE.register(
+            ModItems.STEVE_DOLL,
+            new SteveDollItemRenderer(
+                minecraft.getBlockEntityRenderDispatcher(),
+                minecraft.getEntityModels()
+            )
+        );
+        
+        // 注册艾利克斯玩偶物品渲染器
+        BuiltinItemRendererRegistry.INSTANCE.register(
+            ModItems.ALEX_DOLL,
+            new AlexDollItemRenderer(
+                minecraft.getBlockEntityRenderDispatcher(),
+                minecraft.getEntityModels()
+            )
+        );
+        
+        // 注册动态玩偶物品渲染器
+        for (var entry : ModItems.DYNAMIC_DOLLS.entrySet()) {
+            var item = entry.getValue();
+            if (item instanceof DynamicDollItem dynamicItem) {
+                BuiltinItemRendererRegistry.INSTANCE.register(
+                    item,
+                    new DynamicDollItemRenderer(
+                        minecraft.getBlockEntityRenderDispatcher(),
+                        minecraft.getEntityModels(),
+                        dynamicItem.getTextureLocation(),
+                        dynamicItem.isAlexModel()
+                    )
+                );
+            }
+        }
+    }
+    
+    /**
      * 注册自定义资源包以加载动态资源
      */
-    @SubscribeEvent
-    public static void onAddPackFinders(AddPackFindersEvent event) {
-        if (event.getPackType() == PackType.CLIENT_RESOURCES) {
-            try {
-                // 获取游戏目录
-                Path gameDir;
-                try {
-                    Class<?> fmlPathsClass = Class.forName("net.neoforged.fml.loading.FMLPaths");
-                    java.lang.reflect.Method gameDirMethod = fmlPathsClass.getMethod("getGamePath");
-                    gameDir = (Path) gameDirMethod.invoke(null);
-                } catch (Exception e) {
-                    gameDir = Paths.get(".").toAbsolutePath().normalize();
-                }
-                
-                // 创建动态资源包
-                DynamicResourcePack resourcePack = new DynamicResourcePack(gameDir);
-                
-                // 注册资源包
-                PackLocationInfo packLocationInfo = resourcePack.location();
-                MutableComponent packName = Component.literal("Dynamic Doll Resources");
-                Pack.ResourcesSupplier resourcesSupplier = new Pack.ResourcesSupplier() {
-                    @Override
-                    public net.minecraft.server.packs.PackResources openPrimary(PackLocationInfo locationInfo) {
-                        return resourcePack;
-                    }
-                    
-                    @Override
-                    public net.minecraft.server.packs.PackResources openFull(PackLocationInfo locationInfo, Pack.Metadata metadata) {
-                        return resourcePack;
-                    }
-                };
-                Pack.Metadata metadata = new Pack.Metadata(packName, PackCompatibility.COMPATIBLE, FeatureFlagSet.of(), Collections.emptyList());
-                // required=true 确保资源包被自动启用
-                // Pack.Position.TOP 尝试将资源包放在最前面（但实际加载顺序可能仍然在最后）
-                PackSelectionConfig selectionConfig = new PackSelectionConfig(true, Pack.Position.TOP, false);
-                
-                // 尝试在更早的时机添加资源包（在 AddPackFindersEvent 中尽早添加）
-                event.addRepositorySource((packConsumer) -> {
-                    Pack pack = new Pack(
-                        packLocationInfo,
-                        resourcesSupplier,
-                        metadata,
-                        selectionConfig
-                    );
-                    // 先接受包，确保它被添加到列表的最前面
-                    packConsumer.accept(pack);
-                });
-            } catch (Exception e) {
-                PlayerDollAddon.LOGGER.error("注册动态资源包失败", e);
-                e.printStackTrace();
-            }
+    private void registerResourcePack() {
+        try {
+            // 获取游戏目录
+            Path gameDir = FabricLoader.getInstance().getGameDir();
+            
+            // 创建动态资源包
+            DynamicResourcePack resourcePack = new DynamicResourcePack(gameDir);
+            
+            // 使用 Fabric 的 ResourceManagerHelper 注册资源包
+            ResourceManagerHelper.registerBuiltinResourcePack(
+                new ResourceLocation(PlayerDollAddon.MODID, "dynamic_doll_resources"),
+                Component.literal("Dynamic Doll Resources"),
+                ResourcePackActivationType.NORMAL
+            );
+            
+            // 注意：Fabric 的资源包注册方式与 NeoForge 不同
+            // 这里需要手动将资源包添加到资源包管理器
+            // 由于 Fabric 的限制，我们可能需要使用其他方式
+            // 暂时先保留这个结构，后续可能需要调整
+        } catch (Exception e) {
+            PlayerDollAddon.LOGGER.error("注册动态资源包失败", e);
+            e.printStackTrace();
         }
     }
     
@@ -129,36 +151,42 @@ public class PlayerDollAddonClient {
      * 注册资源重载监听器
      * 当执行 F3+T 重新加载资源时会触发此监听器
      */
-    @SubscribeEvent
-    public static void onRegisterClientReloadListeners(RegisterClientReloadListenersEvent event) {
-        event.registerReloadListener((ResourceManagerReloadListener) resourceManager -> {
-            try {
-                PoseActionManager.loadResources(resourceManager);
-            } catch (Exception e) {
-                PlayerDollAddon.LOGGER.error("资源重载过程中发生异常", e);
+    private void registerResourceReloadListener() {
+        ResourceManagerHelper.get(PackType.CLIENT_RESOURCES).registerReloadListener(
+            new ResourceManagerReloadListener() {
+                @Override
+                public void onResourceManagerReload(ResourceManager resourceManager) {
+                    try {
+                        PoseActionManager.loadResources(resourceManager);
+                    } catch (Exception e) {
+                        PlayerDollAddon.LOGGER.error("资源重载过程中发生异常", e);
+                    }
+                }
             }
-        });
+        );
     }
     
     /**
+     * 注册客户端连接事件
      * 在客户端登录后加载姿态和动作资源
      */
-    @SubscribeEvent
-    public static void onClientPlayerLoggedIn(ClientPlayerNetworkEvent.LoggingIn event) {
-        // 延迟加载，确保资源管理器已完全初始化
-        net.minecraft.Util.backgroundExecutor().execute(() -> {
-            try {
-                Thread.sleep(100); // 等待资源管理器完全初始化
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                return;
-            }
-            
-            net.minecraft.Util.ioPool().execute(() -> {
-                Minecraft minecraft = Minecraft.getInstance();
-                if (minecraft != null && minecraft.getResourceManager() != null) {
-                    PoseActionManager.loadResources(minecraft.getResourceManager());
+    private void registerClientConnectionEvents() {
+        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
+            // 延迟加载，确保资源管理器已完全初始化
+            net.minecraft.Util.backgroundExecutor().execute(() -> {
+                try {
+                    Thread.sleep(100); // 等待资源管理器完全初始化
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    return;
                 }
+                
+                net.minecraft.Util.ioPool().execute(() -> {
+                    Minecraft minecraft = Minecraft.getInstance();
+                    if (minecraft != null && minecraft.getResourceManager() != null) {
+                        PoseActionManager.loadResources(minecraft.getResourceManager());
+                    }
+                });
             });
         });
     }

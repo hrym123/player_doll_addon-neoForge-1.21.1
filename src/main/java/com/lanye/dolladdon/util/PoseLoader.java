@@ -69,7 +69,7 @@ public class PoseLoader {
      * - 位置偏移的 Y 轴：正数向上，负数向下（与之前相反）
      */
     public static DollPose loadPose(ResourceManager resourceManager, String name) {
-        ResourceLocation location = ResourceLocation.fromNamespaceAndPath(
+        ResourceLocation location = new ResourceLocation(
             PlayerDollAddon.MODID, 
             "poses/" + name + ".json"
         );
@@ -283,14 +283,7 @@ public class PoseLoader {
         
         // 然后从文件系统加载（文件系统中的姿态会覆盖资源包中的同名姿态）
         try {
-            Path gameDir;
-            try {
-                Class<?> fmlPathsClass = Class.forName("net.neoforged.fml.loading.FMLPaths");
-                java.lang.reflect.Method gameDirMethod = fmlPathsClass.getMethod("getGamePath");
-                gameDir = (Path) gameDirMethod.invoke(null);
-            } catch (Exception e) {
-                gameDir = Paths.get(".").toAbsolutePath().normalize();
-            }
+            Path gameDir = net.fabricmc.loader.api.FabricLoader.getInstance().getGameDir();
             
             Path posesDir = gameDir.resolve(PlayerDollAddon.POSES_DIR);
             Map<String, DollPose> fileSystemPoses = loadPosesFromFileSystem(posesDir);

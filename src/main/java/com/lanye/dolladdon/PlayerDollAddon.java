@@ -3,25 +3,23 @@ package com.lanye.dolladdon;
 import com.lanye.dolladdon.init.ModEntities;
 import com.lanye.dolladdon.init.ModItems;
 import com.lanye.dolladdon.util.DynamicDollLoader;
-import net.minecraft.core.registries.Registries;
+import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.itemgroup.v1.FabricItemGroup;
+import net.minecraft.core.Registry;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.ItemStack;
-import net.neoforged.bus.api.IEventBus;
-import net.neoforged.fml.ModContainer;
-import net.neoforged.fml.common.Mod;
-import net.neoforged.neoforge.event.BuildCreativeModeTabContentsEvent;
-import net.neoforged.neoforge.registries.DeferredHolder;
-import net.neoforged.neoforge.registries.DeferredRegister;
+import net.fabricmc.loader.api.FabricLoader;
 import org.slf4j.Logger;
-import com.mojang.logging.LogUtils;
+import org.slf4j.LoggerFactory;
 
 import java.nio.file.Path;
 
-@Mod(PlayerDollAddon.MODID)
-public class PlayerDollAddon {
+public class PlayerDollAddon implements ModInitializer {
     public static final String MODID = "player_doll_addon";
-    public static final Logger LOGGER = LogUtils.getLogger();
+    public static final Logger LOGGER = LoggerFactory.getLogger(MODID);
     
     // 玩偶图片目录路径（相对于游戏目录）
     public static final String PNG_DIR = "player_doll/png";
@@ -30,25 +28,44 @@ public class PlayerDollAddon {
     // 动作文件目录路径（相对于游戏目录）
     public static final String ACTIONS_DIR = "player_doll/actions";
     
-    // 创建创造模式物品栏注册器
-    public static final DeferredRegister<CreativeModeTab> CREATIVE_MODE_TABS = DeferredRegister.create(Registries.CREATIVE_MODE_TAB, MODID);
+    // 创造模式物品栏
+    public static final CreativeModeTab PLAYER_DOLL_TAB = FabricItemGroup.builder()
+            .icon(() -> new ItemStack(ModItems.STEVE_DOLL))
+            .title(Component.translatable("itemGroup.player_doll_addon.player_doll_tab"))
+            .displayItems((parameters, output) -> {
+                // 添加史蒂夫玩偶物品（固定模型：粗手臂 + Steve默认皮肤）
+                output.accept(new ItemStack(ModItems.STEVE_DOLL));
+                
+                // 添加艾利克斯玩偶物品（固定模型：细手臂 + Alex默认皮肤）
+                output.accept(new ItemStack(ModItems.ALEX_DOLL));
+                
+                // 添加动态注册的玩偶物品
+                for (var entry : ModItems.DYNAMIC_DOLLS.entrySet()) {
+                    try {
+                        ItemStack stack = new ItemStack(entry.getValue());
+                        output.accept(stack);
+                    } catch (Exception e) {
+                        LOGGER.error("添加动态玩偶到物品栏失败: {}", entry.getKey(), e);
+                    }
+                }
+            })
+            .build();
 
-    public PlayerDollAddon(IEventBus modEventBus, ModContainer modContainer) {
+    @Override
+    public void onInitialize() {
         // 初始化默认文件（从资源包复制到文件系统）
         initializeDefaultFiles();
         // 先扫描目录并注册动态玩偶（必须在注册器注册之前）
         registerDynamicDolls();
         
         // 注册物品
-        ModItems.ITEMS.register(modEventBus);
+        ModItems.register();
         // 注册实体
-        ModEntities.ENTITIES.register(modEventBus);
+        ModEntities.register();
         // 注册创造模式物品栏
-        CREATIVE_MODE_TABS.register(modEventBus);
-        
-        // 注册物品到创造模式物品栏的事件
-        // 注意：BuildCreativeModeTabContentsEvent 是 mod 事件，必须通过 modEventBus 注册
-        modEventBus.addListener(this::addCreative);
+        Registry.register(BuiltInRegistries.CREATIVE_MODE_TAB, 
+                new ResourceLocation(MODID, "player_doll_tab"), 
+                PLAYER_DOLL_TAB);
     }
     
     /**
@@ -56,15 +73,7 @@ public class PlayerDollAddon {
      */
     private void initializeDefaultFiles() {
         try {
-            Path gameDir;
-            try {
-                Class<?> fmlPathsClass = Class.forName("net.neoforged.fml.loading.FMLPaths");
-                java.lang.reflect.Method gameDirMethod = fmlPathsClass.getMethod("getGamePath");
-                gameDir = (Path) gameDirMethod.invoke(null);
-            } catch (Exception e) {
-                gameDir = java.nio.file.Paths.get(".").toAbsolutePath().normalize();
-            }
-            
+            Path gameDir = FabricLoader.getInstance().getGameDir();
             com.lanye.dolladdon.util.DefaultFileInitializer.initializeDefaultFiles(gameDir);
         } catch (Exception e) {
             LOGGER.error("初始化默认文件失败", e);
@@ -94,14 +103,14 @@ public class PlayerDollAddon {
         for (var dollInfo : dollInfos) {
             try {
                 // 注册实体
-                var entityHolder = ModEntities.registerDynamicDoll(dollInfo.getFileName());
+                var entityType = ModEntities.registerDynamicDoll(dollInfo.getFileName());
                 
                 // 模型文件已在上面批量生成，这里不需要再生成
                 
-                // 注册物品（传递 DeferredHolder，延迟获取 EntityType）
+                // 注册物品（传递 EntityType）
                 ModItems.registerDynamicDoll(
                     dollInfo.getFileName(),
-                    entityHolder,
+                    entityType,
                     dollInfo.getTextureLocation(),
                     dollInfo.isAlexModel(),
                     dollInfo.getDisplayName()
@@ -113,44 +122,6 @@ public class PlayerDollAddon {
                 e.printStackTrace();
             }
         }
-    }
-    
-    // 创建玩家玩偶物品栏
-    public static final DeferredHolder<CreativeModeTab, CreativeModeTab> PLAYER_DOLL_TAB = CREATIVE_MODE_TABS.register(
-            "player_doll_tab",
-            () -> CreativeModeTab.builder()
-                    .title(Component.translatable("itemGroup.player_doll_addon.player_doll_tab"))
-                    .icon(() -> {
-                        // 使用史蒂夫玩偶物品作为图标
-                        return new ItemStack(ModItems.STEVE_DOLL.get());
-                    })
-                    .displayItems((parameters, output) -> {
-                        // 添加史蒂夫玩偶物品（固定模型：粗手臂 + Steve默认皮肤）
-                        output.accept(new ItemStack(ModItems.STEVE_DOLL.get()));
-                        
-                        // 添加艾利克斯玩偶物品（固定模型：细手臂 + Alex默认皮肤）
-                        output.accept(new ItemStack(ModItems.ALEX_DOLL.get()));
-                        
-                        // 添加动态注册的玩偶物品
-                        int dynamicCount = 0;
-                        for (var entry : ModItems.DYNAMIC_DOLLS.entrySet()) {
-                            try {
-                                ItemStack stack = new ItemStack(entry.getValue().get());
-                                output.accept(stack);
-                                dynamicCount++;
-                            } catch (Exception e) {
-                                LOGGER.error("添加动态玩偶到物品栏失败: {}", entry.getKey(), e);
-                            }
-                        }
-                    })
-                    .build()
-    );
-    
-    // 将物品添加到创造模式物品栏
-    // 注意：不使用 @SubscribeEvent 注解，因为已经通过 modEventBus.addListener() 注册
-    private void addCreative(BuildCreativeModeTabContentsEvent event) {
-        // 注意：玩家玩偶物品不添加到原版创造模式物品栏
-        // 它们有自己的物品栏（PLAYER_DOLL_TAB）
     }
     
 }

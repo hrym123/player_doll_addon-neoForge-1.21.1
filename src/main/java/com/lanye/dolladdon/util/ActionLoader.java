@@ -59,7 +59,7 @@ public class ActionLoader {
      * }
      */
     public static DollAction loadAction(ResourceManager resourceManager, String name) {
-        ResourceLocation location = ResourceLocation.fromNamespaceAndPath(
+        ResourceLocation location = new ResourceLocation(
             PlayerDollAddon.MODID, 
             "actions/" + name + ".json"
         );
@@ -114,14 +114,7 @@ public class ActionLoader {
                     String poseName = poseElement.getAsString();
                     // 先尝试从文件系统加载
                     try {
-                        Path gameDir;
-                        try {
-                            Class<?> fmlPathsClass = Class.forName("net.neoforged.fml.loading.FMLPaths");
-                            java.lang.reflect.Method gameDirMethod = fmlPathsClass.getMethod("getGamePath");
-                            gameDir = (Path) gameDirMethod.invoke(null);
-                        } catch (Exception e) {
-                            gameDir = java.nio.file.Paths.get(".").toAbsolutePath().normalize();
-                        }
+                        Path gameDir = net.fabricmc.loader.api.FabricLoader.getInstance().getGameDir();
                         Path posesDir = gameDir.resolve(PlayerDollAddon.POSES_DIR);
                         Path poseFile = posesDir.resolve(poseName + ".json");
                         pose = PoseLoader.loadPoseFromFileSystem(poseFile);
@@ -255,14 +248,7 @@ public class ActionLoader {
         
         // 然后从文件系统加载（文件系统中的动作会覆盖资源包中的同名动作）
         try {
-            Path gameDir;
-            try {
-                Class<?> fmlPathsClass = Class.forName("net.neoforged.fml.loading.FMLPaths");
-                java.lang.reflect.Method gameDirMethod = fmlPathsClass.getMethod("getGamePath");
-                gameDir = (Path) gameDirMethod.invoke(null);
-            } catch (Exception e) {
-                gameDir = java.nio.file.Paths.get(".").toAbsolutePath().normalize();
-            }
+            Path gameDir = net.fabricmc.loader.api.FabricLoader.getInstance().getGameDir();
             
             Path actionsDir = gameDir.resolve(PlayerDollAddon.ACTIONS_DIR);
             Map<String, DollAction> fileSystemActions = loadActionsFromFileSystem(actionsDir);

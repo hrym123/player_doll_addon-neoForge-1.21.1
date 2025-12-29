@@ -4,46 +4,63 @@ import com.lanye.dolladdon.PlayerDollAddon;
 import com.lanye.dolladdon.dynamic.DynamicDollItem;
 import com.lanye.dolladdon.impl.item.AlexDollItem;
 import com.lanye.dolladdon.impl.item.SteveDollItem;
+import net.minecraft.core.Registry;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.EntityType;
-import net.neoforged.neoforge.registries.DeferredItem;
-import net.neoforged.neoforge.registries.DeferredRegister;
+import net.minecraft.world.item.Item;
 
 import java.util.HashMap;
 import java.util.Map;
 
 public class ModItems {
-    public static final DeferredRegister.Items ITEMS = DeferredRegister.createItems(PlayerDollAddon.MODID);
-    
     // 史蒂夫玩偶物品（固定模型：粗手臂 + Steve默认皮肤）
-    public static final DeferredItem<SteveDollItem> STEVE_DOLL = ITEMS.register("steve_doll", SteveDollItem::new);
+    public static Item STEVE_DOLL;
     
     // 艾利克斯玩偶物品（固定模型：细手臂 + Alex默认皮肤）
-    public static final DeferredItem<AlexDollItem> ALEX_DOLL = ITEMS.register("alex_doll", AlexDollItem::new);
+    public static Item ALEX_DOLL;
     
     // 动态注册的玩偶物品（从文件加载）
-    public static final Map<String, DeferredItem<DynamicDollItem>> DYNAMIC_DOLLS = new HashMap<>();
+    public static final Map<String, Item> DYNAMIC_DOLLS = new HashMap<>();
+    
+    /**
+     * 注册所有物品
+     */
+    public static void register() {
+        STEVE_DOLL = Registry.register(
+                BuiltInRegistries.ITEM,
+                new ResourceLocation(PlayerDollAddon.MODID, "steve_doll"),
+                new SteveDollItem()
+        );
+        
+        ALEX_DOLL = Registry.register(
+                BuiltInRegistries.ITEM,
+                new ResourceLocation(PlayerDollAddon.MODID, "alex_doll"),
+                new AlexDollItem()
+        );
+    }
     
     /**
      * 动态注册玩偶物品
      * @param registryName 注册名称
-     * @param entityHolder 实体类型持有者（延迟获取）
+     * @param entityType 实体类型
      * @param textureLocation 纹理位置
      * @param isAlexModel 是否为Alex模型
      * @param displayName 显示名称
-     * @return 注册的物品持有者
+     * @return 注册的物品
      */
-    public static DeferredItem<DynamicDollItem> registerDynamicDoll(String registryName, 
-                                                                     net.neoforged.neoforge.registries.DeferredHolder<EntityType<?>, EntityType<com.lanye.dolladdon.dynamic.DynamicDollEntity>> entityHolder,
-                                                                     ResourceLocation textureLocation, 
-                                                                     boolean isAlexModel,
-                                                                     String displayName) {
-        DeferredItem<DynamicDollItem> holder = ITEMS.register(
-                registryName,
-                () -> new DynamicDollItem(entityHolder.get(), textureLocation, isAlexModel, displayName)
+    public static Item registerDynamicDoll(String registryName, 
+                                            EntityType<com.lanye.dolladdon.dynamic.DynamicDollEntity> entityType,
+                                            ResourceLocation textureLocation, 
+                                            boolean isAlexModel,
+                                            String displayName) {
+        Item item = Registry.register(
+                BuiltInRegistries.ITEM,
+                new ResourceLocation(PlayerDollAddon.MODID, registryName),
+                new DynamicDollItem(entityType, textureLocation, isAlexModel, displayName)
         );
-        DYNAMIC_DOLLS.put(registryName, holder);
-        return holder;
+        DYNAMIC_DOLLS.put(registryName, item);
+        return item;
     }
 }
 

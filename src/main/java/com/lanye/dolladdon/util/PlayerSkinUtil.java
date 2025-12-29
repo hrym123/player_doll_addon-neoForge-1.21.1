@@ -148,7 +148,7 @@ public class PlayerSkinUtil {
             // Steve是固定的粗手臂模型
             // 直接使用Steve的默认皮肤资源路径
             // Minecraft 1.19+ 中，Steve的默认皮肤路径是 minecraft:textures/entity/player/wide/steve.png
-            ResourceLocation steveTexture = ResourceLocation.fromNamespaceAndPath("minecraft", "textures/entity/player/wide/steve.png");
+            ResourceLocation steveTexture = new ResourceLocation("minecraft", "textures/entity/player/wide/steve.png");
             
             steveModelInfo = new DefaultModelInfo(
                 "Steve",
@@ -162,7 +162,7 @@ public class PlayerSkinUtil {
             // Alex是固定的细手臂模型
             // 直接使用Alex的默认皮肤资源路径
             // Minecraft 1.19+ 中，Alex的默认皮肤路径是 minecraft:textures/entity/player/slim/alex.png
-            ResourceLocation alexTexture = ResourceLocation.fromNamespaceAndPath("minecraft", "textures/entity/player/slim/alex.png");
+            ResourceLocation alexTexture = new ResourceLocation("minecraft", "textures/entity/player/slim/alex.png");
             
             alexModelInfo = new DefaultModelInfo(
                 "Alex",

@@ -97,14 +97,7 @@ public class PoseActionManager {
      */
     public static void reloadPosesFromFileSystem() {
         try {
-            Path gameDir;
-            try {
-                Class<?> fmlPathsClass = Class.forName("net.neoforged.fml.loading.FMLPaths");
-                java.lang.reflect.Method gameDirMethod = fmlPathsClass.getMethod("getGamePath");
-                gameDir = (Path) gameDirMethod.invoke(null);
-            } catch (Exception e) {
-                gameDir = Paths.get(".").toAbsolutePath().normalize();
-            }
+            Path gameDir = net.fabricmc.loader.api.FabricLoader.getInstance().getGameDir();
             
             Path posesDir = gameDir.resolve(PlayerDollAddon.POSES_DIR);
             Map<String, DollPose> fileSystemPoses = PoseLoader.loadPosesFromFileSystem(posesDir);

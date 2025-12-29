@@ -249,14 +249,7 @@ public class DynamicModelGenerator {
     private static Path getBuildResourcesDirectory() {
         try {
             // 获取游戏目录
-            Path gameDir;
-            try {
-                Class<?> fmlPathsClass = Class.forName("net.neoforged.fml.loading.FMLPaths");
-                java.lang.reflect.Method gameDirMethod = fmlPathsClass.getMethod("getGamePath");
-                gameDir = (Path) gameDirMethod.invoke(null);
-            } catch (Exception e) {
-                gameDir = Paths.get(".").toAbsolutePath().normalize();
-            }
+            Path gameDir = net.fabricmc.loader.api.FabricLoader.getInstance().getGameDir();
             
             // 在开发环境中，gameDir 通常是 run 目录，项目根目录是 run 的父目录
             Path projectRoot = gameDir;
@@ -293,14 +286,7 @@ public class DynamicModelGenerator {
     private static Path getModResourcesDirectory() {
         try {
             // 获取游戏目录
-            Path gameDir;
-            try {
-                Class<?> fmlPathsClass = Class.forName("net.neoforged.fml.loading.FMLPaths");
-                java.lang.reflect.Method gameDirMethod = fmlPathsClass.getMethod("getGamePath");
-                gameDir = (Path) gameDirMethod.invoke(null);
-            } catch (Exception e) {
-                gameDir = Paths.get(".").toAbsolutePath().normalize();
-            }
+            Path gameDir = net.fabricmc.loader.api.FabricLoader.getInstance().getGameDir();
             
             // 在开发环境中，gameDir 通常是 run 目录，项目根目录是 run 的父目录
             Path projectRoot = gameDir;

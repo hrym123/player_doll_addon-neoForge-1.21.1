@@ -13,7 +13,7 @@ import net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderDispatcher;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.ItemDisplayContext;
+import net.minecraft.world.item.ItemTransforms;
 import net.minecraft.world.item.ItemStack;
 
 /**
@@ -35,7 +35,7 @@ public abstract class BaseDollItemRenderer extends BlockEntityWithoutLevelRender
     protected abstract ResourceLocation getSkinLocation();
     
     @Override
-    public void renderByItem(ItemStack stack, ItemDisplayContext transformType, PoseStack poseStack,
+    public void renderByItem(ItemStack stack, ItemTransforms.TransformType transformType, PoseStack poseStack,
                              MultiBufferSource bufferSource, int packedLight, int packedOverlay) {
         poseStack.pushPose();
         
@@ -197,29 +197,29 @@ public abstract class BaseDollItemRenderer extends BlockEntityWithoutLevelRender
      * @param poseStack 变换矩阵栈
      * @param transformType 显示上下文类型
      */
-    protected void applyPlayerModelTransform(PoseStack poseStack, ItemDisplayContext transformType) {
+    protected void applyPlayerModelTransform(PoseStack poseStack, ItemTransforms.TransformType transformType) {
         // 模型缩放比例，与实体渲染器保持一致
         float modelScale = 1F;
         
-        if (transformType == ItemDisplayContext.GUI) {
+        if (transformType == ItemTransforms.TransformType.GUI) {
             // GUI 中：居中显示
             poseStack.translate(0.5, 0.75, 0.0);
             poseStack.scale(0.5F * modelScale, 0.5F * modelScale, 0.5F * modelScale);
             poseStack.mulPose(Axis.YP.rotationDegrees(-155.0F));
-        } else if (transformType == ItemDisplayContext.FIRST_PERSON_LEFT_HAND || 
-                   transformType == ItemDisplayContext.FIRST_PERSON_RIGHT_HAND) {
+        } else if (transformType == ItemTransforms.TransformType.FIRST_PERSON_LEFT_HAND || 
+                   transformType == ItemTransforms.TransformType.FIRST_PERSON_RIGHT_HAND) {
             poseStack.translate(0.5, 1, 0.5);
             poseStack.scale(0.5F * modelScale, 0.5F * modelScale, -0.5F * modelScale);
             // 旋转
-            if (transformType == ItemDisplayContext.FIRST_PERSON_LEFT_HAND) {
+            if (transformType == ItemTransforms.TransformType.FIRST_PERSON_LEFT_HAND) {
                 // 第一人称左手
                 poseStack.mulPose(Axis.YP.rotationDegrees(-45.0F));
             } else{
                 // 第一人称右手
                 poseStack.mulPose(Axis.YP.rotationDegrees(15.0F));
             }
-        } else if (transformType == ItemDisplayContext.THIRD_PERSON_LEFT_HAND || 
-                   transformType == ItemDisplayContext.THIRD_PERSON_RIGHT_HAND) {
+        } else if (transformType == ItemTransforms.TransformType.THIRD_PERSON_LEFT_HAND || 
+                   transformType == ItemTransforms.TransformType.THIRD_PERSON_RIGHT_HAND) {
             // 第三人称：调整位置和大小
             poseStack.translate(0.5, 0.9, 0.5);
             // 缩放并前后反转（应用模型缩放）
@@ -257,22 +257,13 @@ public abstract class BaseDollItemRenderer extends BlockEntityWithoutLevelRender
             }
         }
         
-        // 从custom_data组件读取NBT
-        var customData = stack.get(net.minecraft.core.component.DataComponents.CUSTOM_DATA);
-        if (customData == null) {
+        // 从NBT标签读取
+        net.minecraft.nbt.CompoundTag itemTag = stack.getTag();
+        if (itemTag == null || !itemTag.contains("EntityData")) {
             return getDefaultPose();
         }
         
-        var dataTag = customData.copyTag();
-        if (dataTag == null) {
-            return getDefaultPose();
-        }
-        
-        if (!dataTag.contains("EntityData")) {
-            return getDefaultPose();
-        }
-        
-        net.minecraft.nbt.CompoundTag entityTag = dataTag.getCompound("EntityData");
+        net.minecraft.nbt.CompoundTag entityTag = itemTag.getCompound("EntityData");
         
         // 优先检查是否有动作名称
         // 注意：对于物品渲染，动作应该显示第一帧（tick=0）的姿态

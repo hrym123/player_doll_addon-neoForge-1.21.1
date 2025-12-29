@@ -73,17 +73,7 @@ public class DynamicDollLoader {
         
         try {
             // 获取游戏目录
-            // 优先尝试使用 FMLPaths，如果不可用则使用当前工作目录
-            Path gameDir;
-            try {
-                // 尝试使用 NeoForge 的 FMLPaths 获取游戏目录
-                Class<?> fmlPathsClass = Class.forName("net.neoforged.fml.loading.FMLPaths");
-                java.lang.reflect.Method gameDirMethod = fmlPathsClass.getMethod("getGamePath");
-                gameDir = (Path) gameDirMethod.invoke(null);
-            } catch (Exception e) {
-                // 如果 FMLPaths 不可用，使用当前工作目录
-                gameDir = Paths.get(".").toAbsolutePath().normalize();
-            }
+            Path gameDir = net.fabricmc.loader.api.FabricLoader.getInstance().getGameDir();
             
             Path targetDir = gameDir.resolve(directoryPath).normalize();
             
@@ -167,7 +157,7 @@ public class DynamicDollLoader {
         String resourcePath = "textures/entity/" + fileHash;
         ResourceLocation textureLocation;
         try {
-            textureLocation = ResourceLocation.fromNamespaceAndPath(
+            textureLocation = new ResourceLocation(
                 PlayerDollAddon.MODID, 
                 resourcePath
             );
