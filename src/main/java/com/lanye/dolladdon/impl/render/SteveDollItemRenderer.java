@@ -2,11 +2,10 @@ package com.lanye.dolladdon.impl.render;
 
 import com.lanye.dolladdon.base.render.BaseDollItemRenderer;
 import com.lanye.dolladdon.util.PlayerSkinUtil;
-import net.minecraft.client.model.PlayerModel;
-import net.minecraft.client.model.geom.EntityModelSet;
-import net.minecraft.client.model.geom.ModelLayers;
-import net.minecraft.client.renderer.blockentity.BlockEntityRenderDispatcher;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.render.entity.model.EntityModelLoader;
+import net.minecraft.client.render.entity.model.PlayerEntityModel;
+import net.minecraft.util.Identifier;
 
 /**
  * 史蒂夫玩偶物品渲染器
@@ -14,12 +13,12 @@ import net.minecraft.resources.ResourceLocation;
  */
 public class SteveDollItemRenderer extends BaseDollItemRenderer {
     
-    public SteveDollItemRenderer(BlockEntityRenderDispatcher dispatcher, EntityModelSet modelSet) {
-        super(dispatcher, modelSet, new PlayerModel<>(modelSet.bakeLayer(ModelLayers.PLAYER), false));
+    public SteveDollItemRenderer(MinecraftClient client, EntityModelLoader modelLoader) {
+        super(client, new PlayerEntityModel<>(modelLoader.getModelPart(net.minecraft.client.render.entity.model.EntityModelLayers.PLAYER), false));
     }
     
     @Override
-    protected ResourceLocation getSkinLocation() {
+    protected Identifier getSkinLocation() {
         return PlayerSkinUtil.getSteveSkin();
     }
 }

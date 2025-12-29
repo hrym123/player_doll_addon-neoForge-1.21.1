@@ -1,15 +1,15 @@
 package com.lanye.dolladdon.base.render;
 
 import com.lanye.dolladdon.base.entity.BaseDollEntity;
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.math.Axis;
-import net.minecraft.client.model.PlayerModel;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.entity.EntityRenderer;
-import net.minecraft.client.renderer.entity.EntityRendererProvider;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.util.Mth;
-import net.minecraft.world.entity.player.Player;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.render.entity.EntityRenderer;
+import net.minecraft.client.render.entity.EntityRendererFactory;
+import net.minecraft.client.render.entity.model.PlayerEntityModel;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec3f;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 /**
@@ -18,9 +18,9 @@ import org.slf4j.LoggerFactory;
  */
 public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityRenderer<T> {
     private static final Logger LOGGER = LoggerFactory.getLogger(BaseDollRenderer.class);
-    protected final PlayerModel<Player> playerModel;
+    protected final PlayerEntityModel<PlayerEntity> playerModel;
     
-    protected BaseDollRenderer(EntityRendererProvider.Context context, PlayerModel<Player> playerModel) {
+    protected BaseDollRenderer(EntityRendererFactory.Context context, PlayerEntityModel<PlayerEntity> playerModel) {
         super(context);
         this.playerModel = playerModel;
     }
@@ -30,24 +30,24 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
      * @param entity 实体
      * @return 皮肤资源位置
      */
-    protected abstract ResourceLocation getSkinLocation(T entity);
+    protected abstract Identifier getSkinLocation(T entity);
     
     @Override
     public void render(T entity, float entityYaw, float partialTick, 
-                      PoseStack poseStack, MultiBufferSource bufferSource, int packedLight) {
-        poseStack.pushPose();
+                      MatrixStack matrixStack, VertexConsumerProvider vertexConsumerProvider, int light) {
+        matrixStack.push();
         
         // 应用旋转
-        float yRot = Mth.lerp(partialTick, entity.yRotO, entity.getYRot());
-        float xRot = Mth.lerp(partialTick, entity.xRotO, entity.getXRot());
+        float yRot = MathHelper.lerp(partialTick, entity.prevYaw, entity.getYaw());
+        float xRot = MathHelper.lerp(partialTick, entity.prevPitch, entity.getPitch());
         
-        poseStack.mulPose(Axis.YP.rotationDegrees(180.0F - yRot));
-        poseStack.mulPose(Axis.XP.rotationDegrees(xRot));
+        matrixStack.multiply(Vec3f.POSITIVE_Y.getDegreesQuaternion(180.0F - yRot));
+        matrixStack.multiply(Vec3f.POSITIVE_X.getDegreesQuaternion(xRot));
         
         float modelScale = 0.5F; 
         
         // 获取皮肤位置（由子类实现）
-        ResourceLocation skinLocation = getSkinLocation(entity);
+        Identifier skinLocation = getSkinLocation(entity);
         
         // 从实体获取当前姿态
         com.lanye.dolladdon.api.pose.DollPose pose = entity.getCurrentPose();
@@ -66,18 +66,18 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
         // 注意：这里0.45 = 1.8 * modelScale / 2 = 0.9 / 2
         float yOffset = 0.75f * scale[1];
         
-        poseStack.translate(0.0, yOffset, 0.0);
+        matrixStack.translate(0.0, yOffset, 0.0);
         
         // 应用缩放和翻转
-        poseStack.scale(-modelScale, -modelScale, modelScale);
+        matrixStack.scale(-modelScale, -modelScale, modelScale);
         
         // 应用姿态的位置和大小
         float[] position = pose.getPosition();
         if (position[0] != 0.0f || position[1] != 0.0f || position[2] != 0.0f) {
-            poseStack.translate(position[0], -position[1], position[2]);
+            matrixStack.translate(position[0], -position[1], position[2]);
         }
         if (scale[0] != 1.0f || scale[1] != 1.0f || scale[2] != 1.0f) {
-            poseStack.scale(scale[0], scale[1], scale[2]);
+            matrixStack.scale(scale[0], scale[1], scale[2]);
         }
         
         // 从姿态获取旋转角度
@@ -122,13 +122,13 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
         
         // 注意：如果身体有旋转，头部、手臂、身体和腿部都在身体的旋转坐标系中渲染
         // 它们的旋转值都是相对于身体的，所以直接设置即可
-        playerModel.head.setRotation(headRotX, headRotY, headRotZ);
-        playerModel.hat.setRotation(hatRotX, hatRotY, hatRotZ);
-        // 注意：身体的旋转通过 PoseStack 应用，不在这里设置，避免双重旋转
-        playerModel.rightArm.setRotation(rightArmRotX, rightArmRotY, rightArmRotZ);
-        playerModel.leftArm.setRotation(leftArmRotX, leftArmRotY, leftArmRotZ);
-        playerModel.rightLeg.setRotation(rightLegRotX, rightLegRotY, rightLegRotZ);
-        playerModel.leftLeg.setRotation(leftLegRotX, leftLegRotY, leftLegRotZ);
+        playerModel.head.setAngles(headRotX, headRotY, headRotZ);
+        playerModel.hat.setAngles(hatRotX, hatRotY, hatRotZ);
+        // 注意：身体的旋转通过 MatrixStack 应用，不在这里设置，避免双重旋转
+        playerModel.rightArm.setAngles(rightArmRotX, rightArmRotY, rightArmRotZ);
+        playerModel.leftArm.setAngles(leftArmRotX, leftArmRotY, leftArmRotZ);
+        playerModel.rightLeg.setAngles(rightLegRotX, rightLegRotY, rightLegRotZ);
+        playerModel.leftLeg.setAngles(leftLegRotX, leftLegRotY, leftLegRotZ);
         
         // 同时设置外层部分的旋转，使它们跟随基础部分的动作
         // 注意：身体的旋转通过 PoseStack 应用，所以 jacket 的旋转也设为0
@@ -139,68 +139,68 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
                                rightLegRotX, rightLegRotY, rightLegRotZ);
         
         // 获取渲染类型
-        var cutoutRenderType = net.minecraft.client.renderer.RenderType.entityCutoutNoCull(skinLocation);
-        var translucentRenderType = net.minecraft.client.renderer.RenderType.entityTranslucent(skinLocation);
-        int overlay = net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY;
+        var cutoutRenderType = net.minecraft.client.render.RenderLayer.getEntityCutoutNoCull(skinLocation);
+        var translucentRenderType = net.minecraft.client.render.RenderLayer.getEntityTranslucent(skinLocation);
+        int overlay = net.minecraft.client.render.OverlayTexture.DEFAULT_UV;
         
         // 第一步：渲染基础层（base layer）
-        var baseVertexConsumer = bufferSource.getBuffer(cutoutRenderType);
+        var baseVertexConsumer = vertexConsumerProvider.getBuffer(cutoutRenderType);
         
-        // 如果有身体旋转，使用 PoseStack 在身体旋转中心应用旋转，然后渲染身体、头部、手臂和腿部
+        // 如果有身体旋转，使用 MatrixStack 在身体旋转中心应用旋转，然后渲染身体、头部、手臂和腿部
         if (bodyRotX != 0 || bodyRotY != 0 || bodyRotZ != 0) {
-            poseStack.pushPose();
+            matrixStack.push();
             
             // 移动到身体的旋转中心（身体和头连接处，Y坐标约为0.375）
             float rotationCenterY = 0.375f;
-            poseStack.translate(0.0, rotationCenterY, 0.0);
+            matrixStack.translate(0.0, rotationCenterY, 0.0);
             
             // 应用身体旋转（只在这里应用，不在 setRotation 中设置）
-            poseStack.mulPose(Axis.XP.rotation(bodyRotX));
-            poseStack.mulPose(Axis.YP.rotation(bodyRotY));
-            poseStack.mulPose(Axis.ZP.rotation(bodyRotZ));
+            matrixStack.multiply(Vec3f.POSITIVE_X.getRadiansQuaternion(bodyRotX));
+            matrixStack.multiply(Vec3f.POSITIVE_Y.getRadiansQuaternion(bodyRotY));
+            matrixStack.multiply(Vec3f.POSITIVE_Z.getRadiansQuaternion(bodyRotZ));
             
             // 移回旋转中心
-            poseStack.translate(0.0, -rotationCenterY, 0.0);
+            matrixStack.translate(0.0, -rotationCenterY, 0.0);
             // 在旋转后的坐标系中渲染身体、头部、手臂和腿部
             // 注意：头部和手臂的旋转值已经是相对于身体的，所以保持它们的旋转值
-            playerModel.body.setRotation(0, 0, 0); // 确保身体不额外旋转（旋转已通过 PoseStack 应用）
+            playerModel.body.setAngles(0, 0, 0); // 确保身体不额外旋转（旋转已通过 MatrixStack 应用）
             // 头部和手臂保持它们自己的相对旋转值（headRotX等已经在上面设置）
             renderPartWithTransform(poseStack, playerModel.body, baseVertexConsumer, packedLight, overlay, bodyPosition, bodyScale);
             renderPartWithTransform(poseStack, playerModel.head, baseVertexConsumer, packedLight, overlay, headPosition, headScale);
             renderPartWithTransform(poseStack, playerModel.rightArm, baseVertexConsumer, packedLight, overlay, rightArmPosition, rightArmScale);
             renderPartWithTransform(poseStack, playerModel.leftArm, baseVertexConsumer, packedLight, overlay, leftArmPosition, leftArmScale);
-            renderPartWithTransform(poseStack, playerModel.rightLeg, baseVertexConsumer, packedLight, overlay, rightLegPosition, rightLegScale);
-            renderPartWithTransform(poseStack, playerModel.leftLeg, baseVertexConsumer, packedLight, overlay, leftLegPosition, leftLegScale);
-            poseStack.popPose();
+            renderPartWithTransform(matrixStack, playerModel.rightLeg, baseVertexConsumer, light, overlay, rightLegPosition, rightLegScale);
+            renderPartWithTransform(matrixStack, playerModel.leftLeg, baseVertexConsumer, light, overlay, leftLegPosition, leftLegScale);
+            matrixStack.pop();
         } else {
             // 没有身体旋转时，正常渲染
-            playerModel.body.setRotation(0, 0, 0);
-            renderPartWithTransform(poseStack, playerModel.body, baseVertexConsumer, packedLight, overlay, bodyPosition, bodyScale);
-            renderPartWithTransform(poseStack, playerModel.head, baseVertexConsumer, packedLight, overlay, headPosition, headScale);
-            renderPartWithTransform(poseStack, playerModel.rightArm, baseVertexConsumer, packedLight, overlay, rightArmPosition, rightArmScale);
-            renderPartWithTransform(poseStack, playerModel.leftArm, baseVertexConsumer, packedLight, overlay, leftArmPosition, leftArmScale);
-            renderPartWithTransform(poseStack, playerModel.rightLeg, baseVertexConsumer, packedLight, overlay, rightLegPosition, rightLegScale);
-            renderPartWithTransform(poseStack, playerModel.leftLeg, baseVertexConsumer, packedLight, overlay, leftLegPosition, leftLegScale);
+            playerModel.body.setAngles(0, 0, 0);
+            renderPartWithTransform(matrixStack, playerModel.body, baseVertexConsumer, light, overlay, bodyPosition, bodyScale);
+            renderPartWithTransform(matrixStack, playerModel.head, baseVertexConsumer, light, overlay, headPosition, headScale);
+            renderPartWithTransform(matrixStack, playerModel.rightArm, baseVertexConsumer, light, overlay, rightArmPosition, rightArmScale);
+            renderPartWithTransform(matrixStack, playerModel.leftArm, baseVertexConsumer, light, overlay, leftArmPosition, leftArmScale);
+            renderPartWithTransform(matrixStack, playerModel.rightLeg, baseVertexConsumer, light, overlay, rightLegPosition, rightLegScale);
+            renderPartWithTransform(matrixStack, playerModel.leftLeg, baseVertexConsumer, light, overlay, leftLegPosition, leftLegScale);
         }
         
         // 第二步：渲染外层（overlay layer）- 使用半透明渲染以正确显示多层皮肤
-        var overlayVertexConsumer = bufferSource.getBuffer(translucentRenderType);
+        var overlayVertexConsumer = vertexConsumerProvider.getBuffer(translucentRenderType);
         
-        // 如果有身体旋转，使用 PoseStack 在身体旋转中心应用旋转，然后渲染所有外层部分
+        // 如果有身体旋转，使用 MatrixStack 在身体旋转中心应用旋转，然后渲染所有外层部分
         if (bodyRotX != 0 || bodyRotY != 0 || bodyRotZ != 0) {
-            poseStack.pushPose();
+            matrixStack.push();
             
             // 移动到身体的旋转中心（身体和头连接处，Y坐标约为0.375）
             float rotationCenterY = 0.375f;
-            poseStack.translate(0.0, rotationCenterY, 0.0);
+            matrixStack.translate(0.0, rotationCenterY, 0.0);
             
             // 应用身体旋转（只在这里应用，不在 setRotation 中设置）
-            poseStack.mulPose(Axis.XP.rotation(bodyRotX));
-            poseStack.mulPose(Axis.YP.rotation(bodyRotY));
-            poseStack.mulPose(Axis.ZP.rotation(bodyRotZ));
+            matrixStack.multiply(Vec3f.POSITIVE_X.getRadiansQuaternion(bodyRotX));
+            matrixStack.multiply(Vec3f.POSITIVE_Y.getRadiansQuaternion(bodyRotY));
+            matrixStack.multiply(Vec3f.POSITIVE_Z.getRadiansQuaternion(bodyRotZ));
             
             // 移回旋转中心
-            poseStack.translate(0.0, -rotationCenterY, 0.0);
+            matrixStack.translate(0.0, -rotationCenterY, 0.0);
             // 在旋转后的坐标系中 渲染所有外层部分
             // hat层（头发外层），使用 headScale 和 hatScale 的组合
             renderPartWithTransform(poseStack, playerModel.hat, overlayVertexConsumer, packedLight, overlay, hatPosition, hatCombinedScale);
@@ -208,19 +208,19 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
             renderArmOverlayParts(poseStack, overlayVertexConsumer, packedLight, overlay, rightArmPosition, rightArmScale, leftArmPosition, leftArmScale);
             // 身体和腿部外层（jacket 的旋转设为0）
             setBodyOverlayRotation(0, 0, 0); // 确保身体外层不额外旋转
-            renderBodyLegOverlayParts(poseStack, overlayVertexConsumer, packedLight, overlay, bodyPosition, bodyScale, rightLegPosition, rightLegScale, leftLegPosition, leftLegScale);
-            poseStack.popPose();
+            renderBodyLegOverlayParts(matrixStack, overlayVertexConsumer, light, overlay, bodyPosition, bodyScale, rightLegPosition, rightLegScale, leftLegPosition, leftLegScale);
+            matrixStack.pop();
         } else {
             // 没有身体旋转时，正常渲染
-            renderPartWithTransform(poseStack, playerModel.hat, overlayVertexConsumer, packedLight, overlay, hatPosition, hatCombinedScale);
-            renderArmOverlayParts(poseStack, overlayVertexConsumer, packedLight, overlay, rightArmPosition, rightArmScale, leftArmPosition, leftArmScale);
+            renderPartWithTransform(matrixStack, playerModel.hat, overlayVertexConsumer, light, overlay, hatPosition, hatCombinedScale);
+            renderArmOverlayParts(matrixStack, overlayVertexConsumer, light, overlay, rightArmPosition, rightArmScale, leftArmPosition, leftArmScale);
             setBodyOverlayRotation(0, 0, 0);
-            renderBodyLegOverlayParts(poseStack, overlayVertexConsumer, packedLight, overlay, bodyPosition, bodyScale, rightLegPosition, rightLegScale, leftLegPosition, leftLegScale);
+            renderBodyLegOverlayParts(matrixStack, overlayVertexConsumer, light, overlay, bodyPosition, bodyScale, rightLegPosition, rightLegScale, leftLegPosition, leftLegScale);
         }
         
-        poseStack.popPose();
+        matrixStack.pop();
         
-        super.render(entity, entityYaw, partialTick, poseStack, bufferSource, packedLight);
+        super.render(entity, entityYaw, partialTick, matrixStack, vertexConsumerProvider, light);
     }
     
     /**
@@ -233,29 +233,29 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
      * @param position 位置偏移 [x, y, z]
      * @param scale 缩放 [x, y, z]
      */
-    private void renderPartWithTransform(PoseStack poseStack,
-                                         net.minecraft.client.model.geom.ModelPart part,
-                                         com.mojang.blaze3d.vertex.VertexConsumer vertexConsumer,
-                                         int packedLight,
+    private void renderPartWithTransform(MatrixStack matrixStack,
+                                         net.minecraft.client.model.ModelPart part,
+                                         net.minecraft.client.render.VertexConsumer vertexConsumer,
+                                         int light,
                                          int overlay,
                                          float[] position,
                                          float[] scale) {
-        poseStack.pushPose();
+        matrixStack.push();
         
         // 应用位置偏移（Y轴取反，正数向上）
         if (position[0] != 0.0f || position[1] != 0.0f || position[2] != 0.0f) {
-            poseStack.translate(position[0], -position[1], position[2]);
+            matrixStack.translate(position[0], -position[1], position[2]);
         }
         
         // 应用缩放
         if (scale[0] != 1.0f || scale[1] != 1.0f || scale[2] != 1.0f) {
-            poseStack.scale(scale[0], scale[1], scale[2]);
+            matrixStack.scale(scale[0], scale[1], scale[2]);
         }
         
         // 渲染部件
-        part.render(poseStack, vertexConsumer, packedLight, overlay);
+        part.render(matrixStack, vertexConsumer, light, overlay);
         
-        poseStack.popPose();
+        matrixStack.pop();
     }
     
     /**
@@ -283,12 +283,12 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
                                         float leftLegRotX, float leftLegRotY, float leftLegRotZ,
                                         float rightLegRotX, float rightLegRotY, float rightLegRotZ) {
         try {
-            // 使用反射访问PlayerModel的外层部分并设置旋转
-            java.lang.reflect.Field leftSleeveField = PlayerModel.class.getDeclaredField("leftSleeve");
-            java.lang.reflect.Field rightSleeveField = PlayerModel.class.getDeclaredField("rightSleeve");
-            java.lang.reflect.Field leftPantsField = PlayerModel.class.getDeclaredField("leftPants");
-            java.lang.reflect.Field rightPantsField = PlayerModel.class.getDeclaredField("rightPants");
-            java.lang.reflect.Field jacketField = PlayerModel.class.getDeclaredField("jacket");
+            // 使用反射访问PlayerEntityModel的外层部分并设置旋转
+            java.lang.reflect.Field leftSleeveField = PlayerEntityModel.class.getDeclaredField("leftSleeve");
+            java.lang.reflect.Field rightSleeveField = PlayerEntityModel.class.getDeclaredField("rightSleeve");
+            java.lang.reflect.Field leftPantsField = PlayerEntityModel.class.getDeclaredField("leftPants");
+            java.lang.reflect.Field rightPantsField = PlayerEntityModel.class.getDeclaredField("rightPants");
+            java.lang.reflect.Field jacketField = PlayerEntityModel.class.getDeclaredField("jacket");
             
             leftSleeveField.setAccessible(true);
             rightSleeveField.setAccessible(true);
@@ -298,32 +298,32 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
             
             // leftSleeve应该跟随leftArm的旋转
             Object leftSleeve = leftSleeveField.get(playerModel);
-            if (leftSleeve instanceof net.minecraft.client.model.geom.ModelPart) {
-                ((net.minecraft.client.model.geom.ModelPart) leftSleeve).setRotation(leftArmRotX, leftArmRotY, leftArmRotZ);
+            if (leftSleeve instanceof net.minecraft.client.model.ModelPart) {
+                ((net.minecraft.client.model.ModelPart) leftSleeve).setAngles(leftArmRotX, leftArmRotY, leftArmRotZ);
             }
             
             // rightSleeve应该跟随rightArm的旋转
             Object rightSleeve = rightSleeveField.get(playerModel);
-            if (rightSleeve instanceof net.minecraft.client.model.geom.ModelPart) {
-                ((net.minecraft.client.model.geom.ModelPart) rightSleeve).setRotation(rightArmRotX, rightArmRotY, rightArmRotZ);
+            if (rightSleeve instanceof net.minecraft.client.model.ModelPart) {
+                ((net.minecraft.client.model.ModelPart) rightSleeve).setAngles(rightArmRotX, rightArmRotY, rightArmRotZ);
             }
             
             // leftPants应该跟随leftLeg的旋转
             Object leftPants = leftPantsField.get(playerModel);
-            if (leftPants instanceof net.minecraft.client.model.geom.ModelPart) {
-                ((net.minecraft.client.model.geom.ModelPart) leftPants).setRotation(leftLegRotX, leftLegRotY, leftLegRotZ);
+            if (leftPants instanceof net.minecraft.client.model.ModelPart) {
+                ((net.minecraft.client.model.ModelPart) leftPants).setAngles(leftLegRotX, leftLegRotY, leftLegRotZ);
             }
             
             // rightPants应该跟随rightLeg的旋转
             Object rightPants = rightPantsField.get(playerModel);
-            if (rightPants instanceof net.minecraft.client.model.geom.ModelPart) {
-                ((net.minecraft.client.model.geom.ModelPart) rightPants).setRotation(rightLegRotX, rightLegRotY, rightLegRotZ);
+            if (rightPants instanceof net.minecraft.client.model.ModelPart) {
+                ((net.minecraft.client.model.ModelPart) rightPants).setAngles(rightLegRotX, rightLegRotY, rightLegRotZ);
             }
             
-            // jacket应该跟随body的旋转（但身体的旋转通过 PoseStack 应用，所以这里设为0）
+            // jacket应该跟随body的旋转（但身体的旋转通过 MatrixStack 应用，所以这里设为0）
             Object jacket = jacketField.get(playerModel);
-            if (jacket instanceof net.minecraft.client.model.geom.ModelPart) {
-                ((net.minecraft.client.model.geom.ModelPart) jacket).setRotation(0, 0, 0);
+            if (jacket instanceof net.minecraft.client.model.ModelPart) {
+                ((net.minecraft.client.model.ModelPart) jacket).setAngles(0, 0, 0);
             }
         } catch (NoSuchFieldException | IllegalAccessException e) {
             // 如果模型不支持这些字段，则忽略
@@ -336,11 +336,11 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
      */
     private void setBodyOverlayRotation(float bodyRotX, float bodyRotY, float bodyRotZ) {
         try {
-            java.lang.reflect.Field jacketField = PlayerModel.class.getDeclaredField("jacket");
+            java.lang.reflect.Field jacketField = PlayerEntityModel.class.getDeclaredField("jacket");
             jacketField.setAccessible(true);
             Object jacket = jacketField.get(playerModel);
-            if (jacket instanceof net.minecraft.client.model.geom.ModelPart) {
-                ((net.minecraft.client.model.geom.ModelPart) jacket).setRotation(bodyRotX, bodyRotY, bodyRotZ);
+            if (jacket instanceof net.minecraft.client.model.ModelPart) {
+                ((net.minecraft.client.model.ModelPart) jacket).setAngles(bodyRotX, bodyRotY, bodyRotZ);
             }
         } catch (NoSuchFieldException | IllegalAccessException e) {
             // 如果模型不支持这些字段，则忽略
@@ -359,32 +359,32 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
      * @param leftArmPosition 左臂位置偏移
      * @param leftArmScale 左臂缩放
      */
-    private void renderArmOverlayParts(PoseStack poseStack, 
-                                      com.mojang.blaze3d.vertex.VertexConsumer overlayVertexConsumer, 
-                                      int packedLight, 
+    private void renderArmOverlayParts(MatrixStack matrixStack, 
+                                      net.minecraft.client.render.VertexConsumer overlayVertexConsumer, 
+                                      int light, 
                                       int overlay,
                                       float[] rightArmPosition,
                                       float[] rightArmScale,
                                       float[] leftArmPosition,
                                       float[] leftArmScale) {
         try {
-            // 使用反射访问PlayerModel的外层部分（如果存在）
-            java.lang.reflect.Field leftSleeveField = PlayerModel.class.getDeclaredField("leftSleeve");
-            java.lang.reflect.Field rightSleeveField = PlayerModel.class.getDeclaredField("rightSleeve");
+            // 使用反射访问PlayerEntityModel的外层部分（如果存在）
+            java.lang.reflect.Field leftSleeveField = PlayerEntityModel.class.getDeclaredField("leftSleeve");
+            java.lang.reflect.Field rightSleeveField = PlayerEntityModel.class.getDeclaredField("rightSleeve");
             
             leftSleeveField.setAccessible(true);
             rightSleeveField.setAccessible(true);
             
             // 渲染左袖子外层
             Object leftSleeve = leftSleeveField.get(playerModel);
-            if (leftSleeve instanceof net.minecraft.client.model.geom.ModelPart) {
-                renderPartWithTransform(poseStack, (net.minecraft.client.model.geom.ModelPart) leftSleeve, overlayVertexConsumer, packedLight, overlay, leftArmPosition, leftArmScale);
+            if (leftSleeve instanceof net.minecraft.client.model.ModelPart) {
+                renderPartWithTransform(matrixStack, (net.minecraft.client.model.ModelPart) leftSleeve, overlayVertexConsumer, light, overlay, leftArmPosition, leftArmScale);
             }
             
             // 渲染右袖子外层
             Object rightSleeve = rightSleeveField.get(playerModel);
-            if (rightSleeve instanceof net.minecraft.client.model.geom.ModelPart) {
-                renderPartWithTransform(poseStack, (net.minecraft.client.model.geom.ModelPart) rightSleeve, overlayVertexConsumer, packedLight, overlay, rightArmPosition, rightArmScale);
+            if (rightSleeve instanceof net.minecraft.client.model.ModelPart) {
+                renderPartWithTransform(matrixStack, (net.minecraft.client.model.ModelPart) rightSleeve, overlayVertexConsumer, light, overlay, rightArmPosition, rightArmScale);
             }
         } catch (NoSuchFieldException | IllegalAccessException e) {
             // 如果模型不支持这些字段，则忽略
@@ -405,9 +405,9 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
      * @param leftLegPosition 左腿位置偏移
      * @param leftLegScale 左腿缩放
      */
-    private void renderBodyLegOverlayParts(PoseStack poseStack, 
-                                          com.mojang.blaze3d.vertex.VertexConsumer overlayVertexConsumer, 
-                                          int packedLight, 
+    private void renderBodyLegOverlayParts(MatrixStack matrixStack, 
+                                          net.minecraft.client.render.VertexConsumer overlayVertexConsumer, 
+                                          int light, 
                                           int overlay,
                                           float[] bodyPosition,
                                           float[] bodyScale,
@@ -416,10 +416,10 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
                                           float[] leftLegPosition,
                                           float[] leftLegScale) {
         try {
-            // 使用反射访问PlayerModel的外层部分（如果存在）
-            java.lang.reflect.Field leftPantsField = PlayerModel.class.getDeclaredField("leftPants");
-            java.lang.reflect.Field rightPantsField = PlayerModel.class.getDeclaredField("rightPants");
-            java.lang.reflect.Field jacketField = PlayerModel.class.getDeclaredField("jacket");
+            // 使用反射访问PlayerEntityModel的外层部分（如果存在）
+            java.lang.reflect.Field leftPantsField = PlayerEntityModel.class.getDeclaredField("leftPants");
+            java.lang.reflect.Field rightPantsField = PlayerEntityModel.class.getDeclaredField("rightPants");
+            java.lang.reflect.Field jacketField = PlayerEntityModel.class.getDeclaredField("jacket");
             
             leftPantsField.setAccessible(true);
             rightPantsField.setAccessible(true);
@@ -427,20 +427,20 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
             
             // 渲染夹克外层（身体外层）
             Object jacket = jacketField.get(playerModel);
-            if (jacket instanceof net.minecraft.client.model.geom.ModelPart) {
-                renderPartWithTransform(poseStack, (net.minecraft.client.model.geom.ModelPart) jacket, overlayVertexConsumer, packedLight, overlay, bodyPosition, bodyScale);
+            if (jacket instanceof net.minecraft.client.model.ModelPart) {
+                renderPartWithTransform(matrixStack, (net.minecraft.client.model.ModelPart) jacket, overlayVertexConsumer, light, overlay, bodyPosition, bodyScale);
             }
             
             // 渲染左腿外层
             Object leftPants = leftPantsField.get(playerModel);
-            if (leftPants instanceof net.minecraft.client.model.geom.ModelPart) {
-                renderPartWithTransform(poseStack, (net.minecraft.client.model.geom.ModelPart) leftPants, overlayVertexConsumer, packedLight, overlay, leftLegPosition, leftLegScale);
+            if (leftPants instanceof net.minecraft.client.model.ModelPart) {
+                renderPartWithTransform(matrixStack, (net.minecraft.client.model.ModelPart) leftPants, overlayVertexConsumer, light, overlay, leftLegPosition, leftLegScale);
             }
             
             // 渲染右腿外层
             Object rightPants = rightPantsField.get(playerModel);
-            if (rightPants instanceof net.minecraft.client.model.geom.ModelPart) {
-                renderPartWithTransform(poseStack, (net.minecraft.client.model.geom.ModelPart) rightPants, overlayVertexConsumer, packedLight, overlay, rightLegPosition, rightLegScale);
+            if (rightPants instanceof net.minecraft.client.model.ModelPart) {
+                renderPartWithTransform(matrixStack, (net.minecraft.client.model.ModelPart) rightPants, overlayVertexConsumer, light, overlay, rightLegPosition, rightLegScale);
             }
         } catch (NoSuchFieldException | IllegalAccessException e) {
             // 如果模型不支持这些字段，则忽略
@@ -448,7 +448,7 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
     }
     
     @Override
-    public ResourceLocation getTextureLocation(T entity) {
+    public Identifier getTexture(T entity) {
         return getSkinLocation(entity);
     }
 }

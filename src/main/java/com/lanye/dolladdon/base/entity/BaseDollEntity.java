@@ -4,22 +4,25 @@ import com.lanye.dolladdon.api.action.DollAction;
 import com.lanye.dolladdon.api.pose.DollPose;
 import com.lanye.dolladdon.api.pose.SimpleDollPose;
 import com.lanye.dolladdon.util.PoseActionManager;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.syncher.EntityDataAccessor;
-import net.minecraft.network.syncher.EntityDataSerializers;
-import net.minecraft.network.syncher.SynchedEntityData;
-import net.minecraft.sound.SoundEvents;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityDimensions;
+import net.minecraft.entity.EntityPose;
+import net.minecraft.entity.EntityType;
+import net.minecraft.entity.MovementType;
+import net.minecraft.entity.data.DataTracker;
+import net.minecraft.entity.data.TrackedData;
+import net.minecraft.entity.data.TrackedDataHandlerRegistry;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
 import net.minecraft.sound.SoundCategory;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.MoverType;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.sound.SoundEvents;
+import net.minecraft.text.Text;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.Hand;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.World;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -30,9 +33,9 @@ import java.util.Map;
  * 提供所有玩偶实体的共同功能
  */
 public abstract class BaseDollEntity extends Entity {
-    private static final EntityDataAccessor<Byte> DATA_CLIENT_FLAGS = SynchedEntityData.defineId(BaseDollEntity.class, EntityDataSerializers.BYTE);
+    private static final TrackedData<Byte> DATA_CLIENT_FLAGS = DataTracker.startTracking(BaseDollEntity.class, TrackedDataHandlerRegistry.BYTE);
     // 同步姿态索引到客户端（使用Byte，支持0-255个姿态，足够使用）
-    private static final EntityDataAccessor<Byte> DATA_POSE_INDEX = SynchedEntityData.defineId(BaseDollEntity.class, EntityDataSerializers.BYTE);
+    private static final TrackedData<Byte> DATA_POSE_INDEX = DataTracker.startTracking(BaseDollEntity.class, TrackedDataHandlerRegistry.BYTE);
     
     // 姿态和动作相关字段
     private DollPose currentPose;
@@ -42,33 +45,33 @@ public abstract class BaseDollEntity extends Entity {
     // 当前姿态索引（用于循环切换）
     private int currentPoseIndex = -1;
     
-    protected BaseDollEntity(EntityType<? extends BaseDollEntity> entityType, Level level) {
-        super(entityType, level);
-        this.noPhysics = false; // 有物理碰撞
+    protected BaseDollEntity(EntityType<? extends BaseDollEntity> entityType, World world) {
+        super(entityType, world);
+        this.noClip = false; // 有物理碰撞
         // 默认使用standing姿态
         DollPose standingPose = PoseActionManager.getPose("standing");
         this.currentPose = standingPose != null ? standingPose : SimpleDollPose.createDefaultStandingPose();
         // 初始化时设置为255（默认姿态）
-        if (!level.isClientSide) {
-            this.entityData.set(DATA_POSE_INDEX, (byte) 255);
+        if (!world.isClient) {
+            this.dataTracker.set(DATA_POSE_INDEX, (byte) 255);
         }
         // 初始化碰撞箱
         updateBoundingBox();
     }
     
-    protected BaseDollEntity(EntityType<? extends BaseDollEntity> entityType, Level level, double x, double y, double z) {
-        this(entityType, level);
-        this.setPos(x, y, z);
+    protected BaseDollEntity(EntityType<? extends BaseDollEntity> entityType, World world, double x, double y, double z) {
+        this(entityType, world);
+        this.setPosition(x, y, z);
     }
     
     @Override
-    protected void defineSynchedData(SynchedEntityData.Builder builder) {
-        builder.define(DATA_CLIENT_FLAGS, (byte) 0);
-        builder.define(DATA_POSE_INDEX, (byte) 255); // 255 表示未设置（默认姿态）
+    protected void initDataTracker() {
+        this.dataTracker.startTracking(DATA_CLIENT_FLAGS, (byte) 0);
+        this.dataTracker.startTracking(DATA_POSE_INDEX, (byte) 255); // 255 表示未设置（默认姿态）
     }
     
     @Override
-    protected void readAdditionalSaveData(net.minecraft.nbt.CompoundTag tag) {
+    protected void readCustomDataFromNbt(NbtCompound tag) {
         restoreFromNBT(tag);
     }
     
@@ -76,9 +79,9 @@ public abstract class BaseDollEntity extends Entity {
      * 从NBT恢复实体数据（公共方法，供物品使用）
      * @param tag NBT标签
      */
-    public void restoreFromNBT(net.minecraft.nbt.CompoundTag tag) {
+    public void restoreFromNBT(NbtCompound tag) {
         // 优先恢复动作（如果有）
-        if (tag.contains("ActionName", net.minecraft.nbt.Tag.TAG_STRING)) {
+        if (tag.contains("ActionName", 8)) { // 8 = TAG_STRING
             String actionName = tag.getString("ActionName");
             DollAction action = PoseActionManager.getAction(actionName);
             if (action != null) {
@@ -89,7 +92,7 @@ public abstract class BaseDollEntity extends Entity {
         }
         
         // 优先使用姿态名称恢复（如果保存了）
-        if (tag.contains("PoseName", net.minecraft.nbt.Tag.TAG_STRING)) {
+        if (tag.contains("PoseName", 8)) { // 8 = TAG_STRING
             String poseName = tag.getString("PoseName");
             DollPose pose = PoseActionManager.getPose(poseName);
             if (pose != null) {
@@ -102,9 +105,9 @@ public abstract class BaseDollEntity extends Entity {
                     this.currentPoseIndex = (index == 0) ? -1 : index;
                     // 同步到客户端
                     if (currentPoseIndex >= 0 && currentPoseIndex < 255) {
-                        this.entityData.set(DATA_POSE_INDEX, (byte) (currentPoseIndex & 0xFF));
+                        this.dataTracker.set(DATA_POSE_INDEX, (byte) (currentPoseIndex & 0xFF));
                     } else {
-                        this.entityData.set(DATA_POSE_INDEX, (byte) 255);
+                        this.dataTracker.set(DATA_POSE_INDEX, (byte) 255);
                     }
                 }
                 return;
@@ -120,21 +123,21 @@ public abstract class BaseDollEntity extends Entity {
             loadPoseByIndex();
             // 同步到客户端
             if (currentPoseIndex >= 0 && currentPoseIndex < 255) {
-                this.entityData.set(DATA_POSE_INDEX, (byte) (currentPoseIndex & 0xFF));
+                this.dataTracker.set(DATA_POSE_INDEX, (byte) (currentPoseIndex & 0xFF));
             } else {
-                this.entityData.set(DATA_POSE_INDEX, (byte) 255);
+                this.dataTracker.set(DATA_POSE_INDEX, (byte) 255);
             }
         } else {
             // NBT中没有姿态信息，使用默认standing姿态
             this.currentPoseIndex = -1;
-            this.entityData.set(DATA_POSE_INDEX, (byte) 255);
+            this.dataTracker.set(DATA_POSE_INDEX, (byte) 255);
             DollPose standingPose = PoseActionManager.getPose("standing");
             this.currentPose = standingPose != null ? standingPose : SimpleDollPose.createDefaultStandingPose();
         }
     }
     
     @Override
-    protected void addAdditionalSaveData(net.minecraft.nbt.CompoundTag tag) {
+    protected void writeCustomDataToNbt(NbtCompound tag) {
         // 如果当前有动作，保存动作名称
         if (currentAction != null) {
             tag.putString("ActionName", currentAction.getName());
@@ -162,8 +165,8 @@ public abstract class BaseDollEntity extends Entity {
         super.tick();
         
         // 在客户端，根据同步的索引更新姿态
-        if (this.level().isClientSide) {
-            byte syncedIndex = this.entityData.get(DATA_POSE_INDEX);
+        if (this.getWorld().isClient) {
+            byte syncedIndex = this.dataTracker.get(DATA_POSE_INDEX);
             if (syncedIndex != 255) {
                 int index = syncedIndex & 0xFF; // 转换为无符号整数
                 if (index != currentPoseIndex) {
@@ -216,20 +219,20 @@ public abstract class BaseDollEntity extends Entity {
         }
         
         // 应用重力
-        if (!this.isNoGravity()) {
-            this.setDeltaMovement(this.getDeltaMovement().add(0.0, -0.04, 0.0));
+        if (!this.hasNoGravity()) {
+            this.setVelocity(this.getVelocity().add(0.0, -0.04, 0.0));
         }
         
         // 移动（使用重写的move方法，会自动恢复碰撞箱）
-        this.move(MoverType.SELF, this.getDeltaMovement());
+        this.move(MovementType.SELF, this.getVelocity());
         
         // 应用摩擦力
-        this.setDeltaMovement(this.getDeltaMovement().multiply(0.98, 0.98, 0.98));
+        this.setVelocity(this.getVelocity().multiply(0.98, 0.98, 0.98));
         
         // 如果在地面上，停止垂直运动
-        if (this.onGround()) {
-            Vec3 movement = this.getDeltaMovement();
-            this.setDeltaMovement(movement.x * 0.7, 0.0, movement.z * 0.7);
+        if (this.isOnGround()) {
+            Vec3d movement = this.getVelocity();
+            this.setVelocity(movement.x * 0.7, 0.0, movement.z * 0.7);
         }
     }
     
@@ -238,7 +241,7 @@ public abstract class BaseDollEntity extends Entity {
      * 这样Minecraft会自动使用这个尺寸来计算碰撞箱，无需手动设置
      */
     @Override
-    public net.minecraft.world.entity.EntityDimensions getDimensions(net.minecraft.world.entity.Pose pose) {
+    public EntityDimensions getDimensions(EntityPose pose) {
         // 基础尺寸（与DollEntityFactory中的sized(0.6f, 1f)保持一致）
         float baseWidth = 0.6f;
         float baseHeight = 1.0f;
@@ -256,7 +259,7 @@ public abstract class BaseDollEntity extends Entity {
         }
         
         // 返回动态计算的尺寸，Minecraft会自动使用这个尺寸来计算碰撞箱
-        return net.minecraft.world.entity.EntityDimensions.scalable(baseWidth, baseHeight);
+        return EntityDimensions.changing(baseWidth, baseHeight);
     }
     
     /**
@@ -265,7 +268,7 @@ public abstract class BaseDollEntity extends Entity {
      * 注意：如果getDimensions()正常工作，这个方法可能不再需要
      */
     @Override
-    public void move(MoverType moverType, Vec3 movement) {
+    public void move(MovementType movementType, Vec3d movement) {
         super.move(moverType, movement);
         // 父类的move()方法会根据EntityType的尺寸重置碰撞箱，所以需要立即恢复自定义碰撞箱
         // 如果getDimensions()正常工作，这行代码可能不再需要
@@ -307,7 +310,7 @@ public abstract class BaseDollEntity extends Entity {
         // 创建并设置碰撞箱
         // 碰撞箱以实体底部中心为基准，向上延伸
         // 注意：position偏移主要用于渲染，不影响碰撞箱位置
-        AABB newBoundingBox = new AABB(
+        Box newBoundingBox = new Box(
             x - halfWidth, y, z - halfWidth,
             x + halfWidth, y + baseHeight, z + halfWidth
         );
@@ -336,10 +339,10 @@ public abstract class BaseDollEntity extends Entity {
     }
     
     @Override
-    public InteractionResult interact(Player player, InteractionHand hand) {
-        boolean isSneaking = player.isShiftKeyDown();
+    public ActionResult interact(PlayerEntity player, Hand hand) {
+        boolean isSneaking = player.isSneaking();
         
-        if (!this.level().isClientSide) {
+        if (!this.getWorld().isClient) {
             // 如果玩家潜行，则破坏实体并掉落物品
             if (isSneaking) {
                 return handleBreakAndDrop(player);
@@ -348,11 +351,11 @@ public abstract class BaseDollEntity extends Entity {
                 cycleToNextPose(player);
                 
                 // 播放交互音效
-                this.level().playSound(null, this.getX(), this.getY(), this.getZ(),
+                this.getWorld().playSound(null, this.getX(), this.getY(), this.getZ(),
                         SoundEvents.ENTITY_ARMOR_STAND_HIT, SoundCategory.NEUTRAL, 0.5F, 1.0F);
             }
         }
-        return this.level().isClientSide ? InteractionResult.SUCCESS : InteractionResult.CONSUME;
+        return this.getWorld().isClient ? ActionResult.SUCCESS : ActionResult.CONSUME;
     }
     
     /**
@@ -364,55 +367,55 @@ public abstract class BaseDollEntity extends Entity {
     /**
      * 处理破坏并掉落物品
      */
-    private InteractionResult handleBreakAndDrop(Player player) {
+    private ActionResult handleBreakAndDrop(PlayerEntity player) {
         // 创建物品堆
         ItemStack itemStack = getDollItemStack();
         
         // 保存NBT标签到物品
-        net.minecraft.nbt.CompoundTag entityTag = new net.minecraft.nbt.CompoundTag();
-        this.addAdditionalSaveData(entityTag);
+        NbtCompound entityTag = new NbtCompound();
+        this.writeCustomDataToNbt(entityTag);
         
         // 只有当entityTag不为空时才保存NBT，否则清除EntityData标签（允许物品叠加）
         if (!entityTag.isEmpty()) {
             // 获取或创建物品的NBT标签
-            net.minecraft.nbt.CompoundTag itemTag = itemStack.getOrCreateTag();
+            NbtCompound itemTag = itemStack.getOrCreateNbt();
             itemTag.put("EntityData", entityTag);
-            itemStack.setTag(itemTag);
+            itemStack.setNbt(itemTag);
         } else {
             // entityTag为空，需要清除EntityData标签以确保物品可以叠加
-            net.minecraft.nbt.CompoundTag itemTag = itemStack.getTag();
+            NbtCompound itemTag = itemStack.getNbt();
             if (itemTag != null && itemTag.contains("EntityData")) {
                 // 移除EntityData标签
                 itemTag.remove("EntityData");
                 
                 // 如果移除后tag为空，完全移除NBT标签
                 if (itemTag.isEmpty()) {
-                    itemStack.setTag(null);
+                    itemStack.setNbt(null);
                 } else {
-                    itemStack.setTag(itemTag);
+                    itemStack.setNbt(itemTag);
                 }
             }
         }
         
         // 掉落物品
-        net.minecraft.world.entity.item.ItemEntity itemEntity = new net.minecraft.world.entity.item.ItemEntity(
-                this.level(),
+        net.minecraft.entity.ItemEntity itemEntity = new net.minecraft.entity.ItemEntity(
+                this.getWorld(),
                 this.getX(),
                 this.getY(),
                 this.getZ(),
                 itemStack
         );
-        itemEntity.setDefaultPickUpDelay();
-        this.level().addFreshEntity(itemEntity);
+        itemEntity.setPickupDelay(40);
+        this.getWorld().spawnEntity(itemEntity);
         
         // 播放破坏音效
-        this.level().playSound(null, this.getX(), this.getY(), this.getZ(),
+        this.getWorld().playSound(null, this.getX(), this.getY(), this.getZ(),
                 SoundEvents.ENTITY_ARMOR_STAND_BREAK, SoundCategory.NEUTRAL, 0.5F, 1.0F);
         
         // 移除实体
         this.remove(Entity.RemovalReason.DISCARDED);
         
-        return InteractionResult.SUCCESS;
+        return ActionResult.SUCCESS;
     }
     
     /**
@@ -448,13 +451,13 @@ public abstract class BaseDollEntity extends Entity {
      * 循环切换到下一个姿态
      * 当处于默认状态（standing）时，第一次切换会跳过standing，直接切换到下一个姿态
      */
-    private void cycleToNextPose(Player player) {
+    private void cycleToNextPose(PlayerEntity player) {
         List<String> poseNames = getAvailablePoseNames();
         
         if (poseNames.isEmpty()) {
             if (player != null) {
                 // 显示在动作栏（物品栏上方）
-                player.displayClientMessage(Component.literal("没有可用的姿态"), true);
+                player.sendMessage(Text.literal("没有可用的姿态"), true);
             }
             return;
         }
@@ -471,9 +474,9 @@ public abstract class BaseDollEntity extends Entity {
                 // 如果只有一个姿态（standing），则保持在默认状态
                 currentPoseIndex = -1;
                 // 设置为255表示使用默认姿态
-                this.entityData.set(DATA_POSE_INDEX, (byte) 255);
+                this.dataTracker.set(DATA_POSE_INDEX, (byte) 255);
                 if (player != null) {
-                    player.displayClientMessage(Component.literal("只有standing姿态可用"), true);
+                    player.sendMessage(Text.literal("只有standing姿态可用"), true);
                 }
                 return;
             }
@@ -491,7 +494,7 @@ public abstract class BaseDollEntity extends Entity {
         
         // 如果循环回到standing姿态（索引为-1），设置为255表示默认姿态
         if (currentPoseIndex < 0) {
-            this.entityData.set(DATA_POSE_INDEX, (byte) 255);
+            this.dataTracker.set(DATA_POSE_INDEX, (byte) 255);
             DollPose standingPose = PoseActionManager.getPose("standing");
             if (standingPose != null) {
                 setPose(standingPose);
@@ -501,12 +504,12 @@ public abstract class BaseDollEntity extends Entity {
             if (player != null) {
                 DollPose pose = getCurrentPose();
                 String displayName = pose != null ? pose.getDisplayName() : "站立";
-                player.displayClientMessage(Component.literal("切换到姿态: " + displayName), true);
+                player.sendMessage(Text.literal("切换到姿态: " + displayName), true);
             }
         } else {
             // 同步姿态索引到客户端
             byte indexToSync = (byte) (currentPoseIndex & 0xFF);
-            this.entityData.set(DATA_POSE_INDEX, indexToSync);
+            this.dataTracker.set(DATA_POSE_INDEX, indexToSync);
             
             // 加载新姿态
             String poseName = poseNames.get(currentPoseIndex);
@@ -517,7 +520,7 @@ public abstract class BaseDollEntity extends Entity {
                 // 发送消息给玩家（优先使用中文名称，显示在动作栏）
                 if (player != null) {
                     String displayName = pose.getDisplayName();
-                    player.displayClientMessage(Component.literal("切换到姿态: " + displayName + " (" + (currentPoseIndex + 1) + "/" + poseNames.size() + ")"), true);
+                    player.sendMessage(Text.literal("切换到姿态: " + displayName + " (" + (currentPoseIndex + 1) + "/" + poseNames.size() + ")"), true);
                 }
             } else {
                 // 如果找不到姿态，使用standing姿态
@@ -528,10 +531,10 @@ public abstract class BaseDollEntity extends Entity {
                     setPose(SimpleDollPose.createDefaultStandingPose());
                 }
                 // 设置为255表示使用默认姿态
-                this.entityData.set(DATA_POSE_INDEX, (byte) 255);
+                this.dataTracker.set(DATA_POSE_INDEX, (byte) 255);
                 currentPoseIndex = -1;
                 if (player != null) {
-                    player.displayClientMessage(Component.literal("切换到standing姿态"), true);
+                    player.sendMessage(Text.literal("切换到standing姿态"), true);
                 }
             }
         }

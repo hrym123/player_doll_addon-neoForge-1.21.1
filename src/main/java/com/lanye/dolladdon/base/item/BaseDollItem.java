@@ -1,18 +1,18 @@
 package com.lanye.dolladdon.base.item;
 
 import com.lanye.dolladdon.base.entity.BaseDollEntity;
-import net.minecraft.sound.SoundEvents;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.ItemUsageContext;
 import net.minecraft.sound.SoundCategory;
+import net.minecraft.sound.SoundEvents;
+import net.minecraft.util.ActionResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.context.UseOnContext;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.gameevent.GameEvent;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.World;
+import net.minecraft.world.event.GameEvent;
 
 /**
  * 玩偶物品基类
@@ -32,56 +32,56 @@ public abstract class BaseDollItem extends Item {
      * @param z Z坐标
      * @return 玩偶实体
      */
-    protected abstract BaseDollEntity createDollEntity(Level level, double x, double y, double z);
+    protected abstract BaseDollEntity createDollEntity(World world, double x, double y, double z);
     
     @Override
-    public InteractionResult useOn(UseOnContext context) {
-        Level level = context.getLevel();
-        Player player = context.getPlayer();
-        ItemStack stack = context.getItemInHand();
-        BlockPos clickedPos = context.getClickedPos();
-        Direction clickedFace = context.getClickedFace();
+    public ActionResult useOnBlock(ItemUsageContext context) {
+        World world = context.getWorld();
+        PlayerEntity player = context.getPlayer();
+        ItemStack stack = context.getStack();
+        BlockPos clickedPos = context.getBlockPos();
+        Direction clickedFace = context.getSide();
         
         if (player == null) {
-            return InteractionResult.FAIL;
+            return ActionResult.FAIL;
         }
         
         // 计算生成位置
-        BlockPos spawnPos = clickedPos.relative(clickedFace);
-        Vec3 spawnLocation = Vec3.atBottomCenterOf(spawnPos);
+        BlockPos spawnPos = clickedPos.offset(clickedFace);
+        Vec3d spawnLocation = Vec3d.ofBottomCenter(spawnPos);
         
         // 创建玩偶实体（由子类实现）
-        BaseDollEntity dollEntity = createDollEntity(level, spawnLocation.x, spawnLocation.y, spawnLocation.z);
+        BaseDollEntity dollEntity = createDollEntity(world, spawnLocation.x, spawnLocation.y, spawnLocation.z);
         
-        dollEntity.setYRot(player.getYRot() - 180); // 设置朝向
+        dollEntity.setYaw(player.getYaw() - 180); // 设置朝向
         
         // 如果物品有NBT标签，恢复实体的状态（包括姿态）
         // 从NBT标签读取
-        net.minecraft.nbt.CompoundTag itemTag = stack.getTag();
+        net.minecraft.nbt.NbtCompound itemTag = stack.getNbt();
         if (itemTag != null && itemTag.contains("EntityData")) {
-            net.minecraft.nbt.CompoundTag entityTag = itemTag.getCompound("EntityData");
+            net.minecraft.nbt.NbtCompound entityTag = itemTag.getCompound("EntityData");
             dollEntity.restoreFromNBT(entityTag);
         }
         
         // 检查是否可以生成
-        if (!level.noCollision(dollEntity, dollEntity.getBoundingBox())) {
-            return InteractionResult.FAIL;
+        if (!world.isSpaceEmpty(dollEntity, dollEntity.getBoundingBox())) {
+            return ActionResult.FAIL;
         }
         
         // 生成实体
-        if (!level.isClientSide) {
-            level.addFreshEntity(dollEntity);
-            level.playSound(null, dollEntity.getX(), dollEntity.getY(), dollEntity.getZ(),
+        if (!world.isClient) {
+            world.spawnEntity(dollEntity);
+            world.playSound(null, dollEntity.getX(), dollEntity.getY(), dollEntity.getZ(),
                     SoundEvents.ENTITY_ARMOR_STAND_PLACE, SoundCategory.PLAYERS, 0.75F, 0.8F);
-            level.gameEvent(player, GameEvent.ENTITY_PLACE, dollEntity.position());
+            world.emitGameEvent(player, GameEvent.ENTITY_PLACE, dollEntity.getPos());
         }
         
         // 消耗物品（创造模式不消耗）
-        if (!player.getAbilities().instabuild) {
-            stack.shrink(1);
+        if (!player.getAbilities().creativeMode) {
+            stack.decrement(1);
         }
         
-        return level.isClientSide ? InteractionResult.SUCCESS : InteractionResult.CONSUME;
+        return world.isClient ? ActionResult.SUCCESS : ActionResult.CONSUME;
     }
 }
 
