@@ -88,15 +88,27 @@ public class PlayerDollAddon implements ModInitializer {
         // 先清理旧的动态模型文件（保留 alex_doll.json 和 steve_doll.json）
         com.lanye.dolladdon.util.DynamicModelGenerator.cleanupOldModelFiles();
         
+        // 先清理旧的占位符纹理文件
+        com.lanye.dolladdon.util.DynamicTextureGenerator.cleanupOldPlaceholderTextures();
+        
         // 扫描目录
         var dollInfos = DynamicDollLoader.scanDirectory(PNG_DIR);
         
         // 批量生成所有动态玩偶的模型文件（所有动态玩偶都使用相同的模型内容）
         java.util.List<String> registryNames = new java.util.ArrayList<>();
+        // 批量生成所有动态纹理的占位符文件
+        java.util.List<String> textureHashes = new java.util.ArrayList<>();
         for (var dollInfo : dollInfos) {
             registryNames.add(dollInfo.getFileName());
+            // 从Identifier中提取纹理哈希值（去掉"textures/entity/"前缀）
+            String texturePath = dollInfo.getTextureLocation().getPath();
+            if (texturePath.startsWith("textures/entity/")) {
+                String textureHash = texturePath.substring("textures/entity/".length());
+                textureHashes.add(textureHash);
+            }
         }
         com.lanye.dolladdon.util.DynamicModelGenerator.generateAllItemModels(registryNames);
+        com.lanye.dolladdon.util.DynamicTextureGenerator.generateAllPlaceholderTextures(textureHashes);
         
         // 注册每个玩偶
         int successCount = 0;
