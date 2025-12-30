@@ -374,16 +374,21 @@ public abstract class BaseDollEntity extends Entity {
     @Override
     public ActionResult interact(PlayerEntity player, Hand hand) {
         boolean isSneaking = player.isSneaking();
+        String playerName = player.getName().getString();
         
-        ModuleLogger.debug(LOG_MODULE_INTERACT, "玩家交互: 潜行={}, 客户端={}", isSneaking, this.getWorld().isClient);
+        ModuleLogger.info(LOG_MODULE_INTERACT, "玩家右键交互: 玩家={}, 潜行={}, 客户端={}, 当前姿态={}", 
+            playerName, isSneaking, this.getWorld().isClient, 
+            getCurrentPose() != null ? getCurrentPose().getName() : "null");
         
         if (!this.getWorld().isClient) {
             // 如果玩家潜行，则破坏实体并掉落物品
             if (isSneaking) {
-                ModuleLogger.debug(LOG_MODULE_INTERACT, "玩家潜行右键，破坏实体");
+                ModuleLogger.info(LOG_MODULE_INTERACT, "玩家 {} 潜行右键，破坏实体", playerName);
                 return handleBreakAndDrop(player);
             } else {
                 // 循环切换到下一个姿态
+                ModuleLogger.debug(LOG_MODULE_INTERACT, "玩家 {} 右键切换姿态 (当前索引: {})", 
+                    playerName, currentPoseIndex);
                 cycleToNextPose(player);
                 
                 // 播放交互音效
@@ -491,7 +496,7 @@ public abstract class BaseDollEntity extends Entity {
         List<String> poseNames = getAvailablePoseNames();
         
         if (poseNames.isEmpty()) {
-            ModuleLogger.warn(LOG_MODULE_POSE, "没有可用的姿态");
+            ModuleLogger.warn(LOG_MODULE_POSE, "右键切换姿态: 没有可用的姿态");
             if (player != null) {
                 // 显示在动作栏（物品栏上方）
                 player.sendMessage(Text.literal("没有可用的姿态"), true);
@@ -503,18 +508,25 @@ public abstract class BaseDollEntity extends Entity {
         stopAction();
         
         int oldIndex = currentPoseIndex;
+        String oldPoseName = oldIndex >= 0 && oldIndex < poseNames.size() ? poseNames.get(oldIndex) : "默认";
+        DollPose oldPose = getCurrentPose();
+        String oldDisplayName = oldPose != null && oldPose.getDisplayName() != null ? oldPose.getDisplayName() : oldPoseName;
         
         // 如果当前索引无效（-1表示默认standing状态），先设置为0（standing）
         if (currentPoseIndex < 0) {
             currentPoseIndex = 0;
+            ModuleLogger.debug(LOG_MODULE_POSE, "右键切换姿态: 从默认状态(-1)切换到索引0");
         } else if (currentPoseIndex >= poseNames.size()) {
             // 索引超出范围，重置为0（standing姿态）
+            ModuleLogger.warn(LOG_MODULE_POSE, "右键切换姿态: 索引超出范围 ({} >= {})，重置为0", 
+                currentPoseIndex, poseNames.size());
             currentPoseIndex = 0;
         } else {
             // 切换到下一个姿态
             currentPoseIndex++;
             if (currentPoseIndex >= poseNames.size()) {
                 // 循环回到第一个（standing）
+                ModuleLogger.debug(LOG_MODULE_POSE, "右键切换姿态: 循环回到第一个姿态 (索引 {} -> 0)", oldIndex);
                 currentPoseIndex = 0;
             }
         }
@@ -535,19 +547,21 @@ public abstract class BaseDollEntity extends Entity {
                 this.dataTracker.set(DATA_POSE_INDEX, indexToSync);
             }
             
-            // 记录日志
-            ModuleLogger.debug(LOG_MODULE_POSE, "姿态切换: {} -> {} (索引: {} -> {})", 
-                oldIndex >= 0 && oldIndex < poseNames.size() ? poseNames.get(oldIndex) : "默认",
-                poseName, oldIndex, currentPoseIndex);
+            String newDisplayName = pose.getDisplayName() != null ? pose.getDisplayName() : poseName;
+            
+            // 记录详细日志
+            ModuleLogger.info(LOG_MODULE_POSE, "右键切换姿态成功: {} -> {} (索引: {} -> {}, 显示名称: {} -> {})", 
+                oldPoseName, poseName, oldIndex, currentPoseIndex, oldDisplayName, newDisplayName);
+            ModuleLogger.debug(LOG_MODULE_POSE, "姿态切换详情: 总姿态数={}, 当前进度={}/{}", 
+                poseNames.size(), currentPoseIndex + 1, poseNames.size());
             
             // 发送消息给玩家（优先使用中文名称，显示在动作栏）
             if (player != null) {
-                String displayName = pose.getDisplayName();
-                player.sendMessage(Text.literal("切换到姿态: " + displayName + " (" + (currentPoseIndex + 1) + "/" + poseNames.size() + ")"), true);
+                player.sendMessage(Text.literal("切换到姿态: " + newDisplayName + " (" + (currentPoseIndex + 1) + "/" + poseNames.size() + ")"), true);
             }
         } else {
             // 如果找不到姿态，使用standing姿态
-            ModuleLogger.warn(LOG_MODULE_POSE, "找不到姿态: {}，使用默认standing姿态", poseName);
+            ModuleLogger.warn(LOG_MODULE_POSE, "右键切换姿态失败: 找不到姿态 '{}'，使用默认standing姿态", poseName);
             DollPose standingPose = PoseActionManager.getPose("standing");
             if (standingPose != null) {
                 setPose(standingPose);

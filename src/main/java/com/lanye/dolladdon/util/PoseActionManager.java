@@ -18,6 +18,10 @@ import java.util.Map;
 public class PoseActionManager {
     private static final Logger LOGGER = PlayerDollAddon.LOGGER;
     
+    // 模块化日志：模块名称
+    private static final String LOG_MODULE_POSE_LOADER = "pose.loader";
+    private static final String LOG_MODULE_ACTION_LOADER = "action.loader";
+    
     private static final Map<String, DollPose> poses = new HashMap<>();
     private static final Map<String, DollAction> actions = new HashMap<>();
     
@@ -26,17 +30,45 @@ public class PoseActionManager {
      * 应该在游戏启动时或资源重载时调用（如执行 /reload 命令）
      */
     public static void loadResources(ResourceManager resourceManager) {
+        LOGGER.info("开始加载姿态和动作资源...");
+        
         // 加载所有姿态（从资源包和文件系统）
         Map<String, DollPose> loadedPoses = PoseLoader.loadAllPoses(resourceManager);
         
+        int oldPoseCount = poses.size();
         poses.clear();
         poses.putAll(loadedPoses);
+        
+        ModuleLogger.info(LOG_MODULE_POSE_LOADER, "姿态加载完成: 共加载 {} 个姿态 (之前: {}, 新增: {})", 
+            loadedPoses.size(), oldPoseCount, loadedPoses.size());
+        
+        // 记录每个加载的姿态
+        for (Map.Entry<String, DollPose> entry : loadedPoses.entrySet()) {
+            String poseName = entry.getKey();
+            DollPose pose = entry.getValue();
+            String displayName = pose.getDisplayName() != null ? pose.getDisplayName() : poseName;
+            ModuleLogger.debug(LOG_MODULE_POSE_LOADER, "注册姿态: {} (显示名称: {})", poseName, displayName);
+        }
         
         // 加载所有动作
         Map<String, DollAction> loadedActions = ActionLoader.loadAllActions(resourceManager);
         
+        int oldActionCount = actions.size();
         actions.clear();
         actions.putAll(loadedActions);
+        
+        ModuleLogger.info(LOG_MODULE_ACTION_LOADER, "动作加载完成: 共加载 {} 个动作 (之前: {}, 新增: {})", 
+            loadedActions.size(), oldActionCount, loadedActions.size());
+        
+        // 记录每个加载的动作
+        for (Map.Entry<String, DollAction> entry : loadedActions.entrySet()) {
+            String actionName = entry.getKey();
+            DollAction action = entry.getValue();
+            ModuleLogger.debug(LOG_MODULE_ACTION_LOADER, "注册动作: {} (循环: {}, 时长: {} ticks)", 
+                actionName, action.isLooping(), action.getDuration());
+        }
+        
+        LOGGER.info("姿态和动作资源加载完成: {} 个姿态, {} 个动作", loadedPoses.size(), loadedActions.size());
     }
     
     /**
@@ -79,7 +111,14 @@ public class PoseActionManager {
      * @param pose 姿态对象
      */
     public static void registerPose(String name, DollPose pose) {
+        boolean isNew = !poses.containsKey(name);
         poses.put(name, pose);
+        String displayName = pose.getDisplayName() != null ? pose.getDisplayName() : name;
+        if (isNew) {
+            ModuleLogger.info(LOG_MODULE_POSE_LOADER, "注册新姿态: {} (显示名称: {})", name, displayName);
+        } else {
+            ModuleLogger.debug(LOG_MODULE_POSE_LOADER, "覆盖已存在姿态: {} (显示名称: {})", name, displayName);
+        }
     }
     
     /**
@@ -88,7 +127,15 @@ public class PoseActionManager {
      * @param action 动作对象
      */
     public static void registerAction(String name, DollAction action) {
+        boolean isNew = !actions.containsKey(name);
         actions.put(name, action);
+        if (isNew) {
+            ModuleLogger.info(LOG_MODULE_ACTION_LOADER, "注册新动作: {} (循环: {}, 时长: {} ticks)", 
+                name, action.isLooping(), action.getDuration());
+        } else {
+            ModuleLogger.debug(LOG_MODULE_ACTION_LOADER, "覆盖已存在动作: {} (循环: {}, 时长: {} ticks)", 
+                name, action.isLooping(), action.getDuration());
+        }
     }
     
     /**
@@ -110,7 +157,14 @@ public class PoseActionManager {
             
             // 更新姿态映射（保留资源包中的姿态，但用文件系统中的姿态覆盖同名姿态）
             for (Map.Entry<String, DollPose> entry : fileSystemPoses.entrySet()) {
-                poses.put(entry.getKey(), entry.getValue());
+                String poseName = entry.getKey();
+                boolean isNew = !poses.containsKey(poseName);
+                poses.put(poseName, entry.getValue());
+                if (isNew) {
+                    ModuleLogger.debug(LOG_MODULE_POSE_LOADER, "从文件系统动态加载新姿态: {}", poseName);
+                } else {
+                    ModuleLogger.debug(LOG_MODULE_POSE_LOADER, "从文件系统动态覆盖姿态: {}", poseName);
+                }
             }
         } catch (Exception e) {
             LOGGER.error("从文件系统重新加载姿态失败", e);

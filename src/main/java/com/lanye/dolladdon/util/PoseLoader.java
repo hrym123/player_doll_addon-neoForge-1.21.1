@@ -30,6 +30,9 @@ public class PoseLoader {
     private static final Logger LOGGER = PlayerDollAddon.LOGGER;
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     
+    // 模块化日志：模块名称
+    private static final String LOG_MODULE_POSE_LOADER = "pose.loader";
+    
     /**
      * 从资源文件加载姿态
      * 资源文件路径格式：player_doll_addon:poses/{name}.json
@@ -77,6 +80,7 @@ public class PoseLoader {
         try {
             Optional<Resource> resourceOpt = resourceManager.getResource(location);
             if (resourceOpt.isEmpty()) {
+                ModuleLogger.debug(LOG_MODULE_POSE_LOADER, "姿态文件不存在: {}", location);
                 return null;
             }
             
@@ -85,10 +89,15 @@ public class PoseLoader {
                  InputStreamReader reader = new InputStreamReader(inputStream, StandardCharsets.UTF_8)) {
                 
                 JsonObject json = GSON.fromJson(reader, JsonObject.class);
-                return parsePose(json);
+                DollPose pose = parsePose(json);
+                if (pose != null) {
+                    String displayName = pose.getDisplayName() != null ? pose.getDisplayName() : name;
+                    ModuleLogger.debug(LOG_MODULE_POSE_LOADER, "从资源包加载姿态: {} (显示名称: {})", name, displayName);
+                }
+                return pose;
             }
         } catch (Exception e) {
-            LOGGER.error("加载姿态文件失败: {}", location, e);
+            ModuleLogger.error(LOG_MODULE_POSE_LOADER, "加载姿态文件失败: {}", location, e);
             return null;
         }
     }
@@ -200,10 +209,16 @@ public class PoseLoader {
             try (InputStreamReader reader = new InputStreamReader(
                     Files.newInputStream(poseFile), StandardCharsets.UTF_8)) {
                 JsonObject json = GSON.fromJson(reader, JsonObject.class);
-                return parsePose(json);
+                DollPose pose = parsePose(json);
+                if (pose != null) {
+                    String displayName = pose.getDisplayName() != null ? pose.getDisplayName() : pose.getName();
+                    ModuleLogger.debug(LOG_MODULE_POSE_LOADER, "从文件系统加载姿态: {} (显示名称: {})", 
+                        poseFile.getFileName(), displayName);
+                }
+                return pose;
             }
         } catch (Exception e) {
-            LOGGER.error("从文件系统加载姿态文件失败: {}", poseFile, e);
+            ModuleLogger.error(LOG_MODULE_POSE_LOADER, "从文件系统加载姿态文件失败: {}", poseFile, e);
             return null;
         }
     }
@@ -235,10 +250,13 @@ public class PoseLoader {
                             DollPose pose = parsePose(json);
                             if (pose != null) {
                                 poses.put(name, pose);
+                                String displayName = pose.getDisplayName() != null ? pose.getDisplayName() : name;
+                                ModuleLogger.debug(LOG_MODULE_POSE_LOADER, "从文件系统扫描并加载姿态: {} (显示名称: {})", 
+                                    name, displayName);
                             }
                         }
                     } catch (Exception e) {
-                        LOGGER.error("从文件系统加载姿态文件失败: {}", poseFile, e);
+                        ModuleLogger.error(LOG_MODULE_POSE_LOADER, "从文件系统加载姿态文件失败: {}", poseFile, e);
                     }
                 });
         } catch (Exception e) {
@@ -255,8 +273,11 @@ public class PoseLoader {
         Map<String, DollPose> poses = new HashMap<>();
         
         // 首先从 ResourceManager 加载（资源包中的姿态）
+        int resourcePackCount = 0;
         try {
             var resources = resourceManager.findResources("poses", path -> path.getPath().endsWith(".json"));
+            
+            ModuleLogger.debug(LOG_MODULE_POSE_LOADER, "开始从资源包扫描姿态文件，找到 {} 个文件", resources.size());
             
             for (var entry : resources.entrySet()) {
                 Identifier location = entry.getKey();
@@ -271,17 +292,23 @@ public class PoseLoader {
                         DollPose pose = parsePose(json);
                         if (pose != null) {
                             poses.put(name, pose);
+                            resourcePackCount++;
+                            String displayName = pose.getDisplayName() != null ? pose.getDisplayName() : name;
+                            ModuleLogger.debug(LOG_MODULE_POSE_LOADER, "从资源包加载姿态: {} (显示名称: {})", name, displayName);
                         }
                     }
                 } catch (Exception e) {
-                    LOGGER.error("加载姿态文件失败: {}", location, e);
+                    ModuleLogger.error(LOG_MODULE_POSE_LOADER, "加载姿态文件失败: {}", location, e);
                 }
             }
+            
+            ModuleLogger.info(LOG_MODULE_POSE_LOADER, "从资源包加载完成: {} 个姿态", resourcePackCount);
         } catch (Exception e) {
-            LOGGER.error("扫描姿态资源失败", e);
+            ModuleLogger.error(LOG_MODULE_POSE_LOADER, "扫描姿态资源失败", e);
         }
         
         // 然后从文件系统加载（文件系统中的姿态会覆盖资源包中的同名姿态）
+        int fileSystemCount = 0;
         try {
             Path gameDir;
             try {
@@ -292,11 +319,32 @@ public class PoseLoader {
             }
             
             Path posesDir = gameDir.resolve(PlayerDollAddon.POSES_DIR);
+            ModuleLogger.debug(LOG_MODULE_POSE_LOADER, "开始从文件系统扫描姿态文件: {}", posesDir);
+            
             Map<String, DollPose> fileSystemPoses = loadPosesFromFileSystem(posesDir);
+            fileSystemCount = fileSystemPoses.size();
+            
+            // 检查是否有覆盖
+            int overrideCount = 0;
+            for (String name : fileSystemPoses.keySet()) {
+                if (poses.containsKey(name)) {
+                    overrideCount++;
+                    ModuleLogger.debug(LOG_MODULE_POSE_LOADER, "文件系统姿态覆盖资源包姿态: {}", name);
+                }
+            }
+            
             poses.putAll(fileSystemPoses); // 文件系统的姿态会覆盖资源包中的同名姿态
+            
+            if (fileSystemCount > 0) {
+                ModuleLogger.info(LOG_MODULE_POSE_LOADER, "从文件系统加载完成: {} 个姿态 (覆盖: {} 个)", 
+                    fileSystemCount, overrideCount);
+            }
         } catch (Exception e) {
-            LOGGER.error("从文件系统加载姿态失败", e);
+            ModuleLogger.error(LOG_MODULE_POSE_LOADER, "从文件系统加载姿态失败", e);
         }
+        
+        ModuleLogger.info(LOG_MODULE_POSE_LOADER, "姿态加载总计: {} 个 (资源包: {}, 文件系统: {})", 
+            poses.size(), resourcePackCount, fileSystemCount);
         
         return poses;
     }
