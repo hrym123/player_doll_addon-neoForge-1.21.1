@@ -34,8 +34,6 @@ public class ResourceInjector {
             
             // 注入语言文件
             injectLanguageFiles(resourceManager);
-            
-            LOGGER.info("动态资源注入完成");
         } catch (Exception e) {
             LOGGER.error("注入动态资源时出错", e);
         }
@@ -60,7 +58,6 @@ public class ResourceInjector {
                 
                 // 使用反射注入资源（这需要访问内部 API，可能不稳定）
                 // 更好的方法是使用 ResourcePackProvider
-                LOGGER.debug("准备注入物品模型: {}", modelId);
             }
         } catch (Exception e) {
             LOGGER.error("注入物品模型时出错", e);
@@ -73,8 +70,6 @@ public class ResourceInjector {
     private static void injectLanguageFiles(ResourceManager resourceManager) {
         try {
             // 语言文件注入也需要使用 ResourcePackProvider
-            // 这里只是记录日志
-            LOGGER.debug("准备注入语言文件");
         } catch (Exception e) {
             LOGGER.error("注入语言文件时出错", e);
         }

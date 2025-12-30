@@ -39,10 +39,7 @@ public class ExternalTextureLoader {
             
             // 存储纹理路径（实际加载将在需要时进行）
             LOADED_TEXTURES.put(textureId, filePath);
-            LOGGER.debug("准备加载外部纹理: {} -> {}", textureId, filePath);
         }
-        
-        LOGGER.info("准备加载 {} 个外部纹理", LOADED_TEXTURES.size());
     }
     
     /**
@@ -77,7 +74,6 @@ public class ExternalTextureLoader {
             // 注册到纹理管理器
             textureManager.registerTexture(textureId, texture);
             
-            LOGGER.debug("成功加载外部纹理: {}", textureId);
             return true;
         } catch (IOException e) {
             LOGGER.error("加载外部纹理失败: {} -> {}", textureId, filePath, e);

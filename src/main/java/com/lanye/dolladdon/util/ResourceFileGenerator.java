@@ -25,8 +25,6 @@ public class ResourceFileGenerator {
      * 生成到 Mod 的资源目录，这样会自动加载
      */
     public static void generateItemModels() {
-        LOGGER.info("[资源生成] 开始生成物品模型文件...");
-        
         try {
             // 获取项目根目录（getGameDir() 返回 run 目录，其父目录就是项目根目录）
             Path gameDir = FabricLoader.getInstance().getGameDir();
@@ -40,18 +38,12 @@ public class ResourceFileGenerator {
             Path runResourcesDir = gameDir.resolve("resources");
             Path runModelsDir = runResourcesDir.resolve("assets/player_doll_addon/models/item");
             
-            LOGGER.info("[资源生成] 构建资源目录: {}", buildModelsDir);
-            LOGGER.info("[资源生成] 运行时资源目录: {}", runModelsDir);
-            
             // 创建两个目录
             Files.createDirectories(buildModelsDir);
             Files.createDirectories(runModelsDir);
-            LOGGER.info("[资源生成] ✓ 创建模型目录成功");
             
             List<PngTextureScanner.PngTextureInfo> pngFiles = PngTextureScanner.scanPngFiles();
-            LOGGER.info("[资源生成] 扫描到 {} 个 PNG 文件，准备生成模型", pngFiles.size());
             
-            int successCount = 0;
             for (PngTextureScanner.PngTextureInfo pngInfo : pngFiles) {
                 try {
                     String registryName = pngInfo.getRegistryName();
@@ -68,19 +60,13 @@ public class ResourceFileGenerator {
                     Files.writeString(runModelFile, modelJson, StandardCharsets.UTF_8);
                     
                     // 验证文件是否生成成功
-                    if (Files.exists(buildModelFile) && Files.exists(runModelFile)) {
-                        successCount++;
-                        LOGGER.debug("[资源生成] ✓ 生成物品模型: {} -> {} 和 {}", itemId, buildModelFile, runModelFile);
-                    } else {
+                    if (!Files.exists(buildModelFile) || !Files.exists(runModelFile)) {
                         LOGGER.error("[资源生成] ✗ 模型文件生成失败: build={}, run={}", buildModelFile, runModelFile);
                     }
                 } catch (Exception e) {
                     LOGGER.error("[资源生成] ✗ 生成模型文件时出错: {}", pngInfo.getRegistryName(), e);
                 }
             }
-            
-            LOGGER.info("[资源生成] 物品模型生成完成: 成功={}/{}, 构建目录={}, 运行时目录={}", 
-                    successCount, pngFiles.size(), buildModelsDir, runModelsDir);
         } catch (IOException e) {
             LOGGER.error("[资源生成] ✗ 生成物品模型文件时出错", e);
         }
@@ -117,8 +103,6 @@ public class ResourceFileGenerator {
      * 生成到 Mod 的资源目录，这样会自动加载
      */
     public static void updateLanguageFiles() {
-        LOGGER.info("[资源生成] 开始生成语言文件...");
-        
         try {
             // 获取项目根目录（getGameDir() 返回 run 目录，其父目录就是项目根目录）
             Path gameDir = FabricLoader.getInstance().getGameDir();
@@ -132,13 +116,9 @@ public class ResourceFileGenerator {
             Path runResourcesDir = gameDir.resolve("resources");
             Path runLangDir = runResourcesDir.resolve("assets/player_doll_addon/lang");
             
-            LOGGER.info("[资源生成] 构建资源目录: {}", buildLangDir);
-            LOGGER.info("[资源生成] 运行时资源目录: {}", runLangDir);
-            
             // 创建两个目录
             Files.createDirectories(buildLangDir);
             Files.createDirectories(runLangDir);
-            LOGGER.info("[资源生成] ✓ 创建语言目录成功");
             
             List<PngTextureScanner.PngTextureInfo> pngFiles = PngTextureScanner.scanPngFiles();
             
@@ -159,10 +139,7 @@ public class ResourceFileGenerator {
             enUsEntries.put("entity.player_doll_addon.alex_doll", "Alex Doll");
             enUsEntries.put("itemGroup.player_doll_addon.player_doll_tab", "Player Dolls");
             
-            LOGGER.info("[资源生成] 添加了 {} 个固定翻译条目", zhCnEntries.size());
-            
             // 为每个 PNG 文件生成翻译
-            int customEntryCount = 0;
             for (PngTextureScanner.PngTextureInfo pngInfo : pngFiles) {
                 try {
                     String registryName = pngInfo.getRegistryName();
@@ -181,15 +158,10 @@ public class ResourceFileGenerator {
                     
                     enUsEntries.put(itemKey, displayName + " Doll");
                     enUsEntries.put(entityKey, displayName + " Doll");
-                    
-                    customEntryCount++;
-                    LOGGER.debug("[资源生成] 添加翻译: {} -> {}", itemKey, displayName + "玩偶");
                 } catch (Exception e) {
                     LOGGER.error("[资源生成] ✗ 生成翻译条目时出错: {}", pngInfo.getRegistryName(), e);
                 }
             }
-            
-            LOGGER.info("[资源生成] 添加了 {} 个自定义翻译条目", customEntryCount);
             
             // 生成语言文件 JSON
             String zhCnJson = generateLanguageJson(zhCnEntries);
@@ -210,24 +182,13 @@ public class ResourceFileGenerator {
             Files.writeString(runEnUsFile, enUsJson, StandardCharsets.UTF_8);
             
             // 验证文件是否生成成功
-            if (Files.exists(buildZhCnFile) && Files.exists(runZhCnFile)) {
-                long buildFileSize = Files.size(buildZhCnFile);
-                LOGGER.info("[资源生成] ✓ 生成中文语言文件: 构建目录={} ({} 个条目, {} 字节), 运行时目录={}", 
-                        buildZhCnFile, zhCnEntries.size(), buildFileSize, runZhCnFile);
-            } else {
+            if (!Files.exists(buildZhCnFile) || !Files.exists(runZhCnFile)) {
                 LOGGER.error("[资源生成] ✗ 中文语言文件生成失败: build={}, run={}", buildZhCnFile, runZhCnFile);
             }
             
-            if (Files.exists(buildEnUsFile) && Files.exists(runEnUsFile)) {
-                long buildFileSize = Files.size(buildEnUsFile);
-                LOGGER.info("[资源生成] ✓ 生成英文语言文件: 构建目录={} ({} 个条目, {} 字节), 运行时目录={}", 
-                        buildEnUsFile, enUsEntries.size(), buildFileSize, runEnUsFile);
-            } else {
+            if (!Files.exists(buildEnUsFile) || !Files.exists(runEnUsFile)) {
                 LOGGER.error("[资源生成] ✗ 英文语言文件生成失败: build={}, run={}", buildEnUsFile, runEnUsFile);
             }
-            
-            LOGGER.info("[资源生成] 语言文件生成完成: 中文={} 条目, 英文={} 条目", 
-                    zhCnEntries.size(), enUsEntries.size());
         } catch (IOException e) {
             LOGGER.error("[资源生成] ✗ 生成语言文件时出错", e);
         }

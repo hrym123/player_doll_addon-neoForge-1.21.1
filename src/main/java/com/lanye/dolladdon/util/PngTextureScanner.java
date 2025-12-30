@@ -32,8 +32,6 @@ public class PngTextureScanner {
             Path gameDir = FabricLoader.getInstance().getGameDir();
             Path pngDir = gameDir.resolve(PNG_DIR);
             
-            LOGGER.info("[PNG扫描] 开始扫描 PNG 文件夹: {}", pngDir);
-            
             // 如果文件夹不存在，创建它
             if (!Files.exists(pngDir)) {
                 Files.createDirectories(pngDir);
@@ -47,11 +45,9 @@ public class PngTextureScanner {
             }
             
             // 扫描文件夹中的所有 PNG 文件
-            java.util.concurrent.atomic.AtomicInteger totalFiles = new java.util.concurrent.atomic.AtomicInteger(0);
             try (Stream<Path> paths = Files.walk(pngDir)) {
                 paths.filter(Files::isRegularFile)
                      .forEach(path -> {
-                         totalFiles.incrementAndGet();
                          String fileName = path.getFileName().toString();
                          String lowerFileName = fileName.toLowerCase();
                          
@@ -65,20 +61,15 @@ public class PngTextureScanner {
                                  
                                  if (!registryName.isEmpty()) {
                                      pngFiles.add(new PngTextureInfo(registryName, path, fileName));
-                                     LOGGER.info("[PNG扫描] ✓ 发现 PNG 文件: {} -> 注册名: {}", fileName, registryName);
                                  } else {
                                      LOGGER.warn("[PNG扫描] ✗ 跳过无效的 PNG 文件名: {} (无法生成有效的注册名称)", fileName);
                                  }
                              } catch (Exception e) {
                                  LOGGER.error("[PNG扫描] ✗ 处理 PNG 文件时出错: {}", path, e);
                              }
-                         } else {
-                             LOGGER.debug("[PNG扫描] 跳过非 PNG 文件: {}", fileName);
                          }
                      });
             }
-            
-            LOGGER.info("[PNG扫描] 扫描完成: 总文件数={}, PNG文件数={}", totalFiles.get(), pngFiles.size());
             
             if (pngFiles.isEmpty()) {
                 LOGGER.warn("[PNG扫描] 警告: 未找到任何 PNG 文件！请确保文件位于: {}", pngDir);

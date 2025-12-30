@@ -69,11 +69,7 @@ public class ModEntities {
             
             // 存储到映射表
             CUSTOM_TEXTURE_DOLL_ENTITIES.put(registryName, entityType);
-            
-            PlayerDollAddon.LOGGER.info("注册自定义纹理玩偶实体: {} -> {}", registryName, textureId);
         }
-        
-        PlayerDollAddon.LOGGER.info("共注册了 {} 个自定义纹理玩偶实体", CUSTOM_TEXTURE_DOLL_ENTITIES.size());
     }
     
     /**
