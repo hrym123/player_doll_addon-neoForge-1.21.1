@@ -70,7 +70,33 @@ public abstract class BaseDollItem extends Item {
         
         // 生成实体
         if (!world.isClient) {
+            // 记录生成前的信息
+            com.lanye.dolladdon.util.ModuleLogger.info("entity", 
+                "[实体生成] 准备生成实体: 位置=({}, {}, {}), 碰撞箱={}", 
+                String.format("%.2f", dollEntity.getX()), 
+                String.format("%.2f", dollEntity.getY()), 
+                String.format("%.2f", dollEntity.getZ()),
+                dollEntity.getBoundingBox());
+            
             world.spawnEntity(dollEntity);
+            
+            // 记录生成后的信息
+            com.lanye.dolladdon.util.ModuleLogger.info("entity", 
+                "[实体生成] 实体已生成: ID={}, 位置=({}, {}, {}), 碰撞箱={}, 玩家位置=({}, {}, {}), 距离={}", 
+                dollEntity.getId(),
+                String.format("%.2f", dollEntity.getX()), 
+                String.format("%.2f", dollEntity.getY()), 
+                String.format("%.2f", dollEntity.getZ()),
+                dollEntity.getBoundingBox(),
+                String.format("%.2f", player.getX()),
+                String.format("%.2f", player.getY()),
+                String.format("%.2f", player.getZ()),
+                String.format("%.2f", Math.sqrt(
+                    Math.pow(player.getX() - dollEntity.getX(), 2) + 
+                    Math.pow(player.getY() - dollEntity.getY(), 2) + 
+                    Math.pow(player.getZ() - dollEntity.getZ(), 2)
+                )));
+            
             world.playSound(null, dollEntity.getX(), dollEntity.getY(), dollEntity.getZ(),
                     SoundEvents.ENTITY_ARMOR_STAND_PLACE, SoundCategory.PLAYERS, 0.75F, 0.8F);
             world.emitGameEvent(player, GameEvent.ENTITY_PLACE, dollEntity.getPos());

@@ -95,6 +95,16 @@ public abstract class BaseDollEntity extends Entity {
     protected BaseDollEntity(EntityType<? extends BaseDollEntity> entityType, World world, double x, double y, double z) {
         this(entityType, world);
         this.setPosition(x, y, z);
+        // 位置设置后，更新碰撞箱
+        updateBoundingBox();
+        
+        // 记录位置设置后的信息
+        ModuleLogger.info(LOG_MODULE_ENTITY, 
+            "[实体位置设置] 类型={}, 设置位置=({}, {}, {}), 实际位置=({}, {}, {}), 碰撞箱={}", 
+            entityType.getTranslationKey(),
+            String.format("%.2f", x), String.format("%.2f", y), String.format("%.2f", z),
+            String.format("%.2f", this.getX()), String.format("%.2f", this.getY()), String.format("%.2f", this.getZ()),
+            this.getBoundingBox());
     }
     
     @Override
@@ -212,6 +222,14 @@ public abstract class BaseDollEntity extends Entity {
         // 定期记录实体状态（每 100 tick，约 5 秒一次）
         if (this.age % 100 == 0 && !this.getWorld().isClient) {
             double avgSideLength = this.getBoundingBox().getAverageSideLength();
+            // 检查位置是否异常（在原点且年龄较大）
+            boolean positionAbnormal = (this.getX() == 0 && this.getY() == 0 && this.getZ() == 0) && this.age > 20;
+            
+            if (positionAbnormal) {
+                ModuleLogger.warn(LOG_MODULE_ENTITY, 
+                    "[实体位置异常] 年龄={}, 位置仍在原点 (0, 0, 0)，可能导致无法交互！", this.age);
+            }
+            
             ModuleLogger.debug(LOG_MODULE_ENTITY, 
                 "[实体状态] 年龄={}, 位置=({}, {}, {}), 碰撞箱平均边长={}, 碰撞箱={}, noClip={}, 是否在地面={}, 速度=({}, {}, {})", 
                 this.age, 
@@ -403,6 +421,26 @@ public abstract class BaseDollEntity extends Entity {
         boolean result = true;
         ModuleLogger.debug(LOG_MODULE_ENTITY, "[isCollidable] 返回: {}", result);
         return result;
+    }
+    
+    /**
+     * 检查实体是否可以被射线击中（用于阻止射线穿透实体）
+     * 返回 true 表示射线会被实体阻挡，无法穿透
+     */
+    @Override
+    public boolean canHit() {
+        // 返回 true 阻止射线穿透实体，这样玩家就无法越过实体交互后面的方块
+        return true;
+    }
+    
+    /**
+     * 检查实体是否可以被玩家击中
+     * 返回 true 表示实体可以被玩家交互
+     */
+    @Override
+    public boolean isAttackable() {
+        // 返回 false 表示实体不能被攻击，但可以被交互
+        return false;
     }
     
     @Override
