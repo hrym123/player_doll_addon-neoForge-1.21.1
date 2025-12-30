@@ -3,6 +3,7 @@ package com.lanye.dolladdon.base.entity;
 import com.lanye.dolladdon.api.action.DollAction;
 import com.lanye.dolladdon.api.pose.DollPose;
 import com.lanye.dolladdon.api.pose.SimpleDollPose;
+import com.lanye.dolladdon.util.ModuleLogger;
 import com.lanye.dolladdon.util.PoseActionManager;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityDimensions;
@@ -31,8 +32,28 @@ import java.util.Map;
 /**
  * 玩偶实体基类
  * 提供所有玩偶实体的共同功能
+ * 
+ * <p>日志系统使用说明：</p>
+ * <ul>
+ *   <li>使用模块化日志系统，支持一键开关不同模块的日志</li>
+ *   <li>可以通过 {@link com.lanye.dolladdon.util.ModuleLogger#setModuleEnabled(String, boolean)} 控制单个模块</li>
+ *   <li>可以通过 {@link com.lanye.dolladdon.util.ModuleLogger#setGlobalEnabled(boolean)} 一键控制所有模块</li>
+ *   <li>示例：ModuleLogger.setModuleEnabled("entity.pose", false) 禁用姿态相关日志</li>
+ * </ul>
  */
 public abstract class BaseDollEntity extends Entity {
+    // 模块化日志：模块名称常量
+    // 可以通过 ModuleLogger.setModuleEnabled(模块名, false) 来禁用特定模块的日志
+    private static final String LOG_MODULE_ENTITY = "entity";           // 实体基础日志
+    private static final String LOG_MODULE_POSE = "entity.pose";      // 姿态相关日志
+    private static final String LOG_MODULE_ACTION = "entity.action";   // 动作相关日志
+    private static final String LOG_MODULE_INTERACT = "entity.interact"; // 交互相关日志
+    private static final String LOG_MODULE_NBT = "entity.nbt";          // NBT相关日志
+    
+    // 日志对象（通过ModuleLogger获取，支持模块化开关）
+    // 注意：直接使用 LOGGER 时不会受模块开关控制，建议使用 ModuleLogger.debug/info/warn/error 方法
+    private static final org.slf4j.Logger LOGGER = ModuleLogger.getLogger(LOG_MODULE_ENTITY);
+    
     private static final TrackedData<Byte> DATA_CLIENT_FLAGS = DataTracker.registerData(BaseDollEntity.class, TrackedDataHandlerRegistry.BYTE);
     // 同步姿态索引到客户端（使用Byte，支持0-255个姿态，足够使用）
     private static final TrackedData<Byte> DATA_POSE_INDEX = DataTracker.registerData(BaseDollEntity.class, TrackedDataHandlerRegistry.BYTE);
@@ -80,14 +101,19 @@ public abstract class BaseDollEntity extends Entity {
      * @param tag NBT标签
      */
     public void restoreFromNBT(NbtCompound tag) {
+        ModuleLogger.debug(LOG_MODULE_NBT, "从NBT恢复实体数据");
+        
         // 优先恢复动作（如果有）
         if (tag.contains("ActionName", 8)) { // 8 = TAG_STRING
             String actionName = tag.getString("ActionName");
             DollAction action = PoseActionManager.getAction(actionName);
             if (action != null) {
+                ModuleLogger.debug(LOG_MODULE_ACTION, "恢复动作: {}", actionName);
                 setAction(action);
                 // 动作已设置，不需要再设置姿态
                 return;
+            } else {
+                ModuleLogger.warn(LOG_MODULE_ACTION, "找不到动作: {}", actionName);
             }
         }
         
@@ -96,40 +122,47 @@ public abstract class BaseDollEntity extends Entity {
             String poseName = tag.getString("PoseName");
             DollPose pose = PoseActionManager.getPose(poseName);
             if (pose != null) {
+                ModuleLogger.debug(LOG_MODULE_POSE, "从NBT恢复姿态: {}", poseName);
                 setPose(pose);
                 // 更新currentPoseIndex（如果可能）
                 List<String> poseNames = getAvailablePoseNames();
                 int index = poseNames.indexOf(poseName);
                 if (index >= 0) {
-                    // 如果索引是0（standing），设置为-1表示默认状态
-                    this.currentPoseIndex = (index == 0) ? -1 : index;
-                    // 同步到客户端
-                    if (currentPoseIndex >= 0 && currentPoseIndex < 255) {
+                    // 索引0表示standing姿态
+                    this.currentPoseIndex = index;
+                    // 同步到客户端（索引0使用255表示默认状态，不保存到NBT）
+                    if (currentPoseIndex == 0) {
+                        this.dataTracker.set(DATA_POSE_INDEX, (byte) 255);
+                    } else if (currentPoseIndex < 255) {
                         this.dataTracker.set(DATA_POSE_INDEX, (byte) (currentPoseIndex & 0xFF));
                     } else {
                         this.dataTracker.set(DATA_POSE_INDEX, (byte) 255);
                     }
                 }
                 return;
+            } else {
+                ModuleLogger.warn(LOG_MODULE_POSE, "从NBT恢复姿态失败，找不到姿态: {}", poseName);
             }
         }
         
         // 如果没有姿态名称，尝试使用姿态索引（向后兼容）
         if (tag.contains("PoseIndex")) {
             int savedIndex = tag.getInt("PoseIndex");
-            // 如果索引是0（standing），设置为-1表示默认状态
-            this.currentPoseIndex = (savedIndex == 0) ? -1 : savedIndex;
+            // 索引0表示standing姿态
+            this.currentPoseIndex = savedIndex;
             // 加载时恢复姿态
             loadPoseByIndex();
-            // 同步到客户端
-            if (currentPoseIndex >= 0 && currentPoseIndex < 255) {
+            // 同步到客户端（索引0使用255表示默认状态，不保存到NBT）
+            if (currentPoseIndex == 0) {
+                this.dataTracker.set(DATA_POSE_INDEX, (byte) 255);
+            } else if (currentPoseIndex < 255) {
                 this.dataTracker.set(DATA_POSE_INDEX, (byte) (currentPoseIndex & 0xFF));
             } else {
                 this.dataTracker.set(DATA_POSE_INDEX, (byte) 255);
             }
         } else {
-            // NBT中没有姿态信息，使用默认standing姿态
-            this.currentPoseIndex = -1;
+            // NBT中没有姿态信息，使用默认standing姿态（索引0）
+            this.currentPoseIndex = 0;
             this.dataTracker.set(DATA_POSE_INDEX, (byte) 255);
             DollPose standingPose = PoseActionManager.getPose("standing");
             this.currentPose = standingPose != null ? standingPose : SimpleDollPose.createDefaultStandingPose();
@@ -175,9 +208,9 @@ public abstract class BaseDollEntity extends Entity {
                     // 姿态改变时更新碰撞箱
                     updateBoundingBox();
                 }
-            } else if (currentPoseIndex != -1) {
-                // 如果同步值为255，使用standing姿态
-                currentPoseIndex = -1;
+            } else if (currentPoseIndex != 0) {
+                // 如果同步值为255，使用standing姿态（索引0）
+                currentPoseIndex = 0;
                 DollPose standingPose = PoseActionManager.getPose("standing");
                 currentPose = standingPose != null ? standingPose : SimpleDollPose.createDefaultStandingPose();
                 // 姿态改变时更新碰撞箱
@@ -342,9 +375,12 @@ public abstract class BaseDollEntity extends Entity {
     public ActionResult interact(PlayerEntity player, Hand hand) {
         boolean isSneaking = player.isSneaking();
         
+        ModuleLogger.debug(LOG_MODULE_INTERACT, "玩家交互: 潜行={}, 客户端={}", isSneaking, this.getWorld().isClient);
+        
         if (!this.getWorld().isClient) {
             // 如果玩家潜行，则破坏实体并掉落物品
             if (isSneaking) {
+                ModuleLogger.debug(LOG_MODULE_INTERACT, "玩家潜行右键，破坏实体");
                 return handleBreakAndDrop(player);
             } else {
                 // 循环切换到下一个姿态
@@ -449,12 +485,13 @@ public abstract class BaseDollEntity extends Entity {
     
     /**
      * 循环切换到下一个姿态
-     * 当处于默认状态（standing）时，第一次切换会跳过standing，直接切换到下一个姿态
+     * 正常循环所有姿态，包括standing姿态
      */
     private void cycleToNextPose(PlayerEntity player) {
         List<String> poseNames = getAvailablePoseNames();
         
         if (poseNames.isEmpty()) {
+            ModuleLogger.warn(LOG_MODULE_POSE, "没有可用的姿态");
             if (player != null) {
                 // 显示在动作栏（物品栏上方）
                 player.sendMessage(Text.literal("没有可用的姿态"), true);
@@ -465,77 +502,63 @@ public abstract class BaseDollEntity extends Entity {
         // 停止当前动作
         stopAction();
         
-        // 如果当前索引无效（-1表示默认standing状态），需要特殊处理
+        int oldIndex = currentPoseIndex;
+        
+        // 如果当前索引无效（-1表示默认standing状态），先设置为0（standing）
         if (currentPoseIndex < 0) {
-            // 处于默认状态，跳过第一个（standing），直接跳到第二个
-            if (poseNames.size() > 1) {
-                currentPoseIndex = 1; // 跳过索引0（standing），直接到索引1
-            } else {
-                // 如果只有一个姿态（standing），则保持在默认状态
-                currentPoseIndex = -1;
-                // 设置为255表示使用默认姿态
-                this.dataTracker.set(DATA_POSE_INDEX, (byte) 255);
-                if (player != null) {
-                    player.sendMessage(Text.literal("只有standing姿态可用"), true);
-                }
-                return;
-            }
+            currentPoseIndex = 0;
         } else if (currentPoseIndex >= poseNames.size()) {
-            // 索引超出范围，重置为-1（standing姿态）
-            currentPoseIndex = -1;
+            // 索引超出范围，重置为0（standing姿态）
+            currentPoseIndex = 0;
         } else {
             // 切换到下一个姿态
             currentPoseIndex++;
             if (currentPoseIndex >= poseNames.size()) {
-                // 循环回到第一个（standing），设置为-1表示默认状态，不保存到NBT
-                currentPoseIndex = -1;
+                // 循环回到第一个（standing）
+                currentPoseIndex = 0;
             }
         }
         
-        // 如果循环回到standing姿态（索引为-1），设置为255表示默认姿态
-        if (currentPoseIndex < 0) {
-            this.dataTracker.set(DATA_POSE_INDEX, (byte) 255);
+        // 加载新姿态
+        String poseName = poseNames.get(currentPoseIndex);
+        DollPose pose = PoseActionManager.getPose(poseName);
+        
+        if (pose != null) {
+            setPose(pose);
+            
+            // 同步姿态索引到客户端
+            // 如果索引为0（standing），使用255表示默认状态（不保存到NBT）
+            if (currentPoseIndex == 0) {
+                this.dataTracker.set(DATA_POSE_INDEX, (byte) 255);
+            } else {
+                byte indexToSync = (byte) (currentPoseIndex & 0xFF);
+                this.dataTracker.set(DATA_POSE_INDEX, indexToSync);
+            }
+            
+            // 记录日志
+            ModuleLogger.debug(LOG_MODULE_POSE, "姿态切换: {} -> {} (索引: {} -> {})", 
+                oldIndex >= 0 && oldIndex < poseNames.size() ? poseNames.get(oldIndex) : "默认",
+                poseName, oldIndex, currentPoseIndex);
+            
+            // 发送消息给玩家（优先使用中文名称，显示在动作栏）
+            if (player != null) {
+                String displayName = pose.getDisplayName();
+                player.sendMessage(Text.literal("切换到姿态: " + displayName + " (" + (currentPoseIndex + 1) + "/" + poseNames.size() + ")"), true);
+            }
+        } else {
+            // 如果找不到姿态，使用standing姿态
+            ModuleLogger.warn(LOG_MODULE_POSE, "找不到姿态: {}，使用默认standing姿态", poseName);
             DollPose standingPose = PoseActionManager.getPose("standing");
             if (standingPose != null) {
                 setPose(standingPose);
             } else {
                 setPose(SimpleDollPose.createDefaultStandingPose());
             }
+            // 设置为255表示使用默认姿态
+            this.dataTracker.set(DATA_POSE_INDEX, (byte) 255);
+            currentPoseIndex = 0; // 设置为0而不是-1，以便下次能正常循环
             if (player != null) {
-                DollPose pose = getCurrentPose();
-                String displayName = pose != null ? pose.getDisplayName() : "站立";
-                player.sendMessage(Text.literal("切换到姿态: " + displayName), true);
-            }
-        } else {
-            // 同步姿态索引到客户端
-            byte indexToSync = (byte) (currentPoseIndex & 0xFF);
-            this.dataTracker.set(DATA_POSE_INDEX, indexToSync);
-            
-            // 加载新姿态
-            String poseName = poseNames.get(currentPoseIndex);
-            DollPose pose = PoseActionManager.getPose(poseName);
-            
-            if (pose != null) {
-                setPose(pose);
-                // 发送消息给玩家（优先使用中文名称，显示在动作栏）
-                if (player != null) {
-                    String displayName = pose.getDisplayName();
-                    player.sendMessage(Text.literal("切换到姿态: " + displayName + " (" + (currentPoseIndex + 1) + "/" + poseNames.size() + ")"), true);
-                }
-            } else {
-                // 如果找不到姿态，使用standing姿态
-                DollPose standingPose = PoseActionManager.getPose("standing");
-                if (standingPose != null) {
-                    setPose(standingPose);
-                } else {
-                    setPose(SimpleDollPose.createDefaultStandingPose());
-                }
-                // 设置为255表示使用默认姿态
-                this.dataTracker.set(DATA_POSE_INDEX, (byte) 255);
-                currentPoseIndex = -1;
-                if (player != null) {
-                    player.sendMessage(Text.literal("切换到standing姿态"), true);
-                }
+                player.sendMessage(Text.literal("切换到standing姿态"), true);
             }
         }
     }
@@ -577,12 +600,14 @@ public abstract class BaseDollEntity extends Entity {
      */
     public void setPose(DollPose pose) {
         if (pose != null) {
+            String oldPoseName = this.currentPose != null ? this.currentPose.getName() : "null";
             this.currentPose = pose;
             // 设置姿态时停止当前动作
             this.currentAction = null;
             this.actionTick = 0;
             // 姿态改变时更新碰撞箱
             updateBoundingBox();
+            ModuleLogger.debug(LOG_MODULE_POSE, "设置姿态: {} -> {}", oldPoseName, pose.getName());
         }
     }
     
@@ -599,8 +624,11 @@ public abstract class BaseDollEntity extends Entity {
      * @param action 要播放的动作
      */
     public void setAction(DollAction action) {
+        String oldActionName = this.currentAction != null ? this.currentAction.getName() : "null";
         this.currentAction = action;
         this.actionTick = 0;
+        ModuleLogger.debug(LOG_MODULE_ACTION, "设置动作: {} -> {}", oldActionName, 
+            action != null ? action.getName() : "null");
     }
     
     /**
