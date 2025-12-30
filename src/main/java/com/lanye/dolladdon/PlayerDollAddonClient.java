@@ -2,28 +2,37 @@ package com.lanye.dolladdon;
 
 import com.lanye.dolladdon.impl.render.AlexDollRenderer;
 import com.lanye.dolladdon.impl.render.AlexDollItemRenderer;
+import com.lanye.dolladdon.impl.render.CustomTextureDollItemRenderer;
+import com.lanye.dolladdon.impl.render.CustomTextureDollRenderer;
 import com.lanye.dolladdon.impl.render.SteveDollRenderer;
 import com.lanye.dolladdon.impl.render.SteveDollItemRenderer;
 import com.lanye.dolladdon.init.ModEntities;
 import com.lanye.dolladdon.init.ModItems;
+import com.lanye.dolladdon.util.ExternalTextureLoader;
+import com.lanye.dolladdon.util.PngTextureScanner;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.rendering.v1.BuiltinItemRendererRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry;
 import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
+import net.fabricmc.fabric.api.resource.ResourcePackActivationType;
 import net.fabricmc.fabric.api.resource.SimpleSynchronousResourceReloadListener;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.resource.ResourceManager;
 import net.minecraft.resource.ResourceType;
 import net.minecraft.util.Identifier;
 
 import java.nio.file.Path;
-import java.util.function.Consumer;
+import java.util.Map;
 
 public class PlayerDollAddonClient implements ClientModInitializer {
     
     @Override
     public void onInitializeClient() {
+        // 注册动态资源包
+        registerDynamicResourcePack();
+        
         // 注册实体渲染器
         registerEntityRenderers();
         
@@ -38,6 +47,28 @@ public class PlayerDollAddonClient implements ClientModInitializer {
     }
     
     /**
+     * 注册动态资源包
+     * 注意：在 Fabric 1.20.1 中，我们使用纹理加载器直接加载外部 PNG 文件
+     */
+    private void registerDynamicResourcePack() {
+        // 在客户端初始化时加载外部纹理
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client != null && client.getTextureManager() != null) {
+            // 加载外部纹理
+            ExternalTextureLoader.loadExternalTextures();
+            
+            // 将外部纹理注册到纹理管理器
+            Map<net.minecraft.util.Identifier, java.nio.file.Path> textures = 
+                    ExternalTextureLoader.getAllLoadedTextures();
+            for (net.minecraft.util.Identifier textureId : textures.keySet()) {
+                ExternalTextureLoader.loadTexture(textureId, client.getTextureManager());
+            }
+        }
+        
+        PlayerDollAddon.LOGGER.info("动态纹理加载器已初始化");
+    }
+    
+    /**
      * 注册实体渲染器
      */
     private void registerEntityRenderers() {
@@ -45,6 +76,15 @@ public class PlayerDollAddonClient implements ClientModInitializer {
         EntityRendererRegistry.register(ModEntities.STEVE_DOLL, SteveDollRenderer::new);
         // 注册艾利克斯玩偶实体渲染器（固定模型）
         EntityRendererRegistry.register(ModEntities.ALEX_DOLL, AlexDollRenderer::new);
+        
+        // 注册所有自定义纹理玩偶实体渲染器
+        Map<String, net.minecraft.entity.EntityType<com.lanye.dolladdon.impl.entity.CustomTextureDollEntity>> customEntities = 
+                ModEntities.getAllCustomTextureDollEntityTypes();
+        
+        for (Map.Entry<String, net.minecraft.entity.EntityType<com.lanye.dolladdon.impl.entity.CustomTextureDollEntity>> entry : customEntities.entrySet()) {
+            EntityRendererRegistry.register(entry.getValue(), CustomTextureDollRenderer::new);
+            PlayerDollAddon.LOGGER.debug("注册自定义纹理玩偶实体渲染器: {}", entry.getKey());
+        }
     }
     
     /**
@@ -64,6 +104,25 @@ public class PlayerDollAddonClient implements ClientModInitializer {
             ModItems.ALEX_DOLL,
             new AlexDollItemRenderer(client, null)
         );
+        
+        // 注册所有自定义纹理玩偶物品渲染器
+        Map<String, net.minecraft.item.Item> customItems = ModItems.getAllCustomTextureDollItems();
+        
+        for (Map.Entry<String, net.minecraft.item.Item> entry : customItems.entrySet()) {
+            String registryName = entry.getKey();
+            net.minecraft.item.Item item = entry.getValue();
+            
+            // 获取纹理标识符
+            Identifier textureId = new Identifier(PlayerDollAddon.MODID, "textures/entity/custom_doll/" + registryName);
+            
+            // 注册物品渲染器
+            BuiltinItemRendererRegistry.INSTANCE.register(
+                item,
+                new CustomTextureDollItemRenderer(client, textureId)
+            );
+            
+            PlayerDollAddon.LOGGER.debug("注册自定义纹理玩偶物品渲染器: {} -> {}", registryName, textureId);
+        }
     }
     
     /**
@@ -83,6 +142,20 @@ public class PlayerDollAddonClient implements ClientModInitializer {
                     try {
                         // 加载姿态和动作资源
                         com.lanye.dolladdon.util.PoseActionManager.loadResources(resourceManager);
+                        
+                        // 加载外部纹理
+                        ExternalTextureLoader.loadExternalTextures();
+                        
+                        // 将外部纹理注册到纹理管理器
+                        net.minecraft.client.texture.TextureManager textureManager = 
+                                MinecraftClient.getInstance().getTextureManager();
+                        if (textureManager != null) {
+                            Map<net.minecraft.util.Identifier, java.nio.file.Path> textures = 
+                                    ExternalTextureLoader.getAllLoadedTextures();
+                            for (net.minecraft.util.Identifier textureId : textures.keySet()) {
+                                ExternalTextureLoader.loadTexture(textureId, textureManager);
+                            }
+                        }
                     } catch (Exception e) {
                         PlayerDollAddon.LOGGER.error("资源重载过程中发生异常", e);
                     }
@@ -111,6 +184,19 @@ public class PlayerDollAddonClient implements ClientModInitializer {
                     MinecraftClient mcClient = MinecraftClient.getInstance();
                     if (mcClient != null && mcClient.getResourceManager() != null) {
                         com.lanye.dolladdon.util.PoseActionManager.loadResources(client.getResourceManager());
+                        
+                        // 加载外部纹理
+                        ExternalTextureLoader.loadExternalTextures();
+                        
+                        // 将外部纹理注册到纹理管理器
+                        net.minecraft.client.texture.TextureManager textureManager = mcClient.getTextureManager();
+                        if (textureManager != null) {
+                            Map<net.minecraft.util.Identifier, java.nio.file.Path> textures = 
+                                    ExternalTextureLoader.getAllLoadedTextures();
+                            for (net.minecraft.util.Identifier textureId : textures.keySet()) {
+                                ExternalTextureLoader.loadTexture(textureId, textureManager);
+                            }
+                        }
                     }
                 });
             });

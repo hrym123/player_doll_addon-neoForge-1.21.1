@@ -35,6 +35,12 @@ public class PlayerDollAddon implements ModInitializer {
                 
                 // 添加艾利克斯玩偶物品（固定模型：细手臂 + Alex默认皮肤）
                 entries.add(new ItemStack(ModItems.ALEX_DOLL));
+                
+                // 添加所有自定义纹理玩偶物品
+                java.util.Map<String, net.minecraft.item.Item> customItems = ModItems.getAllCustomTextureDollItems();
+                for (net.minecraft.item.Item item : customItems.values()) {
+                    entries.add(new ItemStack(item));
+                }
             })
             .build();
 

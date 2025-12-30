@@ -2,6 +2,7 @@ package com.lanye.dolladdon.impl.render;
 
 import com.lanye.dolladdon.base.render.BaseDollRenderer;
 import com.lanye.dolladdon.impl.entity.AlexDollEntity;
+import com.lanye.dolladdon.util.PlayerSkinUtil;
 import net.minecraft.client.render.entity.EntityRendererFactory;
 import net.minecraft.client.render.entity.model.EntityModelLayers;
 import net.minecraft.client.render.entity.model.PlayerEntityModel;
