@@ -69,6 +69,10 @@ public abstract class BaseDollEntity extends Entity {
     protected BaseDollEntity(EntityType<? extends BaseDollEntity> entityType, World world) {
         super(entityType, world);
         this.noClip = false; // 有物理碰撞
+        
+        // 确保实体可以被交互（设置碰撞箱）
+        // 注意：实体必须有碰撞箱才能被右键交互
+        
         // 默认使用standing姿态
         DollPose standingPose = PoseActionManager.getPose("standing");
         this.currentPose = standingPose != null ? standingPose : SimpleDollPose.createDefaultStandingPose();
@@ -76,8 +80,16 @@ public abstract class BaseDollEntity extends Entity {
         if (!world.isClient) {
             this.dataTracker.set(DATA_POSE_INDEX, (byte) 255);
         }
-        // 初始化碰撞箱
+        // 初始化碰撞箱（重要：实体必须有碰撞箱才能被交互）
         updateBoundingBox();
+        
+        // 记录实体初始化信息（使用info级别，确保能看到）
+        double avgSideLength = this.getBoundingBox().getAverageSideLength();
+        ModuleLogger.info(LOG_MODULE_ENTITY, 
+            "[实体初始化] 类型={}, 位置=({}, {}, {}), 碰撞箱平均边长={}, 碰撞箱={}, noClip={}, 世界={}", 
+            entityType.getTranslationKey(), 
+            String.format("%.2f", this.getX()), String.format("%.2f", this.getY()), String.format("%.2f", this.getZ()), 
+            String.format("%.3f", avgSideLength), this.getBoundingBox(), this.noClip, world.isClient ? "客户端" : "服务端");
     }
     
     protected BaseDollEntity(EntityType<? extends BaseDollEntity> entityType, World world, double x, double y, double z) {
@@ -197,6 +209,26 @@ public abstract class BaseDollEntity extends Entity {
     public void tick() {
         super.tick();
         
+        // 定期记录实体状态（每 100 tick，约 5 秒一次）
+        if (this.age % 100 == 0 && !this.getWorld().isClient) {
+            double avgSideLength = this.getBoundingBox().getAverageSideLength();
+            ModuleLogger.debug(LOG_MODULE_ENTITY, 
+                "[实体状态] 年龄={}, 位置=({}, {}, {}), 碰撞箱平均边长={}, 碰撞箱={}, noClip={}, 是否在地面={}, 速度=({}, {}, {})", 
+                this.age, 
+                String.format("%.2f", this.getX()), String.format("%.2f", this.getY()), String.format("%.2f", this.getZ()), 
+                String.format("%.3f", avgSideLength), this.getBoundingBox(), this.noClip, this.isOnGround(),
+                String.format("%.2f", this.getVelocity().x), String.format("%.2f", this.getVelocity().y), String.format("%.2f", this.getVelocity().z));
+        }
+        
+        // 确保碰撞箱始终存在（重要：实体必须有碰撞箱才能被交互）
+        double avgSideLength = this.getBoundingBox().getAverageSideLength();
+        if (avgSideLength < 0.01) {
+            ModuleLogger.warn(LOG_MODULE_ENTITY, "[碰撞箱警告] 检测到碰撞箱异常小 (平均边长={})，重新设置碰撞箱。位置=({}, {}, {})", 
+                String.format("%.3f", avgSideLength), 
+                String.format("%.2f", this.getX()), String.format("%.2f", this.getY()), String.format("%.2f", this.getZ()));
+            updateBoundingBox();
+        }
+        
         // 在客户端，根据同步的索引更新姿态
         if (this.getWorld().isClient) {
             byte syncedIndex = this.dataTracker.get(DATA_POSE_INDEX);
@@ -270,29 +302,14 @@ public abstract class BaseDollEntity extends Entity {
     }
     
     /**
-     * 重写getDimensions方法，根据当前姿态的scale动态返回尺寸
-     * 这样Minecraft会自动使用这个尺寸来计算碰撞箱，无需手动设置
+     * 重写getDimensions方法，返回固定尺寸
+     * 注意：使用固定尺寸确保碰撞箱稳定，实际碰撞箱通过updateBoundingBox()动态调整
      */
     @Override
     public EntityDimensions getDimensions(EntityPose pose) {
-        // 基础尺寸（与DollEntityFactory中的sized(0.6f, 1f)保持一致）
-        float baseWidth = 0.6f;
-        float baseHeight = 1.0f;
-        
-        // 获取当前姿态的scale
-        DollPose currentPose = getCurrentPose();
-        if (currentPose != null) {
-            float[] scale = currentPose.getScale();
-            // 应用scale到尺寸
-            double widthScale = Math.max(Math.abs(scale[0]), Math.abs(scale[2]));
-            double heightScale = Math.abs(scale[1]);
-            
-            baseWidth *= widthScale;
-            baseHeight *= heightScale;
-        }
-        
-        // 返回动态计算的尺寸，Minecraft会自动使用这个尺寸来计算碰撞箱
-        return EntityDimensions.changing(baseWidth, baseHeight);
+        // 返回固定尺寸（与DollEntityFactory中的sized(0.6f, 1f)保持一致）
+        // 实际碰撞箱会通过updateBoundingBox()根据姿态的scale动态调整
+        return EntityDimensions.fixed(0.6f, 1.0f);
     }
     
     /**
@@ -332,6 +349,10 @@ public abstract class BaseDollEntity extends Entity {
             baseHeight *= heightScale;
         }
         
+        // 确保碰撞箱有最小尺寸，以便可以被交互（至少0.3，确保足够大）
+        baseWidth = Math.max(baseWidth, 0.3);
+        baseHeight = Math.max(baseHeight, 0.3);
+        
         // 计算碰撞箱的半宽
         double halfWidth = baseWidth / 2.0;
         
@@ -349,21 +370,45 @@ public abstract class BaseDollEntity extends Entity {
         );
         
         this.setBoundingBox(newBoundingBox);
+        
+        // 验证碰撞箱是否有效
+        double avgSideLength = newBoundingBox.getAverageSideLength();
+        if (avgSideLength < 0.1) {
+            ModuleLogger.warn(LOG_MODULE_ENTITY, 
+                "[碰撞箱警告] 碰撞箱异常小 (平均边长={})，可能导致无法交互！位置=({}, {}, {}), 尺寸=宽{}高{}", 
+                String.format("%.3f", avgSideLength), 
+                String.format("%.2f", x), String.format("%.2f", y), String.format("%.2f", z), 
+                String.format("%.2f", baseWidth), String.format("%.2f", baseHeight));
+        }
+        
+        // 调试日志：记录碰撞箱更新（仅在debug级别）
+        ModuleLogger.debug(LOG_MODULE_ENTITY, 
+            "[碰撞箱更新] 位置=({}, {}, {}), 尺寸=宽{}高{}, 平均边长={}, 碰撞箱={}", 
+            String.format("%.2f", x), String.format("%.2f", y), String.format("%.2f", z), 
+            String.format("%.2f", baseWidth), String.format("%.2f", baseHeight), 
+            String.format("%.3f", avgSideLength), newBoundingBox);
     }
     
-    // 注意：在 1.20.1 中，isPickable() 和 canBeCollidedWith() 方法可能不存在于 Entity 类中
-    // 如果需要这些功能，可能需要使用其他方法或接口
-    // public boolean isPickable() {
-    //     return true;
-    // }
+    // 注意：在 Minecraft 1.20.1 中，isPickable() 和 canBeCollidedWith() 方法可能不存在
+    // 如果这些方法不存在，Minecraft 会使用默认行为
+    // 实体可以通过实现 interact() 方法来支持交互
     
-    // public boolean canBeCollidedWith() {
-    //     return true;
-    // }
+    /**
+     * 检查实体是否可碰撞
+     * 注意：在 Minecraft 1.20.1 中，isCollidable() 方法可能不存在于 Entity 类中
+     * 如果编译错误，请移除 @Override 注解或删除此方法
+     */
+    // @Override  // 如果编译错误，请注释掉这行
+    public boolean isCollidable() {
+        boolean result = true;
+        ModuleLogger.debug(LOG_MODULE_ENTITY, "[isCollidable] 返回: {}", result);
+        return result;
+    }
     
     @Override
     public boolean isPushable() {
-        return true;
+        // 返回 false 防止玩家推动实体
+        return false;
     }
     
     @Override
@@ -373,30 +418,56 @@ public abstract class BaseDollEntity extends Entity {
     
     @Override
     public ActionResult interact(PlayerEntity player, Hand hand) {
+        // 详细记录交互尝试（无论客户端还是服务端）
         boolean isSneaking = player.isSneaking();
         String playerName = player.getName().getString();
+        double playerX = player.getX();
+        double playerY = player.getY();
+        double playerZ = player.getZ();
+        double entityX = this.getX();
+        double entityY = this.getY();
+        double entityZ = this.getZ();
+        double distance = Math.sqrt(
+            Math.pow(playerX - entityX, 2) + 
+            Math.pow(playerY - entityY, 2) + 
+            Math.pow(playerZ - entityZ, 2)
+        );
+        double avgSideLength = this.getBoundingBox().getAverageSideLength();
         
-        ModuleLogger.info(LOG_MODULE_INTERACT, "玩家右键交互: 玩家={}, 潜行={}, 客户端={}, 当前姿态={}", 
-            playerName, isSneaking, this.getWorld().isClient, 
+        ModuleLogger.info(LOG_MODULE_INTERACT, 
+            "[交互] 玩家右键交互触发！玩家={}, 潜行={}, 客户端={}, 手={}, 距离={}, 实体位置=({}, {}, {}), 玩家位置=({}, {}, {}), 碰撞箱平均边长={}, 当前姿态={}", 
+            playerName, isSneaking, this.getWorld().isClient, hand, String.format("%.2f", distance),
+            String.format("%.2f", entityX), String.format("%.2f", entityY), String.format("%.2f", entityZ), 
+            String.format("%.2f", playerX), String.format("%.2f", playerY), String.format("%.2f", playerZ), 
+            String.format("%.3f", avgSideLength),
             getCurrentPose() != null ? getCurrentPose().getName() : "null");
         
-        if (!this.getWorld().isClient) {
-            // 如果玩家潜行，则破坏实体并掉落物品
-            if (isSneaking) {
-                ModuleLogger.info(LOG_MODULE_INTERACT, "玩家 {} 潜行右键，破坏实体", playerName);
-                return handleBreakAndDrop(player);
-            } else {
-                // 循环切换到下一个姿态
-                ModuleLogger.debug(LOG_MODULE_INTERACT, "玩家 {} 右键切换姿态 (当前索引: {})", 
-                    playerName, currentPoseIndex);
-                cycleToNextPose(player);
-                
-                // 播放交互音效
-                this.getWorld().playSound(null, this.getX(), this.getY(), this.getZ(),
-                        SoundEvents.ENTITY_ARMOR_STAND_HIT, SoundCategory.NEUTRAL, 0.5F, 1.0F);
-            }
+        // 在客户端，返回 SUCCESS 表示交互被接受，让服务端处理
+        if (this.getWorld().isClient) {
+            ModuleLogger.debug(LOG_MODULE_INTERACT, "[交互-客户端] 返回 SUCCESS，等待服务端处理");
+            return ActionResult.SUCCESS;
         }
-        return this.getWorld().isClient ? ActionResult.SUCCESS : ActionResult.CONSUME;
+        
+        // 服务端处理逻辑
+        ModuleLogger.info(LOG_MODULE_INTERACT, "[交互-服务端] 开始处理交互逻辑");
+        
+        // 如果玩家潜行，则破坏实体并掉落物品
+        if (isSneaking) {
+            ModuleLogger.info(LOG_MODULE_INTERACT, "[交互-服务端] 玩家 {} 潜行右键，破坏实体", playerName);
+            return handleBreakAndDrop(player);
+        } else {
+            // 循环切换到下一个姿态
+            ModuleLogger.info(LOG_MODULE_INTERACT, "[交互-服务端] 玩家 {} 右键切换姿态 (当前索引: {})", 
+                playerName, currentPoseIndex);
+            cycleToNextPose(player);
+            
+            // 播放交互音效
+            this.getWorld().playSound(null, this.getX(), this.getY(), this.getZ(),
+                    SoundEvents.ENTITY_ARMOR_STAND_HIT, SoundCategory.NEUTRAL, 0.5F, 1.0F);
+            
+            ModuleLogger.info(LOG_MODULE_INTERACT, "[交互-服务端] 姿态切换完成，返回 CONSUME");
+            return ActionResult.CONSUME;
+        }
     }
     
     /**

@@ -62,6 +62,8 @@ public class PlayerDollAddon implements ModInitializer {
         Registry.register(Registries.ITEM_GROUP, 
                 new Identifier(MODID, "player_doll_tab"), 
                 PLAYER_DOLL_TAB);
+        
+        LOGGER.info("玩偶模组初始化完成");
     }
     
     /**
