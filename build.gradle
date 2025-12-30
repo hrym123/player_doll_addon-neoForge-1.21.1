@@ -17,7 +17,13 @@ version = getModProperty('mod_version', '1.0.0')
 group = getModProperty('mod_group_id', 'com.lanye.dolladdon')
 
 base {
+    // 设置 jar 文件的基础名称
+    // 最终生成的 jar 文件名格式为: ${archivesName}-${version}.jar
+    // 例如: player_doll_addon-1.0.0.jar
     archivesName = getModProperty('mod_id', 'player_doll_addon')
+    // 如果需要自定义名称，可以直接设置，例如:
+    // archivesName = 'player-doll-addon'
+    // 或者包含版本号: archivesName = "${getModProperty('mod_id', 'player_doll_addon')}-${getModProperty('mod_version', '1.0.0')}"
 }
 
 repositories {
@@ -60,7 +66,7 @@ dependencies {
     mappings "net.fabricmc:yarn:${getModProperty('yarn_mappings', '1.20.1+build.10')}:v2"
     
     // Fabric Loader
-    modImplementation "net.fabricmc:fabric-loader:${getModProperty('loader_version', '0.18.4')}"
+    modImplementation "net.fabricmc:fabric-loader:${getModProperty('loader_version', '0.18.0')}"
     
     // Fabric API
     modImplementation "net.fabricmc.fabric-api:fabric-api:${getModProperty('fabric_version', '0.92.6+1.20.1')}"
@@ -72,7 +78,7 @@ java.toolchain.languageVersion = JavaLanguageVersion.of(17)
 processResources {
     inputs.property "version", project.version
     inputs.property "minecraft_version", getModProperty('minecraft_version', '1.20.1')
-    inputs.property "loader_version", getModProperty('loader_version', '0.18.4')
+    inputs.property "loader_version", getModProperty('loader_version', '0.18.0')
     inputs.property "mod_id", getModProperty('mod_id', 'player_doll_addon')
     inputs.property "mod_name", getModProperty('mod_name', 'Player Doll Addon')
     inputs.property "mod_license", getModProperty('mod_license', 'All Rights Reserved')
@@ -85,7 +91,7 @@ processResources {
         expand([
             "version": project.version,
             "minecraft_version": getModProperty('minecraft_version', '1.20.1'),
-            "loader_version": getModProperty('loader_version', '0.18.4'),
+            "loader_version": getModProperty('loader_version', '0.18.0'),
             "mod_id": getModProperty('mod_id', 'player_doll_addon'),
             "mod_name": getModProperty('mod_name', 'Player Doll Addon'),
             "mod_license": getModProperty('mod_license', 'All Rights Reserved'),
@@ -114,6 +120,10 @@ jar {
     from("LICENSE") {
         rename { "${it}_${project.base.archivesName.get()}"}
     }
+    
+    // 自定义 jar 文件名称
+    // 导出名称为: player_doll_1.20.1_fabric.jar
+    archiveFileName = "player_doll_1.20.1_fabric.jar"
 }
 
 // configure the maven publication
