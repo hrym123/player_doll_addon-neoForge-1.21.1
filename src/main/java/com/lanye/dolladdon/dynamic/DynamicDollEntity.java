@@ -32,17 +32,8 @@ public class DynamicDollEntity extends BaseDollEntity {
     
     @Override
     protected ItemStack getDollItemStack() {
-        // 从实体类型获取注册名称
-        Identifier entityKey = Registries.ENTITY_TYPE.getId(this.getType());
-        if (entityKey != null) {
-            String registryName = entityKey.getPath();
-            // 从 ModItems.DYNAMIC_DOLLS 中获取对应的物品
-            var item = ModItems.DYNAMIC_DOLLS.get(registryName);
-            if (item != null) {
-                return new ItemStack(item);
-            }
-        }
-        // 如果找不到，返回空物品堆（不应该发生）
+        // 注意：动态加载功能已删除，此方法不再使用
+        // 如果找不到，返回空物品堆
         return ItemStack.EMPTY;
     }
 }
