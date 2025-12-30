@@ -14,7 +14,6 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.rendering.v1.BuiltinItemRendererRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry;
 import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
-import net.fabricmc.fabric.api.resource.ResourcePackActivationType;
 import net.fabricmc.fabric.api.resource.SimpleSynchronousResourceReloadListener;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.loader.api.FabricLoader;
@@ -30,20 +29,29 @@ public class PlayerDollAddonClient implements ClientModInitializer {
     
     @Override
     public void onInitializeClient() {
+        PlayerDollAddon.LOGGER.info("========== PlayerDollAddon 客户端初始化开始 ==========");
+        
         // 注册动态资源包
+        PlayerDollAddon.LOGGER.info("[客户端] [1/5] 注册动态资源包...");
         registerDynamicResourcePack();
         
         // 注册实体渲染器
+        PlayerDollAddon.LOGGER.info("[客户端] [2/5] 注册实体渲染器...");
         registerEntityRenderers();
         
         // 注册物品渲染器
+        PlayerDollAddon.LOGGER.info("[客户端] [3/5] 注册物品渲染器...");
         registerItemRenderers();
         
         // 注册资源重载监听器
+        PlayerDollAddon.LOGGER.info("[客户端] [4/5] 注册资源重载监听器...");
         registerResourceReloadListener();
         
         // 注册客户端连接事件
+        PlayerDollAddon.LOGGER.info("[客户端] [5/5] 注册客户端连接事件...");
         registerClientConnectionEvents();
+        
+        PlayerDollAddon.LOGGER.info("========== PlayerDollAddon 客户端初始化完成 ==========");
     }
     
     /**
@@ -51,21 +59,8 @@ public class PlayerDollAddonClient implements ClientModInitializer {
      * 注意：在 Fabric 1.20.1 中，我们使用纹理加载器直接加载外部 PNG 文件
      */
     private void registerDynamicResourcePack() {
-        // 在客户端初始化时加载外部纹理
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client != null && client.getTextureManager() != null) {
-            // 加载外部纹理
-            ExternalTextureLoader.loadExternalTextures();
-            
-            // 将外部纹理注册到纹理管理器
-            Map<net.minecraft.util.Identifier, java.nio.file.Path> textures = 
-                    ExternalTextureLoader.getAllLoadedTextures();
-            for (net.minecraft.util.Identifier textureId : textures.keySet()) {
-                ExternalTextureLoader.loadTexture(textureId, client.getTextureManager());
-            }
-        }
-        
-        PlayerDollAddon.LOGGER.info("动态纹理加载器已初始化");
+        // 资源包将在资源重载时通过监听器加载
+        PlayerDollAddon.LOGGER.info("动态资源包将在资源重载时加载");
     }
     
     /**
@@ -73,18 +68,33 @@ public class PlayerDollAddonClient implements ClientModInitializer {
      */
     private void registerEntityRenderers() {
         // 注册史蒂夫玩偶实体渲染器（固定模型）
+        PlayerDollAddon.LOGGER.info("[渲染器] 注册固定实体渲染器: steve_doll");
         EntityRendererRegistry.register(ModEntities.STEVE_DOLL, SteveDollRenderer::new);
+        PlayerDollAddon.LOGGER.info("[渲染器] ✓ steve_doll 渲染器注册成功");
+        
         // 注册艾利克斯玩偶实体渲染器（固定模型）
+        PlayerDollAddon.LOGGER.info("[渲染器] 注册固定实体渲染器: alex_doll");
         EntityRendererRegistry.register(ModEntities.ALEX_DOLL, AlexDollRenderer::new);
+        PlayerDollAddon.LOGGER.info("[渲染器] ✓ alex_doll 渲染器注册成功");
         
         // 注册所有自定义纹理玩偶实体渲染器
         Map<String, net.minecraft.entity.EntityType<com.lanye.dolladdon.impl.entity.CustomTextureDollEntity>> customEntities = 
                 ModEntities.getAllCustomTextureDollEntityTypes();
         
+        PlayerDollAddon.LOGGER.info("[渲染器] 准备注册 {} 个自定义纹理玩偶实体渲染器", customEntities.size());
+        
+        int successCount = 0;
         for (Map.Entry<String, net.minecraft.entity.EntityType<com.lanye.dolladdon.impl.entity.CustomTextureDollEntity>> entry : customEntities.entrySet()) {
-            EntityRendererRegistry.register(entry.getValue(), CustomTextureDollRenderer::new);
-            PlayerDollAddon.LOGGER.debug("注册自定义纹理玩偶实体渲染器: {}", entry.getKey());
+            try {
+                EntityRendererRegistry.register(entry.getValue(), CustomTextureDollRenderer::new);
+                successCount++;
+                PlayerDollAddon.LOGGER.info("[渲染器] ✓ 注册自定义纹理玩偶实体渲染器: {}", entry.getKey());
+            } catch (Exception e) {
+                PlayerDollAddon.LOGGER.error("[渲染器] ✗ 注册自定义纹理玩偶实体渲染器失败: {}", entry.getKey(), e);
+            }
         }
+        
+        PlayerDollAddon.LOGGER.info("[渲染器] 实体渲染器注册完成: 成功={}/{}", successCount, customEntities.size());
     }
     
     /**
@@ -93,36 +103,68 @@ public class PlayerDollAddonClient implements ClientModInitializer {
     private void registerItemRenderers() {
         MinecraftClient client = MinecraftClient.getInstance();
         
+        if (client == null) {
+            PlayerDollAddon.LOGGER.error("[渲染器] ✗ MinecraftClient 未初始化，无法注册物品渲染器");
+            return;
+        }
+        
         // 注册史蒂夫玩偶物品渲染器
-        BuiltinItemRendererRegistry.INSTANCE.register(
-            ModItems.STEVE_DOLL,
-            new SteveDollItemRenderer(client, null)
-        );
+        PlayerDollAddon.LOGGER.info("[渲染器] 注册固定物品渲染器: steve_doll");
+        try {
+            BuiltinItemRendererRegistry.INSTANCE.register(
+                ModItems.STEVE_DOLL,
+                new SteveDollItemRenderer(client, null)
+            );
+            PlayerDollAddon.LOGGER.info("[渲染器] ✓ steve_doll 物品渲染器注册成功");
+        } catch (Exception e) {
+            PlayerDollAddon.LOGGER.error("[渲染器] ✗ steve_doll 物品渲染器注册失败", e);
+        }
         
         // 注册艾利克斯玩偶物品渲染器
-        BuiltinItemRendererRegistry.INSTANCE.register(
-            ModItems.ALEX_DOLL,
-            new AlexDollItemRenderer(client, null)
-        );
+        PlayerDollAddon.LOGGER.info("[渲染器] 注册固定物品渲染器: alex_doll");
+        try {
+            BuiltinItemRendererRegistry.INSTANCE.register(
+                ModItems.ALEX_DOLL,
+                new AlexDollItemRenderer(client, null)
+            );
+            PlayerDollAddon.LOGGER.info("[渲染器] ✓ alex_doll 物品渲染器注册成功");
+        } catch (Exception e) {
+            PlayerDollAddon.LOGGER.error("[渲染器] ✗ alex_doll 物品渲染器注册失败", e);
+        }
         
         // 注册所有自定义纹理玩偶物品渲染器
         Map<String, net.minecraft.item.Item> customItems = ModItems.getAllCustomTextureDollItems();
         
+        PlayerDollAddon.LOGGER.info("[渲染器] 准备注册 {} 个自定义纹理玩偶物品渲染器", customItems.size());
+        
+        int successCount = 0;
         for (Map.Entry<String, net.minecraft.item.Item> entry : customItems.entrySet()) {
-            String registryName = entry.getKey();
-            net.minecraft.item.Item item = entry.getValue();
-            
-            // 获取纹理标识符
-            Identifier textureId = new Identifier(PlayerDollAddon.MODID, "textures/entity/custom_doll/" + registryName);
-            
-            // 注册物品渲染器
-            BuiltinItemRendererRegistry.INSTANCE.register(
-                item,
-                new CustomTextureDollItemRenderer(client, textureId)
-            );
-            
-            PlayerDollAddon.LOGGER.debug("注册自定义纹理玩偶物品渲染器: {} -> {}", registryName, textureId);
+            try {
+                String registryName = entry.getKey();
+                net.minecraft.item.Item item = entry.getValue();
+                
+                if (item == null) {
+                    PlayerDollAddon.LOGGER.error("[渲染器] ✗ 物品为 null: {}", registryName);
+                    continue;
+                }
+                
+                // 获取纹理标识符
+                Identifier textureId = new Identifier(PlayerDollAddon.MODID, "textures/entity/custom_doll/" + registryName);
+                
+                // 注册物品渲染器
+                BuiltinItemRendererRegistry.INSTANCE.register(
+                    item,
+                    new CustomTextureDollItemRenderer(client, textureId)
+                );
+                
+                successCount++;
+                PlayerDollAddon.LOGGER.info("[渲染器] ✓ 注册自定义纹理玩偶物品渲染器: {} -> {}", registryName, textureId);
+            } catch (Exception e) {
+                PlayerDollAddon.LOGGER.error("[渲染器] ✗ 注册自定义纹理玩偶物品渲染器失败: {}", entry.getKey(), e);
+            }
         }
+        
+        PlayerDollAddon.LOGGER.info("[渲染器] 物品渲染器注册完成: 成功={}/{}", successCount, customItems.size());
     }
     
     /**

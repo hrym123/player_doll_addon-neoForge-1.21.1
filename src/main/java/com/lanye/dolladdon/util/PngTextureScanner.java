@@ -32,44 +32,59 @@ public class PngTextureScanner {
             Path gameDir = FabricLoader.getInstance().getGameDir();
             Path pngDir = gameDir.resolve(PNG_DIR);
             
+            LOGGER.info("[PNG扫描] 开始扫描 PNG 文件夹: {}", pngDir);
+            
             // 如果文件夹不存在，创建它
             if (!Files.exists(pngDir)) {
                 Files.createDirectories(pngDir);
-                LOGGER.info("创建 PNG 文件夹: {}", pngDir);
+                LOGGER.warn("[PNG扫描] PNG 文件夹不存在，已创建: {}", pngDir);
                 return pngFiles; // 返回空列表
             }
             
+            if (!Files.isDirectory(pngDir)) {
+                LOGGER.error("[PNG扫描] 路径不是文件夹: {}", pngDir);
+                return pngFiles;
+            }
+            
             // 扫描文件夹中的所有 PNG 文件
+            java.util.concurrent.atomic.AtomicInteger totalFiles = new java.util.concurrent.atomic.AtomicInteger(0);
             try (Stream<Path> paths = Files.walk(pngDir)) {
                 paths.filter(Files::isRegularFile)
-                     .filter(path -> {
-                         String fileName = path.getFileName().toString().toLowerCase();
-                         return fileName.endsWith(".png");
-                     })
                      .forEach(path -> {
-                         try {
-                             String fileName = path.getFileName().toString();
-                             // 移除 .png 扩展名
-                             String nameWithoutExt = fileName.substring(0, fileName.length() - 4);
-                             
-                             // 生成有效的注册名称（只包含小写字母、数字、下划线）
-                             String registryName = sanitizeRegistryName(nameWithoutExt);
-                             
-                             if (!registryName.isEmpty()) {
-                                 pngFiles.add(new PngTextureInfo(registryName, path, fileName));
-                                 LOGGER.debug("发现 PNG 文件: {} -> {}", fileName, registryName);
-                             } else {
-                                 LOGGER.warn("跳过无效的 PNG 文件名: {} (无法生成有效的注册名称)", fileName);
+                         totalFiles.incrementAndGet();
+                         String fileName = path.getFileName().toString();
+                         String lowerFileName = fileName.toLowerCase();
+                         
+                         if (lowerFileName.endsWith(".png")) {
+                             try {
+                                 // 移除 .png 扩展名
+                                 String nameWithoutExt = fileName.substring(0, fileName.length() - 4);
+                                 
+                                 // 生成有效的注册名称（只包含小写字母、数字、下划线）
+                                 String registryName = sanitizeRegistryName(nameWithoutExt);
+                                 
+                                 if (!registryName.isEmpty()) {
+                                     pngFiles.add(new PngTextureInfo(registryName, path, fileName));
+                                     LOGGER.info("[PNG扫描] ✓ 发现 PNG 文件: {} -> 注册名: {}", fileName, registryName);
+                                 } else {
+                                     LOGGER.warn("[PNG扫描] ✗ 跳过无效的 PNG 文件名: {} (无法生成有效的注册名称)", fileName);
+                                 }
+                             } catch (Exception e) {
+                                 LOGGER.error("[PNG扫描] ✗ 处理 PNG 文件时出错: {}", path, e);
                              }
-                         } catch (Exception e) {
-                             LOGGER.error("处理 PNG 文件时出错: {}", path, e);
+                         } else {
+                             LOGGER.debug("[PNG扫描] 跳过非 PNG 文件: {}", fileName);
                          }
                      });
             }
             
-            LOGGER.info("扫描到 {} 个 PNG 文件", pngFiles.size());
+            LOGGER.info("[PNG扫描] 扫描完成: 总文件数={}, PNG文件数={}", totalFiles.get(), pngFiles.size());
+            
+            if (pngFiles.isEmpty()) {
+                LOGGER.warn("[PNG扫描] 警告: 未找到任何 PNG 文件！请确保文件位于: {}", pngDir);
+            }
         } catch (IOException e) {
-            LOGGER.error("扫描 PNG 文件夹时出错", e);
+            LOGGER.error("[PNG扫描] ✗ 扫描 PNG 文件夹时出错", e);
         }
         
         return pngFiles;

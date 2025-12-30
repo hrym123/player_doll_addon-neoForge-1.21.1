@@ -46,17 +46,43 @@ public class PlayerDollAddon implements ModInitializer {
 
     @Override
     public void onInitialize() {
+        LOGGER.info("========== PlayerDollAddon 初始化开始 ==========");
+        
         // 初始化默认文件（从资源包复制到文件系统）
+        LOGGER.info("[1/5] 初始化默认文件...");
         initializeDefaultFiles();
         
+        // 生成资源文件（物品模型和语言文件）
+        LOGGER.info("[2/5] 生成资源文件（物品模型和语言文件）...");
+        generateResourceFiles();
+        
         // 注册物品
+        LOGGER.info("[3/5] 注册物品...");
         ModItems.register();
+        
         // 注册实体
+        LOGGER.info("[4/5] 注册实体...");
         ModEntities.register();
+        
         // 注册创造模式物品栏
+        LOGGER.info("[5/5] 注册创造模式物品栏...");
         Registry.register(Registries.ITEM_GROUP, 
                 new Identifier(MODID, "player_doll_tab"), 
                 PLAYER_DOLL_TAB);
+        
+        LOGGER.info("========== PlayerDollAddon 初始化完成 ==========");
+    }
+    
+    /**
+     * 生成资源文件（物品模型和语言文件）
+     */
+    private void generateResourceFiles() {
+        try {
+            com.lanye.dolladdon.util.ResourceFileGenerator.generateItemModels();
+            com.lanye.dolladdon.util.ResourceFileGenerator.updateLanguageFiles();
+        } catch (Exception e) {
+            LOGGER.error("生成资源文件时出错", e);
+        }
     }
     
     /**

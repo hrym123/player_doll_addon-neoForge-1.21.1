@@ -28,50 +28,81 @@ public class ModItems {
      * 注册所有物品
      */
     public static void register() {
+        PlayerDollAddon.LOGGER.info("[物品注册] 开始注册物品...");
+        
         // 注册固定的玩偶物品
+        PlayerDollAddon.LOGGER.info("[物品注册] 注册固定物品: steve_doll");
         STEVE_DOLL = Registry.register(
                 Registries.ITEM,
                 new Identifier(PlayerDollAddon.MODID, "steve_doll"),
                 new SteveDollItem()
         );
+        PlayerDollAddon.LOGGER.info("[物品注册] ✓ steve_doll 注册成功");
         
+        PlayerDollAddon.LOGGER.info("[物品注册] 注册固定物品: alex_doll");
         ALEX_DOLL = Registry.register(
                 Registries.ITEM,
                 new Identifier(PlayerDollAddon.MODID, "alex_doll"),
                 new AlexDollItem()
         );
+        PlayerDollAddon.LOGGER.info("[物品注册] ✓ alex_doll 注册成功");
         
         // 扫描并注册所有 PNG 文件对应的物品
         registerCustomTextureDollItems();
+        
+        PlayerDollAddon.LOGGER.info("[物品注册] 物品注册完成");
     }
     
     /**
      * 注册所有自定义纹理玩偶物品
      */
     private static void registerCustomTextureDollItems() {
+        PlayerDollAddon.LOGGER.info("[物品注册] 开始注册自定义纹理玩偶物品...");
+        
         List<PngTextureScanner.PngTextureInfo> pngFiles = PngTextureScanner.scanPngFiles();
+        PlayerDollAddon.LOGGER.info("[物品注册] 扫描到 {} 个 PNG 文件，准备注册", pngFiles.size());
+        
+        int successCount = 0;
+        int failCount = 0;
         
         for (PngTextureScanner.PngTextureInfo pngInfo : pngFiles) {
-            String registryName = pngInfo.getRegistryName();
-            Identifier textureId = pngInfo.getTextureIdentifier();
-            
-            // 创建物品
-            CustomTextureDollItem item = new CustomTextureDollItem(textureId, registryName);
-            
-            // 注册物品
-            Item registeredItem = Registry.register(
-                    Registries.ITEM,
-                    new Identifier(PlayerDollAddon.MODID, "custom_doll_" + registryName),
-                    item
-            );
-            
-            // 存储到映射表
-            CUSTOM_TEXTURE_DOLL_ITEMS.put(registryName, registeredItem);
-            
-            PlayerDollAddon.LOGGER.info("注册自定义纹理玩偶物品: {} -> {}", registryName, textureId);
+            try {
+                String registryName = pngInfo.getRegistryName();
+                Identifier textureId = pngInfo.getTextureIdentifier();
+                Identifier itemId = new Identifier(PlayerDollAddon.MODID, "custom_doll_" + registryName);
+                
+                PlayerDollAddon.LOGGER.info("[物品注册] 正在注册: 注册名={}, 物品ID={}, 纹理ID={}", 
+                        registryName, itemId, textureId);
+                
+                // 创建物品
+                CustomTextureDollItem item = new CustomTextureDollItem(textureId, registryName);
+                
+                // 注册物品
+                Item registeredItem = Registry.register(
+                        Registries.ITEM,
+                        itemId,
+                        item
+                );
+                
+                // 验证注册是否成功
+                Item verifyItem = Registries.ITEM.get(itemId);
+                if (verifyItem == registeredItem) {
+                    // 存储到映射表
+                    CUSTOM_TEXTURE_DOLL_ITEMS.put(registryName, registeredItem);
+                    successCount++;
+                    PlayerDollAddon.LOGGER.info("[物品注册] ✓ 成功注册: {} -> {}", registryName, itemId);
+                } else {
+                    failCount++;
+                    PlayerDollAddon.LOGGER.error("[物品注册] ✗ 注册验证失败: {} (注册的物品与验证的物品不匹配)", registryName);
+                }
+            } catch (Exception e) {
+                failCount++;
+                PlayerDollAddon.LOGGER.error("[物品注册] ✗ 注册失败: {}", pngInfo.getRegistryName(), e);
+            }
         }
         
-        PlayerDollAddon.LOGGER.info("共注册了 {} 个自定义纹理玩偶物品", CUSTOM_TEXTURE_DOLL_ITEMS.size());
+        PlayerDollAddon.LOGGER.info("[物品注册] 自定义纹理玩偶物品注册完成: 成功={}, 失败={}, 总计={}", 
+                successCount, failCount, pngFiles.size());
     }
     
     /**
