@@ -8,7 +8,6 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -21,55 +20,39 @@ public class ResourceFileGenerator {
     private static final Logger LOGGER = PlayerDollAddon.LOGGER;
     
     /**
-     * 获取 run 目录和项目根目录
-     * 处理各种可能的路径情况，避免创建 run/run 目录
+     * 获取项目根目录
+     * 在开发环境中，从游戏目录（通常是 run 目录）向上查找项目根目录
      * 
-     * @return 包含 runDir 和 projectRoot 的数组，[0] = runDir, [1] = projectRoot
+     * @return 项目根目录路径
      */
-    private static Path[] getRunDirAndProjectRoot() {
+    private static Path getProjectRoot() {
         // 获取游戏目录（getGameDir() 在开发环境返回 run 目录，在生产环境返回 .minecraft）
         Path gameDir = FabricLoader.getInstance().getGameDir();
-        
-        // 规范化路径，确保正确处理 run 目录
         Path normalizedGameDir = gameDir.normalize();
-        Path runDir;
-        Path projectRoot;
         
         LOGGER.debug("[资源生成] getGameDir() 返回: {}", normalizedGameDir);
         
-        // 检查路径是否以 run/run 结尾（说明路径重复了）
-        String pathStr = normalizedGameDir.toString();
-        if (pathStr.endsWith("run" + java.io.File.separator + "run") || 
-            pathStr.endsWith("run\\run") ||
-            pathStr.endsWith("run/run")) {
-            // 路径重复了，向上移动一层
-            LOGGER.warn("[资源生成] 检测到路径重复 (run/run)，向上移动一层: {}", normalizedGameDir);
-            runDir = normalizedGameDir.getParent();
-            projectRoot = runDir.getParent();
+        // 检查最后一个路径段
+        String lastSegment = normalizedGameDir.getFileName().toString();
+        if (lastSegment.equals("run")) {
+            // gameDir 就是 run 目录，项目根目录是父目录
+            Path projectRoot = normalizedGameDir.getParent();
+            LOGGER.debug("[资源生成] 确定的 projectRoot: {}", projectRoot);
+            return projectRoot;
         } else {
-            // 正常情况：检查最后一个路径段
-            String lastSegment = normalizedGameDir.getFileName().toString();
-            if (lastSegment.equals("run")) {
-                // gameDir 就是 run 目录
-                runDir = normalizedGameDir;
-                projectRoot = runDir.getParent();
+            // gameDir 可能是项目根目录，尝试查找 run 子目录来确认
+            Path possibleRunDir = normalizedGameDir.resolve("run");
+            if (Files.exists(possibleRunDir) && Files.isDirectory(possibleRunDir)) {
+                // 找到了 run 子目录，说明当前就是项目根目录
+                LOGGER.debug("[资源生成] 确定的 projectRoot: {}", normalizedGameDir);
+                return normalizedGameDir;
             } else {
-                // gameDir 可能是项目根目录，尝试查找 run 子目录
-                Path possibleRunDir = normalizedGameDir.resolve("run");
-                if (Files.exists(possibleRunDir) && Files.isDirectory(possibleRunDir)) {
-                    runDir = possibleRunDir;
-                    projectRoot = normalizedGameDir;
-                } else {
-                    // 如果找不到 run 目录，假设 gameDir 就是运行目录（生产环境）
-                    runDir = normalizedGameDir;
-                    projectRoot = runDir.getParent();
-                }
+                // 如果找不到 run 目录，假设 gameDir 的父目录是项目根目录（生产环境）
+                Path projectRoot = normalizedGameDir.getParent();
+                LOGGER.debug("[资源生成] 确定的 projectRoot: {}", projectRoot);
+                return projectRoot;
             }
         }
-        
-        LOGGER.debug("[资源生成] 确定的 runDir: {}, projectRoot: {}", runDir, projectRoot);
-        
-        return new Path[]{runDir, projectRoot};
     }
     
     /**
@@ -78,22 +61,15 @@ public class ResourceFileGenerator {
      */
     public static void generateItemModels() {
         try {
-            // 获取 run 目录和项目根目录
-            Path[] paths = getRunDirAndProjectRoot();
-            Path runDir = paths[0];
-            Path projectRoot = paths[1];
+            // 获取项目根目录
+            Path projectRoot = getProjectRoot();
             
             // 生成到 build/resources/main（开发环境会自动加载）
             Path buildResourcesDir = projectRoot.resolve("build/resources/main");
             Path buildModelsDir = buildResourcesDir.resolve("assets/" + PlayerDollAddon.MODID + "/models/item");
             
-            // 同时生成到 run/resources（运行时目录）
-            Path runResourcesDir = runDir.resolve("resources");
-            Path runModelsDir = runResourcesDir.resolve("assets/" + PlayerDollAddon.MODID + "/models/item");
-            
-            // 创建两个目录
+            // 创建目录
             Files.createDirectories(buildModelsDir);
-            Files.createDirectories(runModelsDir);
             
             List<PngTextureScanner.PngTextureInfo> pngFiles = PngTextureScanner.scanPngFiles();
             
@@ -105,16 +81,13 @@ public class ResourceFileGenerator {
                     // 生成物品模型 JSON
                     String modelJson = generateItemModelJson();
                     
-                    // 同时写入两个位置
+                    // 写入构建目录
                     Path buildModelFile = buildModelsDir.resolve(itemId + ".json");
-                    Path runModelFile = runModelsDir.resolve(itemId + ".json");
-                    
                     Files.writeString(buildModelFile, modelJson, StandardCharsets.UTF_8);
-                    Files.writeString(runModelFile, modelJson, StandardCharsets.UTF_8);
                     
                     // 验证文件是否生成成功
-                    if (!Files.exists(buildModelFile) || !Files.exists(runModelFile)) {
-                        LOGGER.error("[资源生成] ✗ 模型文件生成失败: build={}, run={}", buildModelFile, runModelFile);
+                    if (!Files.exists(buildModelFile)) {
+                        LOGGER.error("[资源生成] ✗ 模型文件生成失败: {}", buildModelFile);
                     }
                 } catch (Exception e) {
                     LOGGER.error("[资源生成] ✗ 生成模型文件时出错: {}", pngInfo.getRegistryName(), e);
@@ -157,22 +130,15 @@ public class ResourceFileGenerator {
      */
     public static void updateLanguageFiles() {
         try {
-            // 获取 run 目录和项目根目录
-            Path[] paths = getRunDirAndProjectRoot();
-            Path runDir = paths[0];
-            Path projectRoot = paths[1];
+            // 获取项目根目录
+            Path projectRoot = getProjectRoot();
             
             // 生成到 build/resources/main（开发环境会自动加载）
             Path buildResourcesDir = projectRoot.resolve("build/resources/main");
             Path buildLangDir = buildResourcesDir.resolve("assets/" + PlayerDollAddon.MODID + "/lang");
             
-            // 同时生成到 run/resources（运行时目录）
-            Path runResourcesDir = runDir.resolve("resources");
-            Path runLangDir = runResourcesDir.resolve("assets/" + PlayerDollAddon.MODID + "/lang");
-            
-            // 创建两个目录
+            // 创建目录
             Files.createDirectories(buildLangDir);
-            Files.createDirectories(runLangDir);
             
             List<PngTextureScanner.PngTextureInfo> pngFiles = PngTextureScanner.scanPngFiles();
             
@@ -222,27 +188,20 @@ public class ResourceFileGenerator {
             String zhCnJson = generateLanguageJson(zhCnEntries);
             String enUsJson = generateLanguageJson(enUsEntries);
             
-            // 同时写入到两个目录
+            // 写入构建目录
             Path buildZhCnFile = buildLangDir.resolve("zh_cn.json");
             Path buildEnUsFile = buildLangDir.resolve("en_us.json");
-            Path runZhCnFile = runLangDir.resolve("zh_cn.json");
-            Path runEnUsFile = runLangDir.resolve("en_us.json");
             
-            // 写入构建目录
             Files.writeString(buildZhCnFile, zhCnJson, StandardCharsets.UTF_8);
             Files.writeString(buildEnUsFile, enUsJson, StandardCharsets.UTF_8);
             
-            // 写入运行时目录
-            Files.writeString(runZhCnFile, zhCnJson, StandardCharsets.UTF_8);
-            Files.writeString(runEnUsFile, enUsJson, StandardCharsets.UTF_8);
-            
             // 验证文件是否生成成功
-            if (!Files.exists(buildZhCnFile) || !Files.exists(runZhCnFile)) {
-                LOGGER.error("[资源生成] ✗ 中文语言文件生成失败: build={}, run={}", buildZhCnFile, runZhCnFile);
+            if (!Files.exists(buildZhCnFile)) {
+                LOGGER.error("[资源生成] ✗ 中文语言文件生成失败: {}", buildZhCnFile);
             }
             
-            if (!Files.exists(buildEnUsFile) || !Files.exists(runEnUsFile)) {
-                LOGGER.error("[资源生成] ✗ 英文语言文件生成失败: build={}, run={}", buildEnUsFile, runEnUsFile);
+            if (!Files.exists(buildEnUsFile)) {
+                LOGGER.error("[资源生成] ✗ 英文语言文件生成失败: {}", buildEnUsFile);
             }
         } catch (IOException e) {
             LOGGER.error("[资源生成] ✗ 生成语言文件时出错", e);
