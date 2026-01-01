@@ -1,8 +1,8 @@
 package com.lanye.dolladdon.util.resource;
 
-import com.lanye.dolladdon.PlayerDollAddon;
+import com.lanye.dolladdon.util.logging.LogModuleConfig;
+import com.lanye.dolladdon.util.logging.ModuleLogger;
 import net.fabricmc.loader.api.FabricLoader;
-import org.slf4j.Logger;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -17,42 +17,98 @@ import java.util.Map;
  * 用于动态生成物品模型和语言文件
  */
 public class ResourceFileGenerator {
-    private static final Logger LOGGER = PlayerDollAddon.LOGGER;
     
     /**
      * 获取项目根目录
-     * 在开发环境中，从游戏目录（通常是 run 目录）向上查找项目根目录
+     * 通过查找包含 build.gradle 文件的目录来确定项目根目录
+     * 这是最可靠的方法，不依赖于 getGameDir() 的返回值
      * 
-     * @return 项目根目录路径
+     * @return 项目根目录路径（绝对路径）
      */
     private static Path getProjectRoot() {
         // 获取游戏目录（getGameDir() 在开发环境返回 run 目录，在生产环境返回 .minecraft）
         Path gameDir = FabricLoader.getInstance().getGameDir();
-        Path normalizedGameDir = gameDir.normalize();
+        Path normalizedGameDir = gameDir.normalize().toAbsolutePath();
         
-        LOGGER.debug("[资源生成] getGameDir() 返回: {}", normalizedGameDir);
+        ModuleLogger.debug(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成] ========== 开始解析项目根目录 ==========");
+        ModuleLogger.debug(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成] getGameDir() 原始路径: {}", gameDir);
+        ModuleLogger.debug(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成] getGameDir() 规范化后: {}", normalizedGameDir);
+        ModuleLogger.debug(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成] 路径字符串表示: {}", normalizedGameDir.toString());
         
-        // 检查最后一个路径段
-        String lastSegment = normalizedGameDir.getFileName().toString();
-        if (lastSegment.equals("run")) {
-            // gameDir 就是 run 目录，项目根目录是父目录
-            Path projectRoot = normalizedGameDir.getParent();
-            LOGGER.debug("[资源生成] 确定的 projectRoot: {}", projectRoot);
-            return projectRoot;
-        } else {
-            // gameDir 可能是项目根目录，尝试查找 run 子目录来确认
-            Path possibleRunDir = normalizedGameDir.resolve("run");
-            if (Files.exists(possibleRunDir) && Files.isDirectory(possibleRunDir)) {
-                // 找到了 run 子目录，说明当前就是项目根目录
-                LOGGER.debug("[资源生成] 确定的 projectRoot: {}", normalizedGameDir);
-                return normalizedGameDir;
-            } else {
-                // 如果找不到 run 目录，假设 gameDir 的父目录是项目根目录（生产环境）
-                Path projectRoot = normalizedGameDir.getParent();
-                LOGGER.debug("[资源生成] 确定的 projectRoot: {}", projectRoot);
+        // 从游戏目录开始，向上查找包含 build.gradle 的目录
+        Path currentDir = normalizedGameDir;
+        int maxDepth = 10; // 最多向上查找 10 层，防止无限循环
+        int depth = 0;
+        
+        ModuleLogger.debug(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成] 开始向上查找 build.gradle，起始目录: {}", currentDir);
+        
+        while (depth < maxDepth && currentDir != null) {
+            Path buildGradle = currentDir.resolve("build.gradle");
+            Path settingsGradle = currentDir.resolve("settings.gradle");
+            
+            ModuleLogger.debug(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成] [深度 {}] 检查目录: {}", depth, currentDir);
+            ModuleLogger.debug(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成] [深度 {}] build.gradle 路径: {} (存在: {})", depth, buildGradle, Files.exists(buildGradle));
+            ModuleLogger.debug(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成] [深度 {}] settings.gradle 路径: {} (存在: {})", depth, settingsGradle, Files.exists(settingsGradle));
+            
+            // 如果找到 build.gradle 或 settings.gradle，说明这是项目根目录
+            if (Files.exists(buildGradle) || Files.exists(settingsGradle)) {
+                Path projectRoot = currentDir.toAbsolutePath();
+                ModuleLogger.debug(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成] ✓ 找到项目根目录（包含 build.gradle/settings.gradle）: {}", projectRoot);
+                ModuleLogger.debug(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成] 项目根目录绝对路径: {}", projectRoot.toAbsolutePath());
+                ModuleLogger.debug(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成] 项目根目录字符串: {}", projectRoot.toString());
+                
+                // 验证项目根目录不包含 run/resources
+                String projectRootStr = projectRoot.toString().toLowerCase();
+                ModuleLogger.debug(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成] 项目根目录（小写）: {}", projectRootStr);
+                
+                boolean containsRunResources = projectRootStr.contains("run" + java.io.File.separator + "resources") || 
+                    projectRootStr.contains("run\\resources") ||
+                    projectRootStr.contains("run/resources");
+                ModuleLogger.debug(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成] 是否包含 run/resources: {}", containsRunResources);
+                
+                if (containsRunResources) {
+                    ModuleLogger.error(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成] ✗ 错误: 项目根目录路径异常，包含 run/resources: {}", projectRoot);
+                    throw new IllegalStateException("项目根目录路径解析错误: " + projectRoot);
+                }
+                
+                ModuleLogger.debug(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成] ========== 项目根目录解析完成 ==========");
                 return projectRoot;
             }
+            
+            // 向上移动一层
+            Path parent = currentDir.getParent();
+            if (parent == null || parent.equals(currentDir)) {
+                ModuleLogger.debug(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成] 已到达根目录，停止查找");
+                break; // 已经到达根目录
+            }
+            currentDir = parent;
+            depth++;
         }
+        
+        // 如果找不到 build.gradle，回退到原来的逻辑
+        ModuleLogger.warn(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成] 未找到 build.gradle，使用备用方法");
+        String lastSegment = normalizedGameDir.getFileName().toString();
+        ModuleLogger.debug(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成] 备用方法: 最后路径段 = {}", lastSegment);
+        
+        Path projectRoot;
+        if (lastSegment.equals("run")) {
+            projectRoot = normalizedGameDir.getParent().toAbsolutePath();
+            ModuleLogger.debug(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成] 备用方法: 检测到 run 目录，项目根目录 = {}", projectRoot);
+        } else {
+            Path possibleRunDir = normalizedGameDir.resolve("run");
+            ModuleLogger.debug(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成] 备用方法: 检查 run 子目录: {} (存在: {})", possibleRunDir, Files.exists(possibleRunDir));
+            if (Files.exists(possibleRunDir) && Files.isDirectory(possibleRunDir)) {
+                projectRoot = normalizedGameDir.toAbsolutePath();
+                ModuleLogger.debug(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成] 备用方法: 找到 run 子目录，项目根目录 = {}", projectRoot);
+            } else {
+                projectRoot = normalizedGameDir.getParent().toAbsolutePath();
+                ModuleLogger.debug(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成] 备用方法: 未找到 run 子目录，项目根目录 = {}", projectRoot);
+            }
+        }
+        
+        ModuleLogger.warn(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成] 使用备用方法确定的项目根目录: {}", projectRoot);
+        ModuleLogger.debug(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成] ========== 项目根目录解析完成（备用方法）==========");
+        return projectRoot.toAbsolutePath();
     }
     
     /**
@@ -61,15 +117,75 @@ public class ResourceFileGenerator {
      */
     public static void generateItemModels() {
         try {
-            // 获取项目根目录
+            ModuleLogger.debug(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成] ========== 开始生成物品模型 ==========");
+            
+            // 获取项目根目录（绝对路径）
             Path projectRoot = getProjectRoot();
+            ModuleLogger.debug(LogModuleConfig.MODULE_RESOURCE_GENERATOR,"[资源生成] 项目根目录: {}", projectRoot);
+            ModuleLogger.debug(LogModuleConfig.MODULE_RESOURCE_GENERATOR,"[资源生成] 项目根目录绝对路径: {}", projectRoot.toAbsolutePath());
             
             // 生成到 build/resources/main（开发环境会自动加载）
-            Path buildResourcesDir = projectRoot.resolve("build/resources/main");
-            Path buildModelsDir = buildResourcesDir.resolve("assets/" + PlayerDollAddon.MODID + "/models/item");
+            // 使用绝对路径确保路径解析正确
+            Path buildDir = projectRoot.resolve("build");
+            Path buildResourcesDir = buildDir.resolve("resources");
+            Path buildResourcesMainDir = buildResourcesDir.resolve("main");
+            Path buildModelsDir = buildResourcesMainDir.resolve("assets").resolve(PlayerDollAddon.MODID).resolve("models").resolve("item");
+            
+            // 转换为绝对路径
+            Path buildResourcesDirAbs = buildResourcesDir.toAbsolutePath();
+            Path buildModelsDirAbs = buildModelsDir.toAbsolutePath();
+            
+            ModuleLogger.debug(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成] 路径构建过程:");
+            ModuleLogger.debug(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成]   项目根目录: {}", projectRoot);
+            ModuleLogger.debug(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成]   build 目录: {} (绝对: {})", buildDir, buildDir.toAbsolutePath());
+            ModuleLogger.debug(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成]   build/resources 目录: {} (绝对: {})", buildResourcesDir, buildResourcesDirAbs);
+            ModuleLogger.debug(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成]   build/resources/main 目录: {} (绝对: {})", buildResourcesMainDir, buildResourcesMainDir.toAbsolutePath());
+            ModuleLogger.debug(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成]   最终目标目录: {} (绝对: {})", buildModelsDir, buildModelsDirAbs);
+            
+            // 严格验证路径，确保不会创建到 run/resources
+            String buildModelsDirStr = buildModelsDirAbs.toString().toLowerCase();
+            String projectRootStr = projectRoot.toString().toLowerCase();
+            
+            ModuleLogger.debug(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成] 路径验证:");
+            ModuleLogger.debug(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成]   目标目录字符串（小写）: {}", buildModelsDirStr);
+            ModuleLogger.debug(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成]   项目根目录字符串（小写）: {}", projectRootStr);
+            
+            // 检查路径是否包含 run/resources
+            boolean containsRunResources = buildModelsDirStr.contains("run" + java.io.File.separator + "resources") || 
+                buildModelsDirStr.contains("run\\resources") ||
+                buildModelsDirStr.contains("run/resources");
+            ModuleLogger.debug(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成]   是否包含 run/resources: {}", containsRunResources);
+                
+                if (containsRunResources) {
+                    ModuleLogger.error(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成] ✗ 错误: 检测到路径包含 run/resources，拒绝创建");
+                    ModuleLogger.error(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成] 项目根目录: {}", projectRoot);
+                    ModuleLogger.error(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成] 目标目录: {}", buildModelsDirAbs);
+                throw new IOException("路径解析错误: 检测到 run/resources 路径");
+            }
+            
+            // 验证路径是否在项目根目录下
+            boolean startsWithProjectRoot = buildModelsDirAbs.startsWith(projectRoot);
+            ModuleLogger.debug(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成]   目标目录是否在项目根目录下: {}", startsWithProjectRoot);
+                
+                if (!startsWithProjectRoot) {
+                    ModuleLogger.error(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成] ✗ 错误: 目标目录不在项目根目录下");
+                    ModuleLogger.error(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成] 项目根目录: {}", projectRoot);
+                    ModuleLogger.error(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成] 目标目录: {}", buildModelsDirAbs);
+                throw new IOException("路径解析错误: 目标目录不在项目根目录下");
+            }
+            
+            ModuleLogger.info(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成] ✓ 路径验证通过，生成物品模型到: {}", buildModelsDirAbs);
             
             // 创建目录
-            Files.createDirectories(buildModelsDir);
+            ModuleLogger.debug(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成] 开始创建目录: {}", buildModelsDirAbs);
+            boolean dirExisted = Files.exists(buildModelsDirAbs);
+            ModuleLogger.debug(LogModuleConfig.MODULE_RESOURCE_GENERATOR,"[资源生成] 目录是否已存在: {}", dirExisted);
+            
+            Files.createDirectories(buildModelsDirAbs);
+            
+            boolean dirExistsNow = Files.exists(buildModelsDirAbs);
+            ModuleLogger.debug(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成] 目录创建后是否存在: {}", dirExistsNow);
+            ModuleLogger.debug(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成] 目录创建完成: {}", buildModelsDirAbs);
             
             List<PngTextureScanner.PngTextureInfo> pngFiles = PngTextureScanner.scanPngFiles();
             
@@ -87,14 +203,14 @@ public class ResourceFileGenerator {
                     
                     // 验证文件是否生成成功
                     if (!Files.exists(buildModelFile)) {
-                        LOGGER.error("[资源生成] ✗ 模型文件生成失败: {}", buildModelFile);
+                        ModuleLogger.error(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成] ✗ 模型文件生成失败: {}", buildModelFile);
                     }
                 } catch (Exception e) {
-                    LOGGER.error("[资源生成] ✗ 生成模型文件时出错: {}", pngInfo.getRegistryName(), e);
+                    ModuleLogger.error(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成] ✗ 生成模型文件时出错: {}", pngInfo.getRegistryName(), e);
                 }
             }
         } catch (IOException e) {
-            LOGGER.error("[资源生成] ✗ 生成物品模型文件时出错", e);
+            ModuleLogger.error(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成] ✗ 生成物品模型文件时出错", e);
         }
     }
     
@@ -130,15 +246,75 @@ public class ResourceFileGenerator {
      */
     public static void updateLanguageFiles() {
         try {
-            // 获取项目根目录
+            ModuleLogger.debug(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成] ========== 开始生成语言文件 ==========");
+            
+            // 获取项目根目录（绝对路径）
             Path projectRoot = getProjectRoot();
+            ModuleLogger.debug(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成] 项目根目录: {}", projectRoot);
+            ModuleLogger.debug(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成] 项目根目录绝对路径: {}", projectRoot.toAbsolutePath());
             
             // 生成到 build/resources/main（开发环境会自动加载）
-            Path buildResourcesDir = projectRoot.resolve("build/resources/main");
-            Path buildLangDir = buildResourcesDir.resolve("assets/" + PlayerDollAddon.MODID + "/lang");
+            // 使用绝对路径确保路径解析正确
+            Path buildDir = projectRoot.resolve("build");
+            Path buildResourcesDir = buildDir.resolve("resources");
+            Path buildResourcesMainDir = buildResourcesDir.resolve("main");
+            Path buildLangDir = buildResourcesMainDir.resolve("assets").resolve(PlayerDollAddon.MODID).resolve("lang");
+            
+            // 转换为绝对路径
+            Path buildResourcesDirAbs = buildResourcesDir.toAbsolutePath();
+            Path buildLangDirAbs = buildLangDir.toAbsolutePath();
+            
+            ModuleLogger.debug(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成] 路径构建过程:");
+            ModuleLogger.debug(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成]   项目根目录: {}", projectRoot);
+            ModuleLogger.debug(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成]   build 目录: {} (绝对: {})", buildDir, buildDir.toAbsolutePath());
+            ModuleLogger.debug(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成]   build/resources 目录: {} (绝对: {})", buildResourcesDir, buildResourcesDirAbs);
+            ModuleLogger.debug(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成]   build/resources/main 目录: {} (绝对: {})", buildResourcesMainDir, buildResourcesMainDir.toAbsolutePath());
+            ModuleLogger.debug(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成]   最终目标目录: {} (绝对: {})", buildLangDir, buildLangDirAbs);
+            
+            // 严格验证路径，确保不会创建到 run/resources
+            String buildLangDirStr = buildLangDirAbs.toString().toLowerCase();
+            String projectRootStr = projectRoot.toString().toLowerCase();
+            
+            ModuleLogger.debug(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成] 路径验证:");
+            ModuleLogger.debug(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成]   目标目录字符串（小写）: {}", buildLangDirStr);
+            ModuleLogger.debug(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成]   项目根目录字符串（小写）: {}", projectRootStr);
+            
+            // 检查路径是否包含 run/resources
+            boolean containsRunResources = buildLangDirStr.contains("run" + java.io.File.separator + "resources") || 
+                buildLangDirStr.contains("run\\resources") ||
+                buildLangDirStr.contains("run/resources");
+            ModuleLogger.debug(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成]   是否包含 run/resources: {}", containsRunResources);
+                
+                if (containsRunResources) {
+                    ModuleLogger.error(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成] ✗ 错误: 检测到路径包含 run/resources，拒绝创建");
+                    ModuleLogger.error(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成] 项目根目录: {}", projectRoot);
+                    ModuleLogger.error(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成] 目标目录: {}", buildLangDirAbs);
+                throw new IOException("路径解析错误: 检测到 run/resources 路径");
+            }
+            
+            // 验证路径是否在项目根目录下
+            boolean startsWithProjectRoot = buildLangDirAbs.startsWith(projectRoot);
+            ModuleLogger.debug(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成]   目标目录是否在项目根目录下: {}", startsWithProjectRoot);
+                
+                if (!startsWithProjectRoot) {
+                    ModuleLogger.error(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成] ✗ 错误: 目标目录不在项目根目录下");
+                    ModuleLogger.error(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成] 项目根目录: {}", projectRoot);
+                    ModuleLogger.error(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成] 目标目录: {}", buildLangDirAbs);
+                throw new IOException("路径解析错误: 目标目录不在项目根目录下");
+            }
+            
+            ModuleLogger.info(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成] ✓ 路径验证通过，生成语言文件到: {}", buildLangDirAbs);
             
             // 创建目录
-            Files.createDirectories(buildLangDir);
+            ModuleLogger.debug(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成] 开始创建目录: {}", buildLangDirAbs);
+            boolean dirExisted = Files.exists(buildLangDirAbs);
+            ModuleLogger.debug(LogModuleConfig.MODULE_RESOURCE_GENERATOR,"[资源生成] 目录是否已存在: {}", dirExisted);
+            
+            Files.createDirectories(buildLangDirAbs);
+            
+            boolean dirExistsNow = Files.exists(buildLangDirAbs);
+            ModuleLogger.debug(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成] 目录创建后是否存在: {}", dirExistsNow);
+            ModuleLogger.debug(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成] 目录创建完成: {}", buildLangDirAbs);
             
             List<PngTextureScanner.PngTextureInfo> pngFiles = PngTextureScanner.scanPngFiles();
             
@@ -180,7 +356,7 @@ public class ResourceFileGenerator {
                     enUsEntries.put(itemKey, displayName + " Doll");
                     enUsEntries.put(entityKey, displayName + " Doll");
                 } catch (Exception e) {
-                    LOGGER.error("[资源生成] ✗ 生成翻译条目时出错: {}", pngInfo.getRegistryName(), e);
+                    ModuleLogger.error(LogModuleConfig.MODULE_RESOURCE_GENERATOR, "[资源生成] ✗ 生成翻译条目时出错: {}", pngInfo.getRegistryName(), e);
                 }
             }
             
@@ -197,14 +373,14 @@ public class ResourceFileGenerator {
             
             // 验证文件是否生成成功
             if (!Files.exists(buildZhCnFile)) {
-                LOGGER.error("[资源生成] ✗ 中文语言文件生成失败: {}", buildZhCnFile);
+                ModuleLogger.error(LogModuleConfig.MODULE_RESOURCE_GENERATOR,"[资源生成] ✗ 中文语言文件生成失败: {}", buildZhCnFile);
             }
             
             if (!Files.exists(buildEnUsFile)) {
-                LOGGER.error("[资源生成] ✗ 英文语言文件生成失败: {}", buildEnUsFile);
+                ModuleLogger.error(LogModuleConfig.MODULE_RESOURCE_GENERATOR,"[资源生成] ✗ 英文语言文件生成失败: {}", buildEnUsFile);
             }
         } catch (IOException e) {
-            LOGGER.error("[资源生成] ✗ 生成语言文件时出错", e);
+            ModuleLogger.error(LogModuleConfig.MODULE_RESOURCE_GENERATOR,"[资源生成] ✗ 生成语言文件时出错", e);
         }
     }
     

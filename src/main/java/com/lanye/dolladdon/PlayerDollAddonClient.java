@@ -7,6 +7,8 @@ import com.lanye.dolladdon.impl.render.SteveDollRenderer;
 import com.lanye.dolladdon.impl.render.StandardDollItemRenderer;
 import com.lanye.dolladdon.init.ModEntities;
 import com.lanye.dolladdon.init.ModItems;
+import com.lanye.dolladdon.util.logging.LogModuleConfig;
+import com.lanye.dolladdon.util.logging.ModuleLogger;
 import com.lanye.dolladdon.util.resource.ExternalTextureLoader;
 import com.lanye.dolladdon.util.resource.PngTextureScanner;
 import net.fabricmc.api.ClientModInitializer;
@@ -100,7 +102,7 @@ public class PlayerDollAddonClient implements ClientModInitializer {
             try {
                 EntityRendererRegistry.register(entry.getValue(), CustomTextureDollRenderer::new);
             } catch (Exception e) {
-                PlayerDollAddon.LOGGER.error("[渲染器] ✗ 注册自定义纹理玩偶实体渲染器失败: {}", entry.getKey(), e);
+                ModuleLogger.error(LogModuleConfig.MODULE_RENDER, "[渲染器] ✗ 注册自定义纹理玩偶实体渲染器失败: {}", entry.getKey(), e);
             }
         }
     }
@@ -112,7 +114,7 @@ public class PlayerDollAddonClient implements ClientModInitializer {
         MinecraftClient client = MinecraftClient.getInstance();
         
         if (client == null) {
-            PlayerDollAddon.LOGGER.error("[渲染器] ✗ MinecraftClient 未初始化，无法注册物品渲染器");
+            ModuleLogger.error(LogModuleConfig.MODULE_RENDER, "[渲染器] ✗ MinecraftClient 未初始化，无法注册物品渲染器");
             return;
         }
         
@@ -123,7 +125,7 @@ public class PlayerDollAddonClient implements ClientModInitializer {
                 new StandardDollItemRenderer(client, null, false)
             );
         } catch (Exception e) {
-            PlayerDollAddon.LOGGER.error("[渲染器] ✗ steve_doll 物品渲染器注册失败", e);
+            ModuleLogger.error(LogModuleConfig.MODULE_RENDER, "[渲染器] ✗ steve_doll 物品渲染器注册失败", e);
         }
         
         // 注册艾利克斯玩偶物品渲染器（使用标准渲染器，true = 细手臂模型）
@@ -133,7 +135,7 @@ public class PlayerDollAddonClient implements ClientModInitializer {
                 new StandardDollItemRenderer(client, null, true)
             );
         } catch (Exception e) {
-            PlayerDollAddon.LOGGER.error("[渲染器] ✗ alex_doll 物品渲染器注册失败", e);
+            ModuleLogger.error(LogModuleConfig.MODULE_RENDER, "[渲染器] ✗ alex_doll 物品渲染器注册失败", e);
         }
         
         // 注册所有自定义纹理玩偶物品渲染器
@@ -145,7 +147,7 @@ public class PlayerDollAddonClient implements ClientModInitializer {
                 net.minecraft.item.Item item = entry.getValue();
                 
                 if (item == null) {
-                    PlayerDollAddon.LOGGER.error("[渲染器] ✗ 物品为 null: {}", registryName);
+                    ModuleLogger.error(LogModuleConfig.MODULE_RENDER, "[渲染器] ✗ 物品为 null: {}", registryName);
                     continue;
                 }
                 
@@ -158,7 +160,7 @@ public class PlayerDollAddonClient implements ClientModInitializer {
                     new CustomTextureDollItemRenderer(client, textureId)
                 );
             } catch (Exception e) {
-                PlayerDollAddon.LOGGER.error("[渲染器] ✗ 注册自定义纹理玩偶物品渲染器失败: {}", entry.getKey(), e);
+                ModuleLogger.error(LogModuleConfig.MODULE_RENDER, "[渲染器] ✗ 注册自定义纹理玩偶物品渲染器失败: {}", entry.getKey(), e);
             }
         }
     }
@@ -195,7 +197,7 @@ public class PlayerDollAddonClient implements ClientModInitializer {
                             }
                         }
                     } catch (Exception e) {
-                        PlayerDollAddon.LOGGER.error("资源重载过程中发生异常", e);
+                        ModuleLogger.error(LogModuleConfig.MODULE_RESOURCE, "资源重载过程中发生异常", e);
                     }
                 }
             }

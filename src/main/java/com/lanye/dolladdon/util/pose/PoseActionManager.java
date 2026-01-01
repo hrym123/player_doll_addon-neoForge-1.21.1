@@ -1,12 +1,10 @@
 package com.lanye.dolladdon.util.pose;
 
-import com.lanye.dolladdon.PlayerDollAddon;
 import com.lanye.dolladdon.api.action.DollAction;
 import com.lanye.dolladdon.api.pose.DollPose;
 import com.lanye.dolladdon.util.logging.LogModuleConfig;
 import com.lanye.dolladdon.util.logging.ModuleLogger;
 import net.minecraft.resource.ResourceManager;
-import org.slf4j.Logger;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -18,7 +16,6 @@ import java.util.Map;
  * 管理所有加载的姿态和动作资源
  */
 public class PoseActionManager {
-    private static final Logger LOGGER = PlayerDollAddon.LOGGER;
     
     // 模块化日志：从 LogModuleConfig 读取模块名称
     private static final String LOG_MODULE_POSE_LOADER = LogModuleConfig.MODULE_POSE_LOADER;
@@ -32,7 +29,7 @@ public class PoseActionManager {
      * 应该在游戏启动时或资源重载时调用（如执行 /reload 命令）
      */
     public static void loadResources(ResourceManager resourceManager) {
-        LOGGER.info("开始加载姿态和动作资源...");
+        ModuleLogger.info(LogModuleConfig.MODULE_RESOURCE, "开始加载姿态和动作资源...");
         
         // 加载所有姿态（从资源包和文件系统）
         Map<String, DollPose> loadedPoses = PoseLoader.loadAllPoses(resourceManager);
@@ -70,7 +67,7 @@ public class PoseActionManager {
                 actionName, action.isLooping(), action.getDuration());
         }
         
-        LOGGER.info("姿态和动作资源加载完成: {} 个姿态, {} 个动作", loadedPoses.size(), loadedActions.size());
+        ModuleLogger.info(LogModuleConfig.MODULE_RESOURCE, "姿态和动作资源加载完成: {} 个姿态, {} 个动作", loadedPoses.size(), loadedActions.size());
     }
     
     /**
@@ -169,7 +166,7 @@ public class PoseActionManager {
                 }
             }
         } catch (Exception e) {
-            LOGGER.error("从文件系统重新加载姿态失败", e);
+            ModuleLogger.error(LogModuleConfig.MODULE_POSE_LOADER, "从文件系统重新加载姿态失败", e);
         }
     }
 }

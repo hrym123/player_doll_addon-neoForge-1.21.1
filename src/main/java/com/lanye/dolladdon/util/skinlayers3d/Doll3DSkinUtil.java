@@ -6,8 +6,6 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.texture.NativeImage;
 import net.minecraft.resource.Resource;
 import net.minecraft.util.Identifier;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -19,8 +17,6 @@ import java.util.concurrent.ConcurrentHashMap;
  * 通过反射调用3D皮肤层mod的API来创建3D网格
  */
 public class Doll3DSkinUtil {
-    private static final Logger LOGGER = LoggerFactory.getLogger(Doll3DSkinUtil.class);
-    
     // 缓存已创建的3D皮肤数据
     private static final ConcurrentHashMap<CacheKey, Doll3DSkinData> CACHE = new ConcurrentHashMap<>();
     

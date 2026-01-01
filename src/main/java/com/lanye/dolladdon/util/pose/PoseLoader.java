@@ -12,7 +12,6 @@ import com.lanye.dolladdon.util.logging.ModuleLogger;
 import net.minecraft.resource.Resource;
 import net.minecraft.resource.ResourceManager;
 import net.minecraft.util.Identifier;
-import org.slf4j.Logger;
 
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -29,7 +28,6 @@ import java.util.Optional;
  * 从资源文件加载姿态定义
  */
 public class PoseLoader {
-    private static final Logger LOGGER = PlayerDollAddon.LOGGER;
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     
     // 模块化日志：模块名称
@@ -262,7 +260,7 @@ public class PoseLoader {
                     }
                 });
         } catch (Exception e) {
-            LOGGER.error("扫描文件系统姿态目录失败: {}", posesDir, e);
+            ModuleLogger.error(LogModuleConfig.MODULE_POSE_LOADER, "扫描文件系统姿态目录失败: {}", posesDir, e);
         }
         
         return poses;

@@ -20,14 +20,11 @@ import net.minecraft.util.Identifier;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
 import net.fabricmc.loader.api.FabricLoader;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.nio.file.Path;
 
 public class PlayerDollAddon implements ModInitializer {
     public static final String MODID = "player_doll_addon";
-    public static final Logger LOGGER = LoggerFactory.getLogger(MODID);
     
     // 姿态文件目录路径（相对于游戏目录）
     public static final String POSES_DIR = "player_doll/poses";
@@ -57,44 +54,44 @@ public class PlayerDollAddon implements ModInitializer {
     public void onInitialize() {
         // 初始化日志模块配置（必须在其他初始化之前）
         LogModuleConfig.initializeModuleLevels();
-        LOGGER.info("========== 玩偶模组开始初始化 ==========");
+        ModuleLogger.info(LogModuleConfig.MODULE_MAIN, "========== 玩偶模组开始初始化 ==========");
         
         try {
             // 初始化默认文件（从资源包复制到文件系统）
-            LOGGER.info("步骤 1/6: 初始化默认文件...");
+            ModuleLogger.info(LogModuleConfig.MODULE_MAIN, "步骤 1/6: 初始化默认文件...");
             initializeDefaultFiles();
-            LOGGER.info("步骤 1/6: 完成");
+            ModuleLogger.info(LogModuleConfig.MODULE_MAIN, "步骤 1/6: 完成");
             
             // 生成资源文件（物品模型和语言文件）
-            LOGGER.info("步骤 2/6: 生成资源文件...");
+            ModuleLogger.info(LogModuleConfig.MODULE_MAIN, "步骤 2/6: 生成资源文件...");
             generateResourceFiles();
-            LOGGER.info("步骤 2/6: 完成");
+            ModuleLogger.info(LogModuleConfig.MODULE_MAIN, "步骤 2/6: 完成");
             
             // 注册物品
-            LOGGER.info("步骤 3/6: 注册物品...");
+            ModuleLogger.info(LogModuleConfig.MODULE_MAIN, "步骤 3/6: 注册物品...");
             ModItems.register();
-            LOGGER.info("步骤 3/6: 完成");
+            ModuleLogger.info(LogModuleConfig.MODULE_MAIN, "步骤 3/6: 完成");
             
             // 注册实体
-            LOGGER.info("步骤 4/6: 注册实体...");
+            ModuleLogger.info(LogModuleConfig.MODULE_MAIN, "步骤 4/6: 注册实体...");
             ModEntities.register();
-            LOGGER.info("步骤 4/6: 完成");
+            ModuleLogger.info(LogModuleConfig.MODULE_MAIN, "步骤 4/6: 完成");
             
             // 注册创造模式物品栏
-            LOGGER.info("步骤 5/6: 注册创造模式物品栏...");
+            ModuleLogger.info(LogModuleConfig.MODULE_MAIN, "步骤 5/6: 注册创造模式物品栏...");
             Registry.register(Registries.ITEM_GROUP, 
                     new Identifier(MODID, "player_doll_tab"), 
                     PLAYER_DOLL_TAB);
-            LOGGER.info("步骤 5/6: 完成");
+            ModuleLogger.info(LogModuleConfig.MODULE_MAIN, "步骤 5/6: 完成");
             
             // 注册实体交互事件
-            LOGGER.info("步骤 6/6: 注册实体交互事件...");
+            ModuleLogger.info(LogModuleConfig.MODULE_MAIN, "步骤 6/6: 注册实体交互事件...");
             registerEntityInteractionEvent();
-            LOGGER.info("步骤 6/6: 完成");
+            ModuleLogger.info(LogModuleConfig.MODULE_MAIN, "步骤 6/6: 完成");
             
-            LOGGER.info("========== 玩偶模组初始化完成 ==========");
+            ModuleLogger.info(LogModuleConfig.MODULE_MAIN, "========== 玩偶模组初始化完成 ==========");
         } catch (Exception e) {
-            LOGGER.error("========== 玩偶模组初始化失败 ==========", e);
+            ModuleLogger.error(LogModuleConfig.MODULE_MAIN, "========== 玩偶模组初始化失败 ==========", e);
             throw new RuntimeException("玩偶模组初始化失败", e);
         }
     }
@@ -106,14 +103,15 @@ public class PlayerDollAddon implements ModInitializer {
      */
     private void registerEntityInteractionEvent() {
         try {
-            LOGGER.info("开始注册 UseEntityCallback 事件... (当前环境: {})", 
+            ModuleLogger.info(LogModuleConfig.MODULE_MAIN, "开始注册 UseEntityCallback 事件... (当前环境: {})", 
                 FabricLoader.getInstance().getEnvironmentType());
             
             // 注册事件处理器（在客户端和服务端都会注册）
             // 先添加一个测试处理器，记录所有实体交互
             UseEntityCallback.EVENT.register((player, world, hand, entity, hitResult) -> {
                 // 记录所有实体交互尝试（用于调试）- 使用 INFO 级别确保能看到
-                LOGGER.info("[UseEntityCallback测试] 玩家 {} 交互实体: 类型={}, ID={}, 手={}, 服务端={}, 实体类={}", 
+                ModuleLogger.info(LogModuleConfig.MODULE_ENTITY_INTERACT, 
+                    "[UseEntityCallback测试] 玩家 {} 交互实体: 类型={}, ID={}, 手={}, 服务端={}, 实体类={}", 
                     player.getName().getString(), 
                     entity != null ? entity.getType().toString() : "null",
                     entity != null ? entity.getId() : -1,
@@ -134,12 +132,6 @@ public class PlayerDollAddon implements ModInitializer {
                 
                 // 记录交互尝试
                 double distance = player.getPos().distanceTo(entity.getPos());
-                LOGGER.info("[UseEntityCallback] 玩家 {} 尝试交互玩偶实体: 实体ID={}, 位置=({}, {}, {}), 玩家位置=({}, {}, {}), 距离={}, 手={}, 服务端={}", 
-                    player.getName().getString(), entity.getId(),
-                    String.format("%.2f", entity.getX()), String.format("%.2f", entity.getY()), String.format("%.2f", entity.getZ()),
-                    String.format("%.2f", player.getX()), String.format("%.2f", player.getY()), String.format("%.2f", player.getZ()),
-                    String.format("%.2f", distance), hand, !world.isClient);
-                
                 ModuleLogger.info(LogModuleConfig.MODULE_ENTITY_INTERACT, 
                     "[UseEntityCallback] 玩家 {} 尝试交互玩偶实体: 实体ID={}, 位置=({}, {}, {}), 玩家位置=({}, {}, {}), 距离={}, 手={}, 服务端={}", 
                     player.getName().getString(), entity.getId(),
@@ -151,7 +143,6 @@ public class PlayerDollAddon implements ModInitializer {
                 ActionResult result = dollEntity.interact(player, hand);
                 
                 // 记录结果
-                LOGGER.info("[UseEntityCallback] 实体返回结果: {}, 服务端={}", result, !world.isClient);
                 ModuleLogger.info(LogModuleConfig.MODULE_ENTITY_INTERACT, 
                     "[UseEntityCallback] 实体返回结果: {}, 服务端={}", 
                     result, !world.isClient);
@@ -165,9 +156,9 @@ public class PlayerDollAddon implements ModInitializer {
                 return ActionResult.PASS;
             });
             
-            LOGGER.info("UseEntityCallback 事件已成功注册");
+            ModuleLogger.info(LogModuleConfig.MODULE_MAIN, "UseEntityCallback 事件已成功注册");
         } catch (Exception e) {
-            LOGGER.error("注册 UseEntityCallback 事件时出错", e);
+            ModuleLogger.error(LogModuleConfig.MODULE_MAIN, "注册 UseEntityCallback 事件时出错", e);
             throw new RuntimeException("注册实体交互事件失败", e);
         }
     }
@@ -180,7 +171,7 @@ public class PlayerDollAddon implements ModInitializer {
             ResourceFileGenerator.generateItemModels();
             ResourceFileGenerator.updateLanguageFiles();
         } catch (Exception e) {
-            LOGGER.error("生成资源文件时出错", e);
+            ModuleLogger.error(LogModuleConfig.MODULE_MAIN, "生成资源文件时出错", e);
         }
     }
     
@@ -192,7 +183,7 @@ public class PlayerDollAddon implements ModInitializer {
             Path gameDir = FabricLoader.getInstance().getGameDir();
             DefaultFileInitializer.initializeDefaultFiles(gameDir);
         } catch (Exception e) {
-            LOGGER.error("初始化默认文件失败", e);
+            ModuleLogger.error(LogModuleConfig.MODULE_MAIN, "初始化默认文件失败", e);
         }
     }
     

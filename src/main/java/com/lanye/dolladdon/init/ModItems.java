@@ -4,6 +4,8 @@ import com.lanye.dolladdon.PlayerDollAddon;
 import com.lanye.dolladdon.impl.item.AlexDollItem;
 import com.lanye.dolladdon.impl.item.CustomTextureDollItem;
 import com.lanye.dolladdon.impl.item.SteveDollItem;
+import com.lanye.dolladdon.util.logging.LogModuleConfig;
+import com.lanye.dolladdon.util.logging.ModuleLogger;
 import com.lanye.dolladdon.util.resource.PngTextureScanner;
 import net.minecraft.item.Item;
 import net.minecraft.util.Identifier;
@@ -78,10 +80,10 @@ public class ModItems {
                     // 存储到映射表
                     CUSTOM_TEXTURE_DOLL_ITEMS.put(registryName, registeredItem);
                 } else {
-                    PlayerDollAddon.LOGGER.error("[物品注册] ✗ 注册验证失败: {} (注册的物品与验证的物品不匹配)", registryName);
+                    ModuleLogger.error(LogModuleConfig.MODULE_RESOURCE, "[物品注册] ✗ 注册验证失败: {} (注册的物品与验证的物品不匹配)", registryName);
                 }
             } catch (Exception e) {
-                PlayerDollAddon.LOGGER.error("[物品注册] ✗ 注册失败: {}", pngInfo.getRegistryName(), e);
+                ModuleLogger.error(LogModuleConfig.MODULE_RESOURCE, "[物品注册] ✗ 注册失败: {}", pngInfo.getRegistryName(), e);
             }
         }
     }

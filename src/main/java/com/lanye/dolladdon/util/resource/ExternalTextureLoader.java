@@ -1,10 +1,11 @@
 package com.lanye.dolladdon.util.resource;
 
 import com.lanye.dolladdon.PlayerDollAddon;
+import com.lanye.dolladdon.util.logging.LogModuleConfig;
+import com.lanye.dolladdon.util.logging.ModuleLogger;
 import net.minecraft.client.texture.NativeImage;
 import net.minecraft.client.texture.NativeImageBackedTexture;
 import net.minecraft.util.Identifier;
-import org.slf4j.Logger;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -19,7 +20,6 @@ import java.util.Map;
  * 用于从文件系统加载 PNG 纹理文件并注册到 Minecraft 纹理管理器
  */
 public class ExternalTextureLoader {
-    private static final Logger LOGGER = PlayerDollAddon.LOGGER;
     private static final Map<Identifier, Path> LOADED_TEXTURES = new HashMap<>();
     
     /**
@@ -60,7 +60,7 @@ public class ExternalTextureLoader {
     public static boolean loadTexture(Identifier textureId, net.minecraft.client.texture.TextureManager textureManager) {
         Path filePath = LOADED_TEXTURES.get(textureId);
         if (filePath == null || !Files.exists(filePath)) {
-            LOGGER.warn("找不到纹理文件: {} -> {}", textureId, filePath);
+            ModuleLogger.warn(LogModuleConfig.MODULE_RESOURCE, "找不到纹理文件: {} -> {}", textureId, filePath);
             return false;
         }
         
@@ -76,7 +76,7 @@ public class ExternalTextureLoader {
             
             return true;
         } catch (IOException e) {
-            LOGGER.error("加载外部纹理失败: {} -> {}", textureId, filePath, e);
+            ModuleLogger.error(LogModuleConfig.MODULE_RESOURCE, "加载外部纹理失败: {} -> {}", textureId, filePath, e);
             return false;
         }
     }

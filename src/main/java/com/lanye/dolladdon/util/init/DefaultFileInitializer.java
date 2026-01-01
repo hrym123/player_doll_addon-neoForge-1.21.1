@@ -1,7 +1,8 @@
 package com.lanye.dolladdon.util.init;
 
 import com.lanye.dolladdon.PlayerDollAddon;
-import org.slf4j.Logger;
+import com.lanye.dolladdon.util.logging.LogModuleConfig;
+import com.lanye.dolladdon.util.logging.ModuleLogger;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -14,7 +15,6 @@ import java.nio.file.Path;
  * 在 Mod 首次加载时，从资源包复制默认 JSON 文件到文件系统
  */
 public class DefaultFileInitializer {
-    private static final Logger LOGGER = PlayerDollAddon.LOGGER;
     
     /**
      * 初始化默认文件（从资源包复制到文件系统）
@@ -42,7 +42,7 @@ public class DefaultFileInitializer {
             copyIfNotExists(actionsDir.resolve("sit.json"), "assets/player_doll_addon/defaults/actions/sit.json");
             copyIfNotExists(actionsDir.resolve("wave.json"), "assets/player_doll_addon/defaults/actions/wave.json");
         } catch (Exception e) {
-            LOGGER.error("初始化默认文件失败", e);
+            ModuleLogger.error(LogModuleConfig.MODULE_RESOURCE, "初始化默认文件失败", e);
         }
     }
     
@@ -62,7 +62,7 @@ public class DefaultFileInitializer {
             String readmeContent = generateReadmeContent();
             Files.writeString(readmePath, readmeContent, StandardCharsets.UTF_8);
         } catch (IOException e) {
-            LOGGER.error("生成 README.md 失败", e);
+            ModuleLogger.error(LogModuleConfig.MODULE_RESOURCE, "生成 README.md 失败", e);
         }
     }
     
@@ -100,7 +100,7 @@ public class DefaultFileInitializer {
             // 从资源包读取文件
             InputStream resourceStream = DefaultFileInitializer.class.getClassLoader().getResourceAsStream(resourcePath);
             if (resourceStream == null) {
-                LOGGER.warn("找不到资源文件: {} (这是正常的，如果资源包中没有该文件)", resourcePath);
+                ModuleLogger.warn(LogModuleConfig.MODULE_RESOURCE, "找不到资源文件: {} (这是正常的，如果资源包中没有该文件)", resourcePath);
                 return;
             }
             
@@ -108,7 +108,7 @@ public class DefaultFileInitializer {
             Files.copy(resourceStream, targetPath);
             resourceStream.close();
         } catch (IOException e) {
-            LOGGER.error("复制文件失败: {} -> {}", resourcePath, targetPath, e);
+            ModuleLogger.error(LogModuleConfig.MODULE_RESOURCE, "复制文件失败: {} -> {}", resourcePath, targetPath, e);
         }
     }
 }

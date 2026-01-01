@@ -2,6 +2,8 @@ package com.lanye.dolladdon.base.render;
 
 import com.lanye.dolladdon.PlayerDollAddonClient;
 import com.lanye.dolladdon.base.entity.BaseDollEntity;
+import com.lanye.dolladdon.util.logging.LogModuleConfig;
+import com.lanye.dolladdon.util.logging.ModuleLogger;
 import com.lanye.dolladdon.util.skinlayers3d.Doll3DSkinData;
 import com.lanye.dolladdon.util.skinlayers3d.Doll3DSkinUtil;
 import com.lanye.dolladdon.util.skinlayers3d.SkinLayersLogger;
@@ -16,8 +18,6 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.math.MathHelper;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Method;
 /**
@@ -25,7 +25,6 @@ import java.lang.reflect.Method;
  * 提供所有玩偶实体渲染器的共同功能
  */
 public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityRenderer<T> {
-    private static final Logger LOGGER = LoggerFactory.getLogger(BaseDollRenderer.class);
     protected final PlayerEntityModel<PlayerEntity> playerModel;
     private final boolean thinArms;  // 是否为细手臂模型
     

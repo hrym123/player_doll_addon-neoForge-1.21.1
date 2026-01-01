@@ -29,6 +29,11 @@ public class LogModuleConfig {
     // ==================== 模块常量声明 ====================
     
     /**
+     * 主模块（用于主初始化日志）
+     */
+    public static final String MODULE_MAIN = "main";
+    
+    /**
      * 实体基础模块
      */
     public static final String MODULE_ENTITY = "entity";
@@ -93,25 +98,28 @@ public class LogModuleConfig {
     private static final Map<String, LogLevel> DEFAULT_MODULE_LEVELS = new HashMap<>();
     
     static {
-        // 实体相关模块：默认INFO级别
+        // 主模块：默认INFO级别
+        DEFAULT_MODULE_LEVELS.put(MODULE_MAIN, LogLevel.INFO);
+        
+        // 实体相关模块
         DEFAULT_MODULE_LEVELS.put(MODULE_ENTITY, LogLevel.WARN);
         DEFAULT_MODULE_LEVELS.put(MODULE_ENTITY_POSE, LogLevel.WARN);
         DEFAULT_MODULE_LEVELS.put(MODULE_ENTITY_ACTION, LogLevel.WARN);
         DEFAULT_MODULE_LEVELS.put(MODULE_ENTITY_INTERACT, LogLevel.WARN);
         DEFAULT_MODULE_LEVELS.put(MODULE_ENTITY_NBT, LogLevel.WARN);
         
-        // 渲染模块：默认WARN级别
+        // 渲染模块
         DEFAULT_MODULE_LEVELS.put(MODULE_RENDER, LogLevel.WARN);
         
-        // 3D皮肤层模块：默认DEBUG级别（用于调试）
+        // 3D皮肤层模块
         DEFAULT_MODULE_LEVELS.put(MODULE_3D_SKIN_LAYERS, LogLevel.DEBUG);
         
-        // 资源管理模块：默认INFO级别
-        DEFAULT_MODULE_LEVELS.put(MODULE_RESOURCE, LogLevel.WARN);
-        DEFAULT_MODULE_LEVELS.put(MODULE_RESOURCE_GENERATOR, LogLevel.WARN);
-        DEFAULT_MODULE_LEVELS.put(MODULE_TEXTURE_SCANNER, LogLevel.WARN);
+        // 资源管理模块
+        DEFAULT_MODULE_LEVELS.put(MODULE_RESOURCE, LogLevel.DEBUG);
+        DEFAULT_MODULE_LEVELS.put(MODULE_RESOURCE_GENERATOR, LogLevel.DEBUG);
+        DEFAULT_MODULE_LEVELS.put(MODULE_TEXTURE_SCANNER, LogLevel.DEBUG);
         
-        // 加载器模块：默认INFO级别
+        // 加载器模块
         DEFAULT_MODULE_LEVELS.put(MODULE_POSE_LOADER, LogLevel.WARN);
         DEFAULT_MODULE_LEVELS.put(MODULE_ACTION_LOADER, LogLevel.WARN);
     }
@@ -121,6 +129,9 @@ public class LogModuleConfig {
     private static final Map<String, String> LOG_TEMPLATES = new HashMap<>();
     
     static {
+        // 主模块模板
+        LOG_TEMPLATES.put(MODULE_MAIN, "[主模块] {}");
+        
         // 实体模块模板
         LOG_TEMPLATES.put(MODULE_ENTITY, "[实体] {}");
         LOG_TEMPLATES.put(MODULE_ENTITY_POSE, "[实体-姿态] {}");

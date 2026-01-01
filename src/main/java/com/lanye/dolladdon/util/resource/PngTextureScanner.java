@@ -1,8 +1,8 @@
 package com.lanye.dolladdon.util.resource;
 
-import com.lanye.dolladdon.PlayerDollAddon;
+import com.lanye.dolladdon.util.logging.LogModuleConfig;
+import com.lanye.dolladdon.util.logging.ModuleLogger;
 import net.fabricmc.loader.api.FabricLoader;
-import org.slf4j.Logger;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -16,7 +16,6 @@ import java.util.stream.Stream;
  * 用于扫描外部文件夹中的 PNG 文件
  */
 public class PngTextureScanner {
-    private static final Logger LOGGER = PlayerDollAddon.LOGGER;
     
     // PNG 文件夹路径（相对于游戏目录）
     public static final String PNG_DIR = "player_doll/png";
@@ -35,12 +34,12 @@ public class PngTextureScanner {
             // 如果文件夹不存在，创建它
             if (!Files.exists(pngDir)) {
                 Files.createDirectories(pngDir);
-                LOGGER.warn("[PNG扫描] PNG 文件夹不存在，已创建: {}", pngDir);
+                ModuleLogger.warn(LogModuleConfig.MODULE_TEXTURE_SCANNER, "[PNG扫描] PNG 文件夹不存在，已创建: {}", pngDir);
                 return pngFiles; // 返回空列表
             }
             
             if (!Files.isDirectory(pngDir)) {
-                LOGGER.error("[PNG扫描] 路径不是文件夹: {}", pngDir);
+                ModuleLogger.error(LogModuleConfig.MODULE_TEXTURE_SCANNER, "[PNG扫描] 路径不是文件夹: {}", pngDir);
                 return pngFiles;
             }
             
@@ -62,20 +61,20 @@ public class PngTextureScanner {
                                  if (!registryName.isEmpty()) {
                                      pngFiles.add(new PngTextureInfo(registryName, path, fileName));
                                  } else {
-                                     LOGGER.warn("[PNG扫描] ✗ 跳过无效的 PNG 文件名: {} (无法生成有效的注册名称)", fileName);
+                                     ModuleLogger.warn(LogModuleConfig.MODULE_TEXTURE_SCANNER, "[PNG扫描] ✗ 跳过无效的 PNG 文件名: {} (无法生成有效的注册名称)", fileName);
                                  }
                              } catch (Exception e) {
-                                 LOGGER.error("[PNG扫描] ✗ 处理 PNG 文件时出错: {}", path, e);
+                                 ModuleLogger.error(LogModuleConfig.MODULE_TEXTURE_SCANNER, "[PNG扫描] ✗ 处理 PNG 文件时出错: {}", path, e);
                              }
                          }
                      });
             }
             
             if (pngFiles.isEmpty()) {
-                LOGGER.warn("[PNG扫描] 警告: 未找到任何 PNG 文件！请确保文件位于: {}", pngDir);
+                ModuleLogger.warn(LogModuleConfig.MODULE_TEXTURE_SCANNER, "[PNG扫描] 警告: 未找到任何 PNG 文件！请确保文件位于: {}", pngDir);
             }
         } catch (IOException e) {
-            LOGGER.error("[PNG扫描] ✗ 扫描 PNG 文件夹时出错", e);
+            ModuleLogger.error(LogModuleConfig.MODULE_TEXTURE_SCANNER, "[PNG扫描] ✗ 扫描 PNG 文件夹时出错", e);
         }
         
         return pngFiles;

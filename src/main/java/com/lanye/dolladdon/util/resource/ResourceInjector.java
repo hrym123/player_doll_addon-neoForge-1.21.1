@@ -1,10 +1,11 @@
 package com.lanye.dolladdon.util.resource;
 
 import com.lanye.dolladdon.PlayerDollAddon;
+import com.lanye.dolladdon.util.logging.LogModuleConfig;
+import com.lanye.dolladdon.util.logging.ModuleLogger;
 import net.minecraft.resource.Resource;
 import net.minecraft.resource.ResourceManager;
 import net.minecraft.util.Identifier;
-import org.slf4j.Logger;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -21,7 +22,6 @@ import java.util.Set;
  * 用于在资源重载时动态注入物品模型和语言文件
  */
 public class ResourceInjector {
-    private static final Logger LOGGER = PlayerDollAddon.LOGGER;
     
     /**
      * 注入动态资源到资源管理器
@@ -35,7 +35,7 @@ public class ResourceInjector {
             // 注入语言文件
             injectLanguageFiles(resourceManager);
         } catch (Exception e) {
-            LOGGER.error("注入动态资源时出错", e);
+            ModuleLogger.error(LogModuleConfig.MODULE_RESOURCE, "注入动态资源时出错", e);
         }
     }
     
@@ -60,7 +60,7 @@ public class ResourceInjector {
                 // 更好的方法是使用 ResourcePackProvider
             }
         } catch (Exception e) {
-            LOGGER.error("注入物品模型时出错", e);
+            ModuleLogger.error(LogModuleConfig.MODULE_RESOURCE, "注入物品模型时出错", e);
         }
     }
     
@@ -71,7 +71,7 @@ public class ResourceInjector {
         try {
             // 语言文件注入也需要使用 ResourcePackProvider
         } catch (Exception e) {
-            LOGGER.error("注入语言文件时出错", e);
+            ModuleLogger.error(LogModuleConfig.MODULE_RESOURCE, "注入语言文件时出错", e);
         }
     }
 }
