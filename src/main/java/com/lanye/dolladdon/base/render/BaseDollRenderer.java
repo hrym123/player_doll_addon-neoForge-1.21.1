@@ -1,6 +1,11 @@
 package com.lanye.dolladdon.base.render;
 
+import com.lanye.dolladdon.PlayerDollAddonClient;
 import com.lanye.dolladdon.base.entity.BaseDollEntity;
+import com.lanye.dolladdon.util.skinlayers3d.Doll3DSkinData;
+import com.lanye.dolladdon.util.skinlayers3d.Doll3DSkinUtil;
+import com.lanye.dolladdon.util.skinlayers3d.SkinLayersLogger;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.entity.EntityRenderer;
 import net.minecraft.client.render.entity.EntityRendererFactory;
@@ -13,6 +18,8 @@ import org.joml.Quaternionf;
 import org.joml.Vector3f;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.lang.reflect.Method;
 /**
  * 玩偶实体渲染器基类
  * 提供所有玩偶实体渲染器的共同功能
@@ -20,10 +27,27 @@ import org.slf4j.LoggerFactory;
 public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityRenderer<T> {
     private static final Logger LOGGER = LoggerFactory.getLogger(BaseDollRenderer.class);
     protected final PlayerEntityModel<PlayerEntity> playerModel;
+    private final boolean thinArms;  // 是否为细手臂模型
     
     protected BaseDollRenderer(EntityRendererFactory.Context context, PlayerEntityModel<PlayerEntity> playerModel) {
         super(context);
         this.playerModel = playerModel;
+        // 通过反射获取slim字段来判断是否为细手臂
+        this.thinArms = isThinArmsModel(playerModel);
+    }
+    
+    /**
+     * 判断模型是否为细手臂模型
+     */
+    private boolean isThinArmsModel(PlayerEntityModel<PlayerEntity> model) {
+        try {
+            java.lang.reflect.Field slimField = PlayerEntityModel.class.getDeclaredField("slim");
+            slimField.setAccessible(true);
+            return slimField.getBoolean(model);
+        } catch (Exception e) {
+            // 如果无法访问字段，默认使用粗手臂
+            return false;
+        }
     }
     
     /**
@@ -187,36 +211,64 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
         // 第二步：渲染外层（overlay layer）- 使用半透明渲染以正确显示多层皮肤
         var overlayVertexConsumer = vertexConsumerProvider.getBuffer(translucentRenderType);
         
-        // 如果有身体旋转，使用 MatrixStack 在身体旋转中心应用旋转，然后渲染所有外层部分
-        if (bodyRotX != 0 || bodyRotY != 0 || bodyRotZ != 0) {
-            matrixStack.push();
-            
-            // 移动到身体的旋转中心（身体和头连接处，Y坐标约为0.375）
-            float rotationCenterY = 0.375f;
-            matrixStack.translate(0.0, rotationCenterY, 0.0);
-            
-            // 应用身体旋转（只在这里应用，不在 setRotation 中设置）
-            matrixStack.multiply(new Quaternionf().rotateX(bodyRotX));
-            matrixStack.multiply(new Quaternionf().rotateY(bodyRotY));
-            matrixStack.multiply(new Quaternionf().rotateZ(bodyRotZ));
-            
-            // 移回旋转中心
-            matrixStack.translate(0.0, -rotationCenterY, 0.0);
-            // 在旋转后的坐标系中 渲染所有外层部分
-            // hat层（头发外层），使用 headScale 和 hatScale 的组合
-            renderPartWithTransform(matrixStack, playerModel.hat, overlayVertexConsumer, light, overlay, hatPosition, hatCombinedScale);
-            // 手臂外层（保持它们自己的旋转值）
-            renderArmOverlayParts(matrixStack, overlayVertexConsumer, light, overlay, rightArmPosition, rightArmScale, leftArmPosition, leftArmScale);
-            // 身体和腿部外层（jacket 的旋转设为0）
-            setBodyOverlayRotation(0, 0, 0); // 确保身体外层不额外旋转
-            renderBodyLegOverlayParts(matrixStack, overlayVertexConsumer, light, overlay, bodyPosition, bodyScale, rightLegPosition, rightLegScale, leftLegPosition, leftLegScale);
-            matrixStack.pop();
+        // 检查是否使用3D皮肤层渲染
+        boolean modLoaded = PlayerDollAddonClient.IS_3D_SKIN_LAYERS_LOADED;
+        boolean apiAvailable = Doll3DSkinUtil.isAvailable();
+        boolean inRange = shouldUse3DSkinLayers(entity);
+        boolean use3DSkinLayers = modLoaded && apiAvailable && inRange;
+        
+        SkinLayersLogger.debug("渲染检查: modLoaded={}, apiAvailable={}, inRange={}, use3D={}", 
+                modLoaded, apiAvailable, inRange, use3DSkinLayers);
+        
+        if (use3DSkinLayers) {
+            // 使用3D皮肤层渲染
+            SkinLayersLogger.debug("使用3D渲染，皮肤: {}", skinLocation);
+            renderOverlayWith3DSkinLayers(matrixStack, overlayVertexConsumer, light, overlay,
+                    skinLocation, bodyRotX, bodyRotY, bodyRotZ,
+                    hatPosition, hatCombinedScale,
+                    rightArmPosition, rightArmScale, leftArmPosition, leftArmScale,
+                    bodyPosition, bodyScale,
+                    rightLegPosition, rightLegScale, leftLegPosition, leftLegScale);
         } else {
-            // 没有身体旋转时，正常渲染
-            renderPartWithTransform(matrixStack, playerModel.hat, overlayVertexConsumer, light, overlay, hatPosition, hatCombinedScale);
-            renderArmOverlayParts(matrixStack, overlayVertexConsumer, light, overlay, rightArmPosition, rightArmScale, leftArmPosition, leftArmScale);
-            setBodyOverlayRotation(0, 0, 0);
-            renderBodyLegOverlayParts(matrixStack, overlayVertexConsumer, light, overlay, bodyPosition, bodyScale, rightLegPosition, rightLegScale, leftLegPosition, leftLegScale);
+            if (!modLoaded) {
+                SkinLayersLogger.debug("mod未加载，使用2D渲染");
+            } else if (!apiAvailable) {
+                SkinLayersLogger.debug("API不可用，使用2D渲染");
+            } else if (!inRange) {
+                SkinLayersLogger.debug("距离过远，使用2D渲染");
+            }
+            // 使用默认2D渲染
+            // 如果有身体旋转，使用 MatrixStack 在身体旋转中心应用旋转，然后渲染所有外层部分
+            if (bodyRotX != 0 || bodyRotY != 0 || bodyRotZ != 0) {
+                matrixStack.push();
+                
+                // 移动到身体的旋转中心（身体和头连接处，Y坐标约为0.375）
+                float rotationCenterY = 0.375f;
+                matrixStack.translate(0.0, rotationCenterY, 0.0);
+                
+                // 应用身体旋转（只在这里应用，不在 setRotation 中设置）
+                matrixStack.multiply(new Quaternionf().rotateX(bodyRotX));
+                matrixStack.multiply(new Quaternionf().rotateY(bodyRotY));
+                matrixStack.multiply(new Quaternionf().rotateZ(bodyRotZ));
+                
+                // 移回旋转中心
+                matrixStack.translate(0.0, -rotationCenterY, 0.0);
+                // 在旋转后的坐标系中 渲染所有外层部分
+                // hat层（头发外层），使用 headScale 和 hatScale 的组合
+                renderPartWithTransform(matrixStack, playerModel.hat, overlayVertexConsumer, light, overlay, hatPosition, hatCombinedScale);
+                // 手臂外层（保持它们自己的旋转值）
+                renderArmOverlayParts(matrixStack, overlayVertexConsumer, light, overlay, rightArmPosition, rightArmScale, leftArmPosition, leftArmScale);
+                // 身体和腿部外层（jacket 的旋转设为0）
+                setBodyOverlayRotation(0, 0, 0); // 确保身体外层不额外旋转
+                renderBodyLegOverlayParts(matrixStack, overlayVertexConsumer, light, overlay, bodyPosition, bodyScale, rightLegPosition, rightLegScale, leftLegPosition, leftLegScale);
+                matrixStack.pop();
+            } else {
+                // 没有身体旋转时，正常渲染
+                renderPartWithTransform(matrixStack, playerModel.hat, overlayVertexConsumer, light, overlay, hatPosition, hatCombinedScale);
+                renderArmOverlayParts(matrixStack, overlayVertexConsumer, light, overlay, rightArmPosition, rightArmScale, leftArmPosition, leftArmScale);
+                setBodyOverlayRotation(0, 0, 0);
+                renderBodyLegOverlayParts(matrixStack, overlayVertexConsumer, light, overlay, bodyPosition, bodyScale, rightLegPosition, rightLegScale, leftLegPosition, leftLegScale);
+            }
         }
         
         matrixStack.pop();
@@ -451,6 +503,250 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
     @Override
     public Identifier getTexture(T entity) {
         return getSkinLocation(entity);
+    }
+    
+    /**
+     * 检查是否应该使用3D皮肤层渲染
+     * 实现距离检测（12格LOD）
+     */
+    private boolean shouldUse3DSkinLayers(T entity) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null || client.gameRenderer == null || 
+            client.gameRenderer.getCamera() == null) {
+            SkinLayersLogger.debug("客户端未初始化，无法使用3D渲染");
+            return false;
+        }
+        
+        // 计算距离（使用距离的平方避免开方运算）
+        double distanceSq = entity.squaredDistanceTo(
+            client.gameRenderer.getCamera().getPos().x,
+            client.gameRenderer.getCamera().getPos().y,
+            client.gameRenderer.getCamera().getPos().z
+        );
+        
+        double distance = Math.sqrt(distanceSq);
+        boolean shouldUse = distanceSq <= 12.0 * 12.0;
+        
+        SkinLayersLogger.debug("距离检测: 距离={}格, 使用3D渲染={}", 
+                String.format("%.2f", distance), shouldUse);
+        
+        // 12格以内使用3D渲染
+        return shouldUse;
+    }
+    
+    /**
+     * 使用3D皮肤层渲染外层
+     */
+    private void renderOverlayWith3DSkinLayers(MatrixStack matrixStack,
+                                               net.minecraft.client.render.VertexConsumer vertexConsumer,
+                                               int light, int overlay,
+                                               Identifier skinLocation,
+                                               float bodyRotX, float bodyRotY, float bodyRotZ,
+                                               float[] hatPosition, float[] hatScale,
+                                               float[] rightArmPosition, float[] rightArmScale,
+                                               float[] leftArmPosition, float[] leftArmScale,
+                                               float[] bodyPosition, float[] bodyScale,
+                                               float[] rightLegPosition, float[] rightLegScale,
+                                               float[] leftLegPosition, float[] leftLegScale) {
+        SkinLayersLogger.debug("开始3D渲染，皮肤: {}, thinArms: {}", skinLocation, thinArms);
+        
+        // 使用存储的thinArms字段
+        
+        // 获取或创建3D皮肤数据
+        SkinLayersLogger.debug("获取3D皮肤数据...");
+        Doll3DSkinData skinData = Doll3DSkinUtil.setup3dLayers(skinLocation, thinArms);
+        if (skinData == null) {
+            SkinLayersLogger.warn("✗ 无法获取3D皮肤数据（返回null），回退到2D渲染");
+            return;
+        }
+        if (!skinData.hasValidData()) {
+            SkinLayersLogger.warn("✗ 3D皮肤数据无效，回退到2D渲染");
+            return;
+        }
+        
+        SkinLayersLogger.debug("✓ 3D皮肤数据有效，开始渲染各个部位");
+        
+        // 处理身体旋转
+        if (bodyRotX != 0 || bodyRotY != 0 || bodyRotZ != 0) {
+            matrixStack.push();
+            
+            float rotationCenterY = 0.375f;
+            matrixStack.translate(0.0, rotationCenterY, 0.0);
+            matrixStack.multiply(new Quaternionf().rotateX(bodyRotX));
+            matrixStack.multiply(new Quaternionf().rotateY(bodyRotY));
+            matrixStack.multiply(new Quaternionf().rotateZ(bodyRotZ));
+            matrixStack.translate(0.0, -rotationCenterY, 0.0);
+            
+            // 渲染各个部位的3D网格
+            render3DMeshPart(matrixStack, playerModel.hat, skinData.getHeadMesh(),
+                    "HEAD", vertexConsumer, light, overlay, hatPosition, hatScale);
+            
+            render3DMeshPart(matrixStack, playerModel.leftArm, skinData.getLeftArmMesh(),
+                    thinArms ? "LEFT_ARM_SLIM" : "LEFT_ARM", vertexConsumer, light, overlay,
+                    leftArmPosition, leftArmScale);
+            
+            render3DMeshPart(matrixStack, playerModel.rightArm, skinData.getRightArmMesh(),
+                    thinArms ? "RIGHT_ARM_SLIM" : "RIGHT_ARM", vertexConsumer, light, overlay,
+                    rightArmPosition, rightArmScale);
+            
+            render3DMeshPart(matrixStack, playerModel.body, skinData.getTorsoMesh(),
+                    "BODY", vertexConsumer, light, overlay, bodyPosition, bodyScale);
+            
+            render3DMeshPart(matrixStack, playerModel.leftLeg, skinData.getLeftLegMesh(),
+                    "LEFT_LEG", vertexConsumer, light, overlay, leftLegPosition, leftLegScale);
+            
+            render3DMeshPart(matrixStack, playerModel.rightLeg, skinData.getRightLegMesh(),
+                    "RIGHT_LEG", vertexConsumer, light, overlay, rightLegPosition, rightLegScale);
+            
+            matrixStack.pop();
+        } else {
+            // 没有身体旋转时，正常渲染
+            render3DMeshPart(matrixStack, playerModel.hat, skinData.getHeadMesh(),
+                    "HEAD", vertexConsumer, light, overlay, hatPosition, hatScale);
+            
+            render3DMeshPart(matrixStack, playerModel.leftArm, skinData.getLeftArmMesh(),
+                    thinArms ? "LEFT_ARM_SLIM" : "LEFT_ARM", vertexConsumer, light, overlay,
+                    leftArmPosition, leftArmScale);
+            
+            render3DMeshPart(matrixStack, playerModel.rightArm, skinData.getRightArmMesh(),
+                    thinArms ? "RIGHT_ARM_SLIM" : "RIGHT_ARM", vertexConsumer, light, overlay,
+                    rightArmPosition, rightArmScale);
+            
+            render3DMeshPart(matrixStack, playerModel.body, skinData.getTorsoMesh(),
+                    "BODY", vertexConsumer, light, overlay, bodyPosition, bodyScale);
+            
+            render3DMeshPart(matrixStack, playerModel.leftLeg, skinData.getLeftLegMesh(),
+                    "LEFT_LEG", vertexConsumer, light, overlay, leftLegPosition, leftLegScale);
+            
+            render3DMeshPart(matrixStack, playerModel.rightLeg, skinData.getRightLegMesh(),
+                    "RIGHT_LEG", vertexConsumer, light, overlay, rightLegPosition, rightLegScale);
+        }
+    }
+    
+    /**
+     * 渲染单个3D网格部件
+     */
+    private void render3DMeshPart(MatrixStack matrixStack,
+                                  net.minecraft.client.model.ModelPart modelPart,
+                                  Object mesh,
+                                  String offsetProviderName,
+                                  net.minecraft.client.render.VertexConsumer vertexConsumer,
+                                  int light, int overlay,
+                                  float[] position, float[] scale) {
+        if (mesh == null) {
+            SkinLayersLogger.debug("跳过渲染 {}（mesh为null）", offsetProviderName);
+            return;
+        }
+        
+        SkinLayersLogger.debug("渲染3D网格部件: {}", offsetProviderName);
+        
+        try {
+            // 获取OffsetProvider
+            Object offsetProvider = Doll3DSkinUtil.getOffsetProvider(offsetProviderName);
+            if (offsetProvider == null) {
+                SkinLayersLogger.warn("✗ 无法获取OffsetProvider: {}", offsetProviderName);
+                return;
+            }
+            SkinLayersLogger.debug("✓ OffsetProvider获取成功: {}", offsetProviderName);
+            
+            matrixStack.push();
+            
+            // 应用位置偏移
+            if (position[0] != 0.0f || position[1] != 0.0f || position[2] != 0.0f) {
+                matrixStack.translate(position[0], -position[1], position[2]);
+            }
+            
+            // 应用缩放
+            if (scale[0] != 1.0f || scale[1] != 1.0f || scale[2] != 1.0f) {
+                matrixStack.scale(scale[0], scale[1], scale[2]);
+            }
+            
+            // 应用ModelPart的变换（通过反射调用，因为方法在不同版本中可能不同）
+            // 在1.20.1中，ModelPart可能没有translateAndRotate方法，我们尝试调用
+            try {
+                // 尝试调用translateAndRotate方法（如果存在）
+                Method translateAndRotateMethod = modelPart.getClass().getMethod("translateAndRotate", MatrixStack.class);
+                translateAndRotateMethod.invoke(modelPart, matrixStack);
+            } catch (NoSuchMethodException e) {
+                // 如果方法不存在，手动应用ModelPart的变换
+                // 在1.20.1中，我们需要手动应用pivot和rotation
+                try {
+                    // 获取pivot位置
+                    java.lang.reflect.Field pivotXField = modelPart.getClass().getDeclaredField("pivotX");
+                    java.lang.reflect.Field pivotYField = modelPart.getClass().getDeclaredField("pivotY");
+                    java.lang.reflect.Field pivotZField = modelPart.getClass().getDeclaredField("pivotZ");
+                    pivotXField.setAccessible(true);
+                    pivotYField.setAccessible(true);
+                    pivotZField.setAccessible(true);
+                    
+                    float pivotX = pivotXField.getFloat(modelPart);
+                    float pivotY = pivotYField.getFloat(modelPart);
+                    float pivotZ = pivotZField.getFloat(modelPart);
+                    
+                    // 应用pivot变换
+                    if (pivotX != 0 || pivotY != 0 || pivotZ != 0) {
+                        matrixStack.translate(pivotX / 16.0f, pivotY / 16.0f, pivotZ / 16.0f);
+                    }
+                    
+                    // 获取rotation（通过setAngles设置的）
+                    java.lang.reflect.Field pitchField = modelPart.getClass().getDeclaredField("pitch");
+                    java.lang.reflect.Field yawField = modelPart.getClass().getDeclaredField("yaw");
+                    java.lang.reflect.Field rollField = modelPart.getClass().getDeclaredField("roll");
+                    pitchField.setAccessible(true);
+                    yawField.setAccessible(true);
+                    rollField.setAccessible(true);
+                    
+                    float pitch = pitchField.getFloat(modelPart);
+                    float yaw = yawField.getFloat(modelPart);
+                    float roll = rollField.getFloat(modelPart);
+                    
+                    // 应用旋转
+                    if (pitch != 0) matrixStack.multiply(new Quaternionf().rotateX(pitch));
+                    if (yaw != 0) matrixStack.multiply(new Quaternionf().rotateY(yaw));
+                    if (roll != 0) matrixStack.multiply(new Quaternionf().rotateZ(roll));
+                    
+                    // 移回pivot
+                    if (pivotX != 0 || pivotY != 0 || pivotZ != 0) {
+                        matrixStack.translate(-pivotX / 16.0f, -pivotY / 16.0f, -pivotZ / 16.0f);
+                    }
+                } catch (Exception ex) {
+                    // 如果无法手动应用变换，就跳过
+                    SkinLayersLogger.debug("无法手动应用ModelPart变换，跳过");
+                }
+            } catch (Exception e) {
+                SkinLayersLogger.warn("应用ModelPart变换失败", e);
+            }
+            
+            // 应用OffsetProvider的偏移
+            try {
+                Method applyOffsetMethod = offsetProvider.getClass().getMethod("applyOffset",
+                        MatrixStack.class, mesh.getClass());
+                applyOffsetMethod.invoke(offsetProvider, matrixStack, mesh);
+            } catch (Exception e) {
+                SkinLayersLogger.error("应用OffsetProvider失败: {}", offsetProviderName, e);
+            }
+            
+            // 渲染3D网格
+            try {
+                SkinLayersLogger.debug("调用mesh.render()方法...");
+                Method renderMethod = mesh.getClass().getMethod("render",
+                        net.minecraft.client.model.ModelPart.class,
+                        MatrixStack.class,
+                        net.minecraft.client.render.VertexConsumer.class,
+                        int.class, int.class, int.class);
+                renderMethod.invoke(mesh, modelPart, matrixStack, vertexConsumer, light, overlay, 0xFFFFFFFF);
+                SkinLayersLogger.debug("✓ {} 渲染完成", offsetProviderName);
+            } catch (NoSuchMethodException e) {
+                SkinLayersLogger.error("✗ render方法未找到: {}", e.getMessage());
+            } catch (Exception e) {
+                SkinLayersLogger.error("✗ 渲染3D网格失败", e);
+            }
+            
+            matrixStack.pop();
+            
+        } catch (Exception e) {
+            SkinLayersLogger.error("✗ 渲染3D网格部件失败: {}", offsetProviderName, e);
+        }
     }
 }
 

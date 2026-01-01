@@ -2,7 +2,7 @@ package com.lanye.dolladdon.impl.render;
 
 import com.lanye.dolladdon.base.render.BaseDollRenderer;
 import com.lanye.dolladdon.impl.entity.CustomTextureDollEntity;
-import com.lanye.dolladdon.util.ExternalTextureLoader;
+import com.lanye.dolladdon.util.resource.ExternalTextureLoader;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.entity.EntityRendererFactory;
 import net.minecraft.client.render.entity.model.EntityModelLayers;

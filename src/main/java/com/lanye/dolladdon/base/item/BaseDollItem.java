@@ -1,6 +1,8 @@
 package com.lanye.dolladdon.base.item;
 
 import com.lanye.dolladdon.base.entity.BaseDollEntity;
+import com.lanye.dolladdon.util.logging.LogModuleConfig;
+import com.lanye.dolladdon.util.logging.ModuleLogger;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
@@ -71,7 +73,7 @@ public abstract class BaseDollItem extends Item {
         // 生成实体
         if (!world.isClient) {
             // 记录生成前的信息
-            com.lanye.dolladdon.util.ModuleLogger.info("entity", 
+            ModuleLogger.info(LogModuleConfig.MODULE_ENTITY, 
                 "[实体生成] 准备生成实体: 位置=({}, {}, {}), 碰撞箱={}", 
                 String.format("%.2f", dollEntity.getX()), 
                 String.format("%.2f", dollEntity.getY()), 
@@ -81,7 +83,7 @@ public abstract class BaseDollItem extends Item {
             world.spawnEntity(dollEntity);
             
             // 记录生成后的信息
-            com.lanye.dolladdon.util.ModuleLogger.info("entity", 
+            ModuleLogger.info(LogModuleConfig.MODULE_ENTITY, 
                 "[实体生成] 实体已生成: ID={}, 位置=({}, {}, {}), 碰撞箱={}, 玩家位置=({}, {}, {}), 距离={}", 
                 dollEntity.getId(),
                 String.format("%.2f", dollEntity.getX()), 

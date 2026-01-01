@@ -1,4 +1,4 @@
-package com.lanye.dolladdon.util;
+package com.lanye.dolladdon.util.init;
 
 import com.lanye.dolladdon.PlayerDollAddon;
 import org.slf4j.Logger;

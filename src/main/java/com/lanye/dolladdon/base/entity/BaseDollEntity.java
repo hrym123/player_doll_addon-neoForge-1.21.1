@@ -3,8 +3,9 @@ package com.lanye.dolladdon.base.entity;
 import com.lanye.dolladdon.api.action.DollAction;
 import com.lanye.dolladdon.api.pose.DollPose;
 import com.lanye.dolladdon.api.pose.SimpleDollPose;
-import com.lanye.dolladdon.util.ModuleLogger;
-import com.lanye.dolladdon.util.PoseActionManager;
+import com.lanye.dolladdon.util.logging.LogModuleConfig;
+import com.lanye.dolladdon.util.logging.ModuleLogger;
+import com.lanye.dolladdon.util.pose.PoseActionManager;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityDimensions;
 import net.minecraft.entity.EntityPose;
@@ -36,19 +37,19 @@ import java.util.Map;
  * <p>日志系统使用说明：</p>
  * <ul>
  *   <li>使用模块化日志系统，支持一键开关不同模块的日志</li>
- *   <li>可以通过 {@link com.lanye.dolladdon.util.ModuleLogger#setModuleEnabled(String, boolean)} 控制单个模块</li>
- *   <li>可以通过 {@link com.lanye.dolladdon.util.ModuleLogger#setGlobalEnabled(boolean)} 一键控制所有模块</li>
+ *   <li>可以通过 {@link com.lanye.dolladdon.util.logging.LogModuleConfig#setModuleLevel(String, LogLevel)} 控制单个模块的日志级别</li>
+ *   <li>可以通过 {@link com.lanye.dolladdon.util.logging.LogModuleConfig#setGlobalLevel(LogLevel)} 一键控制所有模块的日志级别</li>
  *   <li>示例：ModuleLogger.setModuleEnabled("entity.pose", false) 禁用姿态相关日志</li>
  * </ul>
  */
 public abstract class BaseDollEntity extends Entity {
-    // 模块化日志：模块名称常量
-    // 可以通过 ModuleLogger.setModuleEnabled(模块名, false) 来禁用特定模块的日志
-    private static final String LOG_MODULE_ENTITY = "entity";           // 实体基础日志
-    private static final String LOG_MODULE_POSE = "entity.pose";      // 姿态相关日志
-    private static final String LOG_MODULE_ACTION = "entity.action";   // 动作相关日志
-    private static final String LOG_MODULE_INTERACT = "entity.interact"; // 交互相关日志
-    private static final String LOG_MODULE_NBT = "entity.nbt";          // NBT相关日志
+    // 模块化日志：从 LogModuleConfig 读取模块名称
+    // 可以通过 LogModuleConfig.setModuleLevel(模块名, LogLevel) 来控制日志级别
+    private static final String LOG_MODULE_ENTITY = LogModuleConfig.MODULE_ENTITY;
+    private static final String LOG_MODULE_POSE = LogModuleConfig.MODULE_ENTITY_POSE;
+    private static final String LOG_MODULE_ACTION = LogModuleConfig.MODULE_ENTITY_ACTION;
+    private static final String LOG_MODULE_INTERACT = LogModuleConfig.MODULE_ENTITY_INTERACT;
+    private static final String LOG_MODULE_NBT = LogModuleConfig.MODULE_ENTITY_NBT;
     
     // 日志对象（通过ModuleLogger获取，支持模块化开关）
     // 注意：直接使用 LOGGER 时不会受模块开关控制，建议使用 ModuleLogger.debug/info/warn/error 方法

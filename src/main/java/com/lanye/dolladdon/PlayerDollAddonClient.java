@@ -7,8 +7,8 @@ import com.lanye.dolladdon.impl.render.SteveDollRenderer;
 import com.lanye.dolladdon.impl.render.StandardDollItemRenderer;
 import com.lanye.dolladdon.init.ModEntities;
 import com.lanye.dolladdon.init.ModItems;
-import com.lanye.dolladdon.util.ExternalTextureLoader;
-import com.lanye.dolladdon.util.PngTextureScanner;
+import com.lanye.dolladdon.util.resource.ExternalTextureLoader;
+import com.lanye.dolladdon.util.resource.PngTextureScanner;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.rendering.v1.BuiltinItemRendererRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry;
@@ -26,8 +26,38 @@ import java.util.Map;
 
 public class PlayerDollAddonClient implements ClientModInitializer {
     
+    /**
+     * 检测3D皮肤层mod是否已加载
+     */
+    public static final boolean IS_3D_SKIN_LAYERS_LOADED = 
+            FabricLoader.getInstance().isModLoaded("skinlayers3d");
+    
     @Override
     public void onInitializeClient() {
+        // 配置日志级别：只保留[3D皮肤层]的DEBUG/INFO日志，其他模块只输出WARN及以上
+        // 使用ModuleLogger统一管理日志级别
+        com.lanye.dolladdon.util.logging.ModuleLogger.configureLogLevelsForDebugModules(
+                "player_doll_addon.3d_skin_layers",
+                "com.lanye.dolladdon.util.skinlayers3d.Doll3DSkinUtil",
+                "com.lanye.dolladdon.util.skinlayers3d.Doll3DSkinData"
+        );
+        
+        // 输出3D皮肤层mod检测结果
+        com.lanye.dolladdon.util.skinlayers3d.SkinLayersLogger.info("========== 3D皮肤层兼容性检测 ==========");
+        if (IS_3D_SKIN_LAYERS_LOADED) {
+            com.lanye.dolladdon.util.skinlayers3d.SkinLayersLogger.info("✓ 检测到3D皮肤层mod（skinlayers3d）");
+            com.lanye.dolladdon.util.skinlayers3d.SkinLayersLogger.info("正在初始化API...");
+            // 尝试初始化API以验证是否可用
+            boolean apiAvailable = com.lanye.dolladdon.util.skinlayers3d.Doll3DSkinUtil.isAvailable();
+            if (apiAvailable) {
+                com.lanye.dolladdon.util.skinlayers3d.SkinLayersLogger.info("✓ API初始化成功，将启用3D皮肤渲染支持");
+            } else {
+                com.lanye.dolladdon.util.skinlayers3d.SkinLayersLogger.warn("✗ API初始化失败，将使用默认2D渲染");
+            }
+        } else {
+            com.lanye.dolladdon.util.skinlayers3d.SkinLayersLogger.info("未检测到3D皮肤层mod，使用默认2D渲染");
+        }
+        com.lanye.dolladdon.util.skinlayers3d.SkinLayersLogger.info("========================================");
         // 注册动态资源包
         registerDynamicResourcePack();
         
@@ -149,7 +179,7 @@ public class PlayerDollAddonClient implements ClientModInitializer {
                 public void reload(ResourceManager resourceManager) {
                     try {
                         // 加载姿态和动作资源
-                        com.lanye.dolladdon.util.PoseActionManager.loadResources(resourceManager);
+                        com.lanye.dolladdon.util.pose.PoseActionManager.loadResources(resourceManager);
                         
                         // 加载外部纹理
                         ExternalTextureLoader.loadExternalTextures();
@@ -191,7 +221,7 @@ public class PlayerDollAddonClient implements ClientModInitializer {
                 net.minecraft.util.Util.getIoWorkerExecutor().execute(() -> {
                     MinecraftClient mcClient = MinecraftClient.getInstance();
                     if (mcClient != null && mcClient.getResourceManager() != null) {
-                        com.lanye.dolladdon.util.PoseActionManager.loadResources(client.getResourceManager());
+                        com.lanye.dolladdon.util.pose.PoseActionManager.loadResources(client.getResourceManager());
                         
                         // 加载外部纹理
                         ExternalTextureLoader.loadExternalTextures();

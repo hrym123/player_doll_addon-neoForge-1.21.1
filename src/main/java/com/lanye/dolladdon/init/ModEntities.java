@@ -11,7 +11,7 @@ import com.lanye.dolladdon.base.entity.BaseDollEntity;
 import com.lanye.dolladdon.impl.entity.AlexDollEntity;
 import com.lanye.dolladdon.impl.entity.CustomTextureDollEntity;
 import com.lanye.dolladdon.impl.entity.SteveDollEntity;
-import com.lanye.dolladdon.util.PngTextureScanner;
+import com.lanye.dolladdon.util.resource.PngTextureScanner;
 
 import java.util.HashMap;
 import java.util.List;

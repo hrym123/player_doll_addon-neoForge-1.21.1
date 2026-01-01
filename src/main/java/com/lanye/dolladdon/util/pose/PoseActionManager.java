@@ -1,8 +1,10 @@
-package com.lanye.dolladdon.util;
+package com.lanye.dolladdon.util.pose;
 
 import com.lanye.dolladdon.PlayerDollAddon;
 import com.lanye.dolladdon.api.action.DollAction;
 import com.lanye.dolladdon.api.pose.DollPose;
+import com.lanye.dolladdon.util.logging.LogModuleConfig;
+import com.lanye.dolladdon.util.logging.ModuleLogger;
 import net.minecraft.resource.ResourceManager;
 import org.slf4j.Logger;
 
@@ -18,9 +20,9 @@ import java.util.Map;
 public class PoseActionManager {
     private static final Logger LOGGER = PlayerDollAddon.LOGGER;
     
-    // 模块化日志：模块名称
-    private static final String LOG_MODULE_POSE_LOADER = "pose.loader";
-    private static final String LOG_MODULE_ACTION_LOADER = "action.loader";
+    // 模块化日志：从 LogModuleConfig 读取模块名称
+    private static final String LOG_MODULE_POSE_LOADER = LogModuleConfig.MODULE_POSE_LOADER;
+    private static final String LOG_MODULE_ACTION_LOADER = LogModuleConfig.MODULE_ACTION_LOADER;
     
     private static final Map<String, DollPose> poses = new HashMap<>();
     private static final Map<String, DollAction> actions = new HashMap<>();

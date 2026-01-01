@@ -1,4 +1,4 @@
-package com.lanye.dolladdon.util;
+package com.lanye.dolladdon.util.pose;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -7,6 +7,8 @@ import com.google.gson.JsonObject;
 import com.lanye.dolladdon.PlayerDollAddon;
 import com.lanye.dolladdon.api.pose.DollPose;
 import com.lanye.dolladdon.api.pose.SimpleDollPose;
+import com.lanye.dolladdon.util.logging.LogModuleConfig;
+import com.lanye.dolladdon.util.logging.ModuleLogger;
 import net.minecraft.resource.Resource;
 import net.minecraft.resource.ResourceManager;
 import net.minecraft.util.Identifier;
@@ -31,7 +33,7 @@ public class PoseLoader {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     
     // 模块化日志：模块名称
-    private static final String LOG_MODULE_POSE_LOADER = "pose.loader";
+    private static final String LOG_MODULE_POSE_LOADER = LogModuleConfig.MODULE_POSE_LOADER;
     
     /**
      * 从资源文件加载姿态

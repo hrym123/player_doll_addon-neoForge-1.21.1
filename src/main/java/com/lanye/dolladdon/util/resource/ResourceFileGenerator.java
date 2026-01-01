@@ -1,4 +1,4 @@
-package com.lanye.dolladdon.util;
+package com.lanye.dolladdon.util.resource;
 
 import com.lanye.dolladdon.PlayerDollAddon;
 import net.fabricmc.loader.api.FabricLoader;
@@ -21,21 +21,74 @@ public class ResourceFileGenerator {
     private static final Logger LOGGER = PlayerDollAddon.LOGGER;
     
     /**
+     * 获取 run 目录和项目根目录
+     * 处理各种可能的路径情况，避免创建 run/run 目录
+     * 
+     * @return 包含 runDir 和 projectRoot 的数组，[0] = runDir, [1] = projectRoot
+     */
+    private static Path[] getRunDirAndProjectRoot() {
+        // 获取游戏目录（getGameDir() 在开发环境返回 run 目录，在生产环境返回 .minecraft）
+        Path gameDir = FabricLoader.getInstance().getGameDir();
+        
+        // 规范化路径，确保正确处理 run 目录
+        Path normalizedGameDir = gameDir.normalize();
+        Path runDir;
+        Path projectRoot;
+        
+        LOGGER.debug("[资源生成] getGameDir() 返回: {}", normalizedGameDir);
+        
+        // 检查路径是否以 run/run 结尾（说明路径重复了）
+        String pathStr = normalizedGameDir.toString();
+        if (pathStr.endsWith("run" + java.io.File.separator + "run") || 
+            pathStr.endsWith("run\\run") ||
+            pathStr.endsWith("run/run")) {
+            // 路径重复了，向上移动一层
+            LOGGER.warn("[资源生成] 检测到路径重复 (run/run)，向上移动一层: {}", normalizedGameDir);
+            runDir = normalizedGameDir.getParent();
+            projectRoot = runDir.getParent();
+        } else {
+            // 正常情况：检查最后一个路径段
+            String lastSegment = normalizedGameDir.getFileName().toString();
+            if (lastSegment.equals("run")) {
+                // gameDir 就是 run 目录
+                runDir = normalizedGameDir;
+                projectRoot = runDir.getParent();
+            } else {
+                // gameDir 可能是项目根目录，尝试查找 run 子目录
+                Path possibleRunDir = normalizedGameDir.resolve("run");
+                if (Files.exists(possibleRunDir) && Files.isDirectory(possibleRunDir)) {
+                    runDir = possibleRunDir;
+                    projectRoot = normalizedGameDir;
+                } else {
+                    // 如果找不到 run 目录，假设 gameDir 就是运行目录（生产环境）
+                    runDir = normalizedGameDir;
+                    projectRoot = runDir.getParent();
+                }
+            }
+        }
+        
+        LOGGER.debug("[资源生成] 确定的 runDir: {}, projectRoot: {}", runDir, projectRoot);
+        
+        return new Path[]{runDir, projectRoot};
+    }
+    
+    /**
      * 生成所有自定义纹理玩偶的物品模型文件
      * 生成到 Mod 的资源目录，这样会自动加载
      */
     public static void generateItemModels() {
         try {
-            // 获取项目根目录（getGameDir() 返回 run 目录，其父目录就是项目根目录）
-            Path gameDir = FabricLoader.getInstance().getGameDir();
-            Path projectRoot = gameDir.getParent();
+            // 获取 run 目录和项目根目录
+            Path[] paths = getRunDirAndProjectRoot();
+            Path runDir = paths[0];
+            Path projectRoot = paths[1];
             
             // 生成到 build/resources/main（开发环境会自动加载）
             Path buildResourcesDir = projectRoot.resolve("build/resources/main");
             Path buildModelsDir = buildResourcesDir.resolve("assets/" + PlayerDollAddon.MODID + "/models/item");
             
             // 同时生成到 run/resources（运行时目录）
-            Path runResourcesDir = gameDir.resolve("resources");
+            Path runResourcesDir = runDir.resolve("resources");
             Path runModelsDir = runResourcesDir.resolve("assets/" + PlayerDollAddon.MODID + "/models/item");
             
             // 创建两个目录
@@ -104,16 +157,17 @@ public class ResourceFileGenerator {
      */
     public static void updateLanguageFiles() {
         try {
-            // 获取项目根目录（getGameDir() 返回 run 目录，其父目录就是项目根目录）
-            Path gameDir = FabricLoader.getInstance().getGameDir();
-            Path projectRoot = gameDir.getParent();
+            // 获取 run 目录和项目根目录
+            Path[] paths = getRunDirAndProjectRoot();
+            Path runDir = paths[0];
+            Path projectRoot = paths[1];
             
             // 生成到 build/resources/main（开发环境会自动加载）
             Path buildResourcesDir = projectRoot.resolve("build/resources/main");
             Path buildLangDir = buildResourcesDir.resolve("assets/" + PlayerDollAddon.MODID + "/lang");
             
             // 同时生成到 run/resources（运行时目录）
-            Path runResourcesDir = gameDir.resolve("resources");
+            Path runResourcesDir = runDir.resolve("resources");
             Path runLangDir = runResourcesDir.resolve("assets/" + PlayerDollAddon.MODID + "/lang");
             
             // 创建两个目录

@@ -1,4 +1,4 @@
-package com.lanye.dolladdon.util;
+package com.lanye.dolladdon.util.resource;
 
 import com.lanye.dolladdon.PlayerDollAddon;
 import net.minecraft.client.texture.NativeImage;

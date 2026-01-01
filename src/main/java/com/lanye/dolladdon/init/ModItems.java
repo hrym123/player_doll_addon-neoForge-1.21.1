@@ -4,7 +4,7 @@ import com.lanye.dolladdon.PlayerDollAddon;
 import com.lanye.dolladdon.impl.item.AlexDollItem;
 import com.lanye.dolladdon.impl.item.CustomTextureDollItem;
 import com.lanye.dolladdon.impl.item.SteveDollItem;
-import com.lanye.dolladdon.util.PngTextureScanner;
+import com.lanye.dolladdon.util.resource.PngTextureScanner;
 import net.minecraft.item.Item;
 import net.minecraft.util.Identifier;
 import net.minecraft.registry.Registries;

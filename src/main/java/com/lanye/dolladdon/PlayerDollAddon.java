@@ -3,7 +3,10 @@ package com.lanye.dolladdon;
 import com.lanye.dolladdon.base.entity.BaseDollEntity;
 import com.lanye.dolladdon.init.ModEntities;
 import com.lanye.dolladdon.init.ModItems;
-import com.lanye.dolladdon.util.ModuleLogger;
+import com.lanye.dolladdon.util.init.DefaultFileInitializer;
+import com.lanye.dolladdon.util.logging.LogModuleConfig;
+import com.lanye.dolladdon.util.logging.ModuleLogger;
+import com.lanye.dolladdon.util.resource.ResourceFileGenerator;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.event.player.UseEntityCallback;
 import net.fabricmc.fabric.api.itemgroup.v1.FabricItemGroup;
@@ -52,6 +55,8 @@ public class PlayerDollAddon implements ModInitializer {
 
     @Override
     public void onInitialize() {
+        // 初始化日志模块配置（必须在其他初始化之前）
+        LogModuleConfig.initializeModuleLevels();
         LOGGER.info("========== 玩偶模组开始初始化 ==========");
         
         try {
@@ -135,7 +140,7 @@ public class PlayerDollAddon implements ModInitializer {
                     String.format("%.2f", player.getX()), String.format("%.2f", player.getY()), String.format("%.2f", player.getZ()),
                     String.format("%.2f", distance), hand, !world.isClient);
                 
-                ModuleLogger.info("entity.interact", 
+                ModuleLogger.info(LogModuleConfig.MODULE_ENTITY_INTERACT, 
                     "[UseEntityCallback] 玩家 {} 尝试交互玩偶实体: 实体ID={}, 位置=({}, {}, {}), 玩家位置=({}, {}, {}), 距离={}, 手={}, 服务端={}", 
                     player.getName().getString(), entity.getId(),
                     String.format("%.2f", entity.getX()), String.format("%.2f", entity.getY()), String.format("%.2f", entity.getZ()),
@@ -147,7 +152,7 @@ public class PlayerDollAddon implements ModInitializer {
                 
                 // 记录结果
                 LOGGER.info("[UseEntityCallback] 实体返回结果: {}, 服务端={}", result, !world.isClient);
-                ModuleLogger.info("entity.interact", 
+                ModuleLogger.info(LogModuleConfig.MODULE_ENTITY_INTERACT, 
                     "[UseEntityCallback] 实体返回结果: {}, 服务端={}", 
                     result, !world.isClient);
                 
@@ -172,8 +177,8 @@ public class PlayerDollAddon implements ModInitializer {
      */
     private void generateResourceFiles() {
         try {
-            com.lanye.dolladdon.util.ResourceFileGenerator.generateItemModels();
-            com.lanye.dolladdon.util.ResourceFileGenerator.updateLanguageFiles();
+            ResourceFileGenerator.generateItemModels();
+            ResourceFileGenerator.updateLanguageFiles();
         } catch (Exception e) {
             LOGGER.error("生成资源文件时出错", e);
         }
@@ -185,7 +190,7 @@ public class PlayerDollAddon implements ModInitializer {
     private void initializeDefaultFiles() {
         try {
             Path gameDir = FabricLoader.getInstance().getGameDir();
-            com.lanye.dolladdon.util.DefaultFileInitializer.initializeDefaultFiles(gameDir);
+            DefaultFileInitializer.initializeDefaultFiles(gameDir);
         } catch (Exception e) {
             LOGGER.error("初始化默认文件失败", e);
         }

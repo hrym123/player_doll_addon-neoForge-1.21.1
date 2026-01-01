@@ -110,7 +110,7 @@ DollAction loopingAction = new SimpleDollAction("my_looping_action", true, keyfr
 ### 3. 注册动作
 
 ```java
-import com.lanye.dolladdon.util.PoseActionManager;
+import com.lanye.dolladdon.util.pose.PoseActionManager;
 
 // 注册自定义动作
 PoseActionManager.registerAction("my_action", action);
@@ -121,7 +121,7 @@ PoseActionManager.registerAction("my_action", action);
 ### 在代码中应用动作到实体
 
 ```java
-import com.lanye.dolladdon.util.PoseActionManager;
+import com.lanye.dolladdon.util.pose.PoseActionManager;
 import com.lanye.dolladdon.base.entity.BaseDollEntity;
 
 // 获取动作

@@ -1,7 +1,7 @@
 package com.lanye.dolladdon.impl.render;
 
 import com.lanye.dolladdon.base.render.BaseDollItemRenderer;
-import com.lanye.dolladdon.util.PlayerSkinUtil;
+import com.lanye.dolladdon.util.resource.PlayerSkinUtil;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.util.Identifier;
 
