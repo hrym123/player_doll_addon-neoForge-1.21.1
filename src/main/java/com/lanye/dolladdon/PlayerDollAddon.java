@@ -23,7 +23,7 @@ import org.slf4j.LoggerFactory;
 import java.nio.file.Path;
 
 public class PlayerDollAddon implements ModInitializer {
-    public static final String MODID = "player_doll";
+    public static final String MODID = "player_doll_addon";
     public static final Logger LOGGER = LoggerFactory.getLogger(MODID);
     
     // 姿态文件目录路径（相对于游戏目录）
@@ -34,7 +34,7 @@ public class PlayerDollAddon implements ModInitializer {
     // 创造模式物品栏
     public static final ItemGroup PLAYER_DOLL_TAB = FabricItemGroup.builder()
             .icon(() -> new ItemStack(ModItems.STEVE_DOLL))
-            .displayName(Text.translatable("itemGroup.player_doll.player_doll_tab"))
+            .displayName(Text.translatable("itemGroup.player_doll_addon.player_doll_tab"))
             .entries((displayContext, entries) -> {
                 // 添加史蒂夫玩偶物品（固定模型：粗手臂 + Steve默认皮肤）
                 entries.add(new ItemStack(ModItems.STEVE_DOLL));

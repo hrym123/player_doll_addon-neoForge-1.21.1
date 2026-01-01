@@ -29,20 +29,25 @@ public class ModItems {
      */
     public static void register() {
         // 注册固定的玩偶物品
-        STEVE_DOLL = Registry.register(
-                Registries.ITEM,
-                new Identifier(PlayerDollAddon.MODID, "steve_doll"),
-                new SteveDollItem()
-        );
-        
-        ALEX_DOLL = Registry.register(
-                Registries.ITEM,
-                new Identifier(PlayerDollAddon.MODID, "alex_doll"),
-                new AlexDollItem()
-        );
+        STEVE_DOLL = registerStandardDollItem("steve_doll", new SteveDollItem());
+        ALEX_DOLL = registerStandardDollItem("alex_doll", new AlexDollItem());
         
         // 扫描并注册所有 PNG 文件对应的物品
         registerCustomTextureDollItems();
+    }
+    
+    /**
+     * 注册标准玩偶物品（辅助方法）
+     * @param name 物品名称
+     * @param item 物品实例
+     * @return 注册的物品
+     */
+    private static Item registerStandardDollItem(String name, Item item) {
+        return Registry.register(
+                Registries.ITEM,
+                new Identifier(PlayerDollAddon.MODID, name),
+                item
+        );
     }
     
     /**

@@ -7,6 +7,7 @@ import net.minecraft.util.Identifier;
 
 import com.lanye.dolladdon.PlayerDollAddon;
 import com.lanye.dolladdon.base.DollEntityFactory;
+import com.lanye.dolladdon.base.entity.BaseDollEntity;
 import com.lanye.dolladdon.impl.entity.AlexDollEntity;
 import com.lanye.dolladdon.impl.entity.CustomTextureDollEntity;
 import com.lanye.dolladdon.impl.entity.SteveDollEntity;
@@ -31,20 +32,26 @@ public class ModEntities {
      */
     public static void register() {
         // 注册固定的玩偶实体
-        STEVE_DOLL = Registry.register(
-                Registries.ENTITY_TYPE,
-                new Identifier(PlayerDollAddon.MODID, "steve_doll"),
-                DollEntityFactory.createDollEntityType("steve_doll", SteveDollEntity::new)
-        );
-        
-        ALEX_DOLL = Registry.register(
-                Registries.ENTITY_TYPE,
-                new Identifier(PlayerDollAddon.MODID, "alex_doll"),
-                DollEntityFactory.createDollEntityType("alex_doll", AlexDollEntity::new)
-        );
+        STEVE_DOLL = registerStandardDollEntity("steve_doll", SteveDollEntity::new);
+        ALEX_DOLL = registerStandardDollEntity("alex_doll", AlexDollEntity::new);
         
         // 扫描并注册所有 PNG 文件对应的实体
         registerCustomTextureDollEntities();
+    }
+    
+    /**
+     * 注册标准玩偶实体（辅助方法）
+     * @param name 实体名称
+     * @param factory 实体工厂
+     * @return 注册的实体类型
+     */
+    private static <T extends BaseDollEntity> EntityType<T> registerStandardDollEntity(
+            String name, EntityType.EntityFactory<T> factory) {
+        return Registry.register(
+                Registries.ENTITY_TYPE,
+                new Identifier(PlayerDollAddon.MODID, name),
+                DollEntityFactory.createDollEntityType(name, factory)
+        );
     }
     
     /**

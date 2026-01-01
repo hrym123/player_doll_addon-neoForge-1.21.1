@@ -1,11 +1,10 @@
 package com.lanye.dolladdon;
 
 import com.lanye.dolladdon.impl.render.AlexDollRenderer;
-import com.lanye.dolladdon.impl.render.AlexDollItemRenderer;
 import com.lanye.dolladdon.impl.render.CustomTextureDollItemRenderer;
 import com.lanye.dolladdon.impl.render.CustomTextureDollRenderer;
 import com.lanye.dolladdon.impl.render.SteveDollRenderer;
-import com.lanye.dolladdon.impl.render.SteveDollItemRenderer;
+import com.lanye.dolladdon.impl.render.StandardDollItemRenderer;
 import com.lanye.dolladdon.init.ModEntities;
 import com.lanye.dolladdon.init.ModItems;
 import com.lanye.dolladdon.util.ExternalTextureLoader;
@@ -87,21 +86,21 @@ public class PlayerDollAddonClient implements ClientModInitializer {
             return;
         }
         
-        // 注册史蒂夫玩偶物品渲染器
+        // 注册史蒂夫玩偶物品渲染器（使用标准渲染器，false = 粗手臂模型）
         try {
             BuiltinItemRendererRegistry.INSTANCE.register(
                 ModItems.STEVE_DOLL,
-                new SteveDollItemRenderer(client, null)
+                new StandardDollItemRenderer(client, null, false)
             );
         } catch (Exception e) {
             PlayerDollAddon.LOGGER.error("[渲染器] ✗ steve_doll 物品渲染器注册失败", e);
         }
         
-        // 注册艾利克斯玩偶物品渲染器
+        // 注册艾利克斯玩偶物品渲染器（使用标准渲染器，true = 细手臂模型）
         try {
             BuiltinItemRendererRegistry.INSTANCE.register(
                 ModItems.ALEX_DOLL,
-                new AlexDollItemRenderer(client, null)
+                new StandardDollItemRenderer(client, null, true)
             );
         } catch (Exception e) {
             PlayerDollAddon.LOGGER.error("[渲染器] ✗ alex_doll 物品渲染器注册失败", e);

@@ -32,11 +32,11 @@ public class ResourceFileGenerator {
             
             // 生成到 build/resources/main（开发环境会自动加载）
             Path buildResourcesDir = projectRoot.resolve("build/resources/main");
-            Path buildModelsDir = buildResourcesDir.resolve("assets/player_doll_addon/models/item");
+            Path buildModelsDir = buildResourcesDir.resolve("assets/" + PlayerDollAddon.MODID + "/models/item");
             
             // 同时生成到 run/resources（运行时目录）
             Path runResourcesDir = gameDir.resolve("resources");
-            Path runModelsDir = runResourcesDir.resolve("assets/player_doll_addon/models/item");
+            Path runModelsDir = runResourcesDir.resolve("assets/" + PlayerDollAddon.MODID + "/models/item");
             
             // 创建两个目录
             Files.createDirectories(buildModelsDir);
@@ -110,11 +110,11 @@ public class ResourceFileGenerator {
             
             // 生成到 build/resources/main（开发环境会自动加载）
             Path buildResourcesDir = projectRoot.resolve("build/resources/main");
-            Path buildLangDir = buildResourcesDir.resolve("assets/player_doll_addon/lang");
+            Path buildLangDir = buildResourcesDir.resolve("assets/" + PlayerDollAddon.MODID + "/lang");
             
             // 同时生成到 run/resources（运行时目录）
             Path runResourcesDir = gameDir.resolve("resources");
-            Path runLangDir = runResourcesDir.resolve("assets/player_doll_addon/lang");
+            Path runLangDir = runResourcesDir.resolve("assets/" + PlayerDollAddon.MODID + "/lang");
             
             // 创建两个目录
             Files.createDirectories(buildLangDir);
@@ -127,17 +127,18 @@ public class ResourceFileGenerator {
             Map<String, String> enUsEntries = new HashMap<>();
             
             // 添加固定的翻译
-            zhCnEntries.put("item.player_doll_addon.steve_doll", "史蒂夫玩偶");
-            zhCnEntries.put("entity.player_doll_addon.steve_doll", "史蒂夫玩偶");
-            zhCnEntries.put("item.player_doll_addon.alex_doll", "艾利克斯玩偶");
-            zhCnEntries.put("entity.player_doll_addon.alex_doll", "艾利克斯玩偶");
-            zhCnEntries.put("itemGroup.player_doll_addon.player_doll_tab", "玩家玩偶");
+            String modId = PlayerDollAddon.MODID;
+            zhCnEntries.put("item." + modId + ".steve_doll", "史蒂夫玩偶");
+            zhCnEntries.put("entity." + modId + ".steve_doll", "史蒂夫玩偶");
+            zhCnEntries.put("item." + modId + ".alex_doll", "艾利克斯玩偶");
+            zhCnEntries.put("entity." + modId + ".alex_doll", "艾利克斯玩偶");
+            zhCnEntries.put("itemGroup." + modId + ".player_doll_tab", "玩家玩偶");
             
-            enUsEntries.put("item.player_doll_addon.steve_doll", "Steve Doll");
-            enUsEntries.put("entity.player_doll_addon.steve_doll", "Steve Doll");
-            enUsEntries.put("item.player_doll_addon.alex_doll", "Alex Doll");
-            enUsEntries.put("entity.player_doll_addon.alex_doll", "Alex Doll");
-            enUsEntries.put("itemGroup.player_doll_addon.player_doll_tab", "Player Dolls");
+            enUsEntries.put("item." + modId + ".steve_doll", "Steve Doll");
+            enUsEntries.put("entity." + modId + ".steve_doll", "Steve Doll");
+            enUsEntries.put("item." + modId + ".alex_doll", "Alex Doll");
+            enUsEntries.put("entity." + modId + ".alex_doll", "Alex Doll");
+            enUsEntries.put("itemGroup." + modId + ".player_doll_tab", "Player Dolls");
             
             // 为每个 PNG 文件生成翻译
             for (PngTextureScanner.PngTextureInfo pngInfo : pngFiles) {
@@ -149,9 +150,9 @@ public class ResourceFileGenerator {
                     // 从文件名提取显示名称（移除扩展名，保留原始名称的部分）
                     String displayName = extractDisplayName(fileName);
                     
-                    // 生成翻译键
-                    String itemKey = "item.player_doll_addon." + itemId;
-                    String entityKey = "entity.player_doll_addon." + itemId;
+                    // 生成翻译键（使用之前声明的modId变量）
+                    String itemKey = "item." + modId + "." + itemId;
+                    String entityKey = "entity." + modId + "." + itemId;
                     
                     zhCnEntries.put(itemKey, displayName + "玩偶");
                     zhCnEntries.put(entityKey, displayName + "玩偶");
