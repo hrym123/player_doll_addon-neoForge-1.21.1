@@ -2,12 +2,16 @@ package com.lanye.dolladdon.util.skinlayers3d;
 
 import com.lanye.dolladdon.PlayerDollAddonClient;
 import com.lanye.dolladdon.util.logging.ModuleLogger;
+import com.lanye.dolladdon.util.resource.ExternalTextureLoader;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.texture.NativeImage;
 import net.minecraft.resource.Resource;
 import net.minecraft.util.Identifier;
 
 import java.lang.reflect.Method;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -30,6 +34,9 @@ public class Doll3DSkinUtil {
     private static Method create3DMeshMethod;
     private static boolean initialized = false;
     private static boolean available = false;
+    
+    // 预加载标志位，确保preloadExternalTexturesFor3DSkinLayers只执行一次
+    private static boolean texturesPreloaded = false;
 
     /**
          * 缓存键
@@ -133,6 +140,19 @@ public class Doll3DSkinUtil {
             available = true;
             ModuleLogger.info(LOG_MODULE, "✓ 成功初始化3D皮肤层API反射（OffsetProvider: {}）",
                 offsetProviderClass != null ? "可用" : "不可用");
+
+            // 检查是否可以为3D Skin Layers提供外部文件支持
+            try {
+                boolean externalSupportEnabled = checkExternalFileSupport();
+                if (externalSupportEnabled) {
+                    ModuleLogger.info(LOG_MODULE, "✓ 外部PNG文件支持已启用，3D皮肤层可以访问外部纹理");
+                } else {
+                    ModuleLogger.warn(LOG_MODULE, "⚠ 外部PNG文件支持未完全启用，某些功能可能受限");
+                }
+            } catch (Exception e) {
+                ModuleLogger.warn(LOG_MODULE, "⚠ 检查外部文件支持时出错: {}", e.getMessage());
+            }
+
             return true;
             
         } catch (ClassNotFoundException e) {
@@ -230,42 +250,164 @@ public class Doll3DSkinUtil {
     
     /**
      * 从资源位置加载皮肤纹理
+     * 优先从外部PNG文件加载，如果失败则尝试从资源包加载
      */
     private static NativeImage loadSkinTexture(Identifier skinLocation) {
         ModuleLogger.debug(LOG_MODULE, "正在加载皮肤纹理: {}", skinLocation);
+
+        // 首先尝试从外部PNG文件加载（玩偶系统使用的纹理）
+        Path externalFilePath = ExternalTextureLoader.getTexturePath(skinLocation);
+        if (externalFilePath != null && Files.exists(externalFilePath)) {
+            ModuleLogger.debug(LOG_MODULE, "✓ 找到外部PNG文件，正在从文件系统加载: {}", externalFilePath);
+            try {
+                NativeImage skin = NativeImage.read(Files.newInputStream(externalFilePath));
+
+                int width = skin.getWidth();
+                int height = skin.getHeight();
+                ModuleLogger.debug(LOG_MODULE, "外部皮肤尺寸: {}x{}", width, height);
+
+                // 检查是否为64x64皮肤（3D皮肤层只支持64x64）
+                if (width == 64 && height == 64) {
+                    ModuleLogger.debug(LOG_MODULE, "✓ 外部皮肤尺寸符合要求（64x64）");
+                    return skin;
+                } else {
+                    ModuleLogger.warn(LOG_MODULE, "✗ 外部皮肤 {} 不是64x64（实际: {}x{}），无法使用3D渲染",
+                            skinLocation, width, height);
+                    skin.close();
+                    return null;
+                }
+            } catch (Exception e) {
+                ModuleLogger.error(LOG_MODULE, "✗ 从外部文件加载皮肤纹理失败: {} -> {}", skinLocation, externalFilePath, e);
+            }
+        } else {
+            ModuleLogger.debug(LOG_MODULE, "未找到外部PNG文件，将尝试从资源包加载");
+        }
+
+        // 如果外部文件加载失败，尝试从资源包加载（兼容标准Minecraft皮肤）
         try {
             Optional<Resource> resource = MinecraftClient.getInstance()
                     .getResourceManager().getResource(skinLocation);
-            
+
             if (resource.isPresent()) {
-                ModuleLogger.debug(LOG_MODULE, "✓ 资源找到，正在读取...");
+                ModuleLogger.debug(LOG_MODULE, "✓ 资源包中找到资源，正在读取...");
                 // 在1.20.1中，Resource使用getInputStream()方法
                 NativeImage skin = NativeImage.read(resource.get().getInputStream());
-                
+
                 int width = skin.getWidth();
                 int height = skin.getHeight();
-                ModuleLogger.debug(LOG_MODULE, "皮肤尺寸: {}x{}", width, height);
-                
+                ModuleLogger.debug(LOG_MODULE, "资源包皮肤尺寸: {}x{}", width, height);
+
                 // 检查是否为64x64皮肤（3D皮肤层只支持64x64）
                 if (width == 64 && height == 64) {
-                    ModuleLogger.debug(LOG_MODULE, "✓ 皮肤尺寸符合要求（64x64）");
+                    ModuleLogger.debug(LOG_MODULE, "✓ 资源包皮肤尺寸符合要求（64x64）");
                     return skin;
                 } else {
-                    ModuleLogger.warn(LOG_MODULE, "✗ 皮肤 {} 不是64x64（实际: {}x{}），无法使用3D渲染", 
+                    ModuleLogger.warn(LOG_MODULE, "✗ 资源包皮肤 {} 不是64x64（实际: {}x{}），无法使用3D渲染",
                             skinLocation, width, height);
                     skin.close();
                     return null;
                 }
             } else {
-                ModuleLogger.warn(LOG_MODULE, "✗ 资源未找到: {}", skinLocation);
+                ModuleLogger.warn(LOG_MODULE, "✗ 资源包中也未找到资源: {}", skinLocation);
             }
         } catch (Exception e) {
-            ModuleLogger.error(LOG_MODULE, "✗ 加载皮肤纹理失败: {}", skinLocation, e);
+            ModuleLogger.error(LOG_MODULE, "✗ 从资源包加载皮肤纹理失败: {}", skinLocation, e);
         }
-        
+
         return null;
     }
-    
+
+    /**
+     * 检查外部文件支持状态
+     * 验证我们的纹理系统是否能为3D Skin Layers提供外部文件支持
+     */
+    private static boolean checkExternalFileSupport() {
+        ModuleLogger.debug(LOG_MODULE, "正在检查外部文件支持状态...");
+
+        try {
+            // 检查是否有已加载的外部纹理
+            Map<Identifier, Path> loadedTextures = ExternalTextureLoader.getAllLoadedTextures();
+            if (loadedTextures.isEmpty()) {
+                ModuleLogger.debug(LOG_MODULE, "未检测到已加载的外部纹理文件");
+                return false;
+            }
+
+            ModuleLogger.debug(LOG_MODULE, "✓ 检测到 {} 个已加载的外部纹理文件", loadedTextures.size());
+
+            // 检查纹理管理器是否可用
+            var textureManager = MinecraftClient.getInstance().getTextureManager();
+            if (textureManager == null) {
+                ModuleLogger.warn(LOG_MODULE, "纹理管理器不可用");
+                return false;
+            }
+
+            // 验证我们是否能正确加载外部纹理
+            for (Map.Entry<Identifier, Path> entry : loadedTextures.entrySet()) {
+                Identifier textureId = entry.getKey();
+                Path filePath = entry.getValue();
+
+                if (Files.exists(filePath)) {
+                    ModuleLogger.debug(LOG_MODULE, "✓ 验证外部纹理可用: {} -> {}", textureId, filePath.getFileName());
+                } else {
+                    ModuleLogger.warn(LOG_MODULE, "✗ 外部纹理文件不存在: {} -> {}", textureId, filePath);
+                }
+            }
+
+            ModuleLogger.debug(LOG_MODULE, "✓ 外部文件支持检查完成");
+            return true;
+
+        } catch (Exception e) {
+            ModuleLogger.error(LOG_MODULE, "✗ 检查外部文件支持时出错", e);
+            return false;
+        }
+    }
+
+    /**
+     * 为3D Skin Layers预注册外部纹理
+     * 通过将外部PNG文件注册到纹理管理器，使3D Skin Layers能够访问它们
+     * 注意：此方法只会执行一次，后续调用会被跳过（避免每帧都执行导致卡顿）
+     */
+    public static void preloadExternalTexturesFor3DSkinLayers() {
+        // 如果已经预加载过，直接返回（避免每帧都执行导致卡顿）
+        if (texturesPreloaded) {
+            return;
+        }
+
+        ModuleLogger.debug(LOG_MODULE, "正在为3D皮肤层预加载外部纹理...");
+
+        try {
+            var textureManager = MinecraftClient.getInstance().getTextureManager();
+            Map<Identifier, Path> loadedTextures = ExternalTextureLoader.getAllLoadedTextures();
+
+            int successCount = 0;
+            for (Map.Entry<Identifier, Path> entry : loadedTextures.entrySet()) {
+                Identifier textureId = entry.getKey();
+                Path filePath = entry.getValue();
+
+                if (Files.exists(filePath)) {
+                    // 确保纹理已注册到纹理管理器
+                    boolean registered = ExternalTextureLoader.loadTexture(textureId, textureManager);
+                    if (registered) {
+                        ModuleLogger.debug(LOG_MODULE, "✓ 外部纹理已预注册到3D皮肤层: {}", textureId);
+                        successCount++;
+                    } else {
+                        ModuleLogger.warn(LOG_MODULE, "✗ 外部纹理预注册失败: {}", textureId);
+                    }
+                } else {
+                    ModuleLogger.warn(LOG_MODULE, "✗ 外部纹理文件不存在，跳过预注册: {} -> {}", textureId, filePath);
+                }
+            }
+
+            ModuleLogger.info(LOG_MODULE, "✓ 外部纹理预加载完成，已为3D皮肤层注册 {} 个纹理", successCount);
+            
+            // 标记为已预加载
+            texturesPreloaded = true;
+
+        } catch (Exception e) {
+            ModuleLogger.error(LOG_MODULE, "✗ 预加载外部纹理时出错", e);
+        }
+    }
+
     /**
      * 为玩偶设置3D皮肤层
      * 
@@ -280,7 +422,10 @@ public class Doll3DSkinUtil {
             ModuleLogger.warn(LOG_MODULE, "✗ API不可用，无法设置3D皮肤层");
             return null;
         }
-        
+
+        // 为3D Skin Layers预加载外部纹理，确保其能访问外部PNG文件
+        preloadExternalTexturesFor3DSkinLayers();
+
         // 检查缓存
         CacheKey cacheKey = new CacheKey(skinLocation, thinArms);
         Doll3DSkinData cached = CACHE.get(cacheKey);

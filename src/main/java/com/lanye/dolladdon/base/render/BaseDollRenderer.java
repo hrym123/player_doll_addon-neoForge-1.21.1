@@ -11,6 +11,7 @@ import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.entity.EntityRenderer;
 import net.minecraft.client.render.entity.EntityRendererFactory;
 import net.minecraft.client.render.entity.model.PlayerEntityModel;
+import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.util.Identifier;
@@ -220,41 +221,37 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
         
         // 第二步：渲染外层（overlay layer）- 使用半透明渲染以正确显示多层皮肤
         var overlayVertexConsumer = vertexConsumerProvider.getBuffer(translucentRenderType);
-        
+
         // 检查是否使用3D皮肤层渲染
         boolean modLoaded = PlayerDollAddonClient.IS_3D_SKIN_LAYERS_LOADED;
         boolean apiAvailable = Doll3DSkinUtil.isAvailable();
         boolean inRange = shouldUse3DSkinLayers(entity);
         boolean use3DSkinLayers = modLoaded && apiAvailable && inRange;
-        
-        ModuleLogger.debug(LOG_MODULE, "渲染检查: modLoaded={}, apiAvailable={}, inRange={}, use3D={}", 
-                modLoaded, apiAvailable, inRange, use3DSkinLayers);
-        
+
+        // 只在第一次渲染时记录检查结果，避免每帧都输出日志导致卡顿
+        if (!hasLoggedRenderCheck) {
+            ModuleLogger.debug(LOG_MODULE, "渲染检查: modLoaded={}, apiAvailable={}, inRange={}, use3D={}",
+                    modLoaded, apiAvailable, inRange, use3DSkinLayers);
+            hasLoggedRenderCheck = true;
+        }
+
+        // 第三步：延迟渲染3D网格 - 在所有其他渲染完成后执行，确保不会被遮挡
+        boolean willRender3DLast = false;
+
         if (use3DSkinLayers) {
-            // 使用3D皮肤层渲染
+            // 预加载3D数据，但暂时不渲染
             if (!hasLogged3DRenderStart) {
-                ModuleLogger.debug(LOG_MODULE, "🎨 开始3D皮肤层渲染，皮肤: {}", skinLocation);
+                ModuleLogger.debug(LOG_MODULE, "🎨 准备3D皮肤层渲染，皮肤: {}", skinLocation);
                 hasLogged3DRenderStart = true;
             }
-            try {
-                renderOverlayWith3DSkinLayers(matrixStack, overlayVertexConsumer, light, overlay,
-                    skinLocation, bodyRotX, bodyRotY, bodyRotZ,
-                    hatPosition, hatCombinedScale,
-                    rightArmPosition, rightArmScale, leftArmPosition, leftArmScale,
-                    bodyPosition, bodyScale,
-                    rightLegPosition, rightLegScale, leftLegPosition, leftLegScale);
-                ModuleLogger.debug(LOG_MODULE, "✅ 3D皮肤层渲染完成");
-            } catch (Exception e) {
-                ModuleLogger.error(LOG_MODULE, "❌ 3D皮肤层渲染失败，降级到2D渲染", e);
-                ModuleLogger.error(LOG_MODULE, "  错误详情: {}", e.getMessage());
-                // 发生异常时，降级到2D渲染而不是崩溃
-                fallbackTo2DRender(matrixStack, overlayVertexConsumer, light, overlay,
-                    bodyRotX, bodyRotY, bodyRotZ,
-                    hatPosition, hatCombinedScale,
-                    rightArmPosition, rightArmScale, leftArmPosition, leftArmScale,
-                    bodyPosition, bodyScale,
-                    rightLegPosition, rightLegScale, leftLegPosition, leftLegScale);
-                return; // 已经渲染完成，直接返回
+
+            // 预加载3D皮肤数据，确保在需要时可用
+            var preloadResult = Doll3DSkinUtil.setup3dLayers(skinLocation, thinArms);
+            if (preloadResult != null) {
+                willRender3DLast = true;
+                ModuleLogger.debug(LOG_MODULE, "✓ 3D皮肤数据预加载成功，将在最后阶段渲染");
+            } else {
+                ModuleLogger.warn(LOG_MODULE, "✗ 3D皮肤数据预加载失败，降级到2D渲染");
             }
         } else {
             if (!modLoaded) {
@@ -303,12 +300,80 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
                 renderBodyLegOverlayParts(matrixStack, overlayVertexConsumer, light, overlay, bodyPosition, bodyScale, rightLegPosition, rightLegScale, leftLegPosition, leftLegScale);
             }
         }
-        
+
         matrixStack.pop();
-        
+
+        // 第四步：最后的3D网格渲染 - 在所有其他渲染完成后执行，确保不会被遮挡
+        if (willRender3DLast) {
+            ModuleLogger.debug(LOG_MODULE, "🎨 执行延迟3D网格渲染 - 在所有渲染完成后");
+            try {
+                // 为3D网格渲染应用玩偶的基础变换
+                matrixStack.push();
+                applyBaseDollTransforms(matrixStack, entity, partialTick);
+
+                renderOverlayWith3DSkinLayers(matrixStack, overlayVertexConsumer, light, overlay,
+                    skinLocation, bodyRotX, bodyRotY, bodyRotZ,
+                    hatPosition, hatCombinedScale,
+                    rightArmPosition, rightArmScale, leftArmPosition, leftArmScale,
+                    bodyPosition, bodyScale,
+                    rightLegPosition, rightLegScale, leftLegPosition, leftLegScale);
+
+                matrixStack.pop();
+                ModuleLogger.debug(LOG_MODULE, "✅ 延迟3D网格渲染完成 - 这应该在最上层显示");
+            } catch (Exception e) {
+                ModuleLogger.error(LOG_MODULE, "❌ 延迟3D网格渲染失败", e);
+                ModuleLogger.error(LOG_MODULE, "  错误详情: {}", e.getMessage());
+            }
+        }
+
         super.render(entity, entityYaw, partialTick, matrixStack, vertexConsumerProvider, light);
     }
     
+    /**
+     * 为3D网格渲染应用玩偶的基础变换
+     * 确保3D网格和普通模型使用相同的坐标系统和缩放
+     * 必须与主渲染方法中的变换顺序完全一致
+     */
+    private void applyBaseDollTransforms(MatrixStack matrixStack, T entity, float partialTick) {
+        // 获取玩偶的pose数据
+        var pose = entity.getCurrentPose();
+        if (pose == null) {
+            pose = com.lanye.dolladdon.api.pose.SimpleDollPose.createDefaultStandingPose();
+        }
+
+        // 第一步：应用实体旋转（与主渲染方法第76-81行一致）
+        float yRot = MathHelper.lerp(partialTick, entity.prevYaw, entity.getYaw());
+        float xRot = MathHelper.lerp(partialTick, entity.prevPitch, entity.getPitch());
+        matrixStack.multiply(new Quaternionf().rotateY((float) Math.toRadians(180.0F - yRot)));
+        matrixStack.multiply(new Quaternionf().rotateX((float) Math.toRadians(xRot)));
+
+        // 第二步：应用Y偏移和模型缩放（与主渲染方法第83-108行一致）
+        float modelScale = 0.5F;
+        float[] scale = pose.getScale();
+        float yOffset = 0.75f * scale[1];
+        matrixStack.translate(0.0, yOffset, 0.0);
+        matrixStack.scale(-modelScale, -modelScale, modelScale);
+
+        // 第三步：应用姿态的位置和缩放（与主渲染方法第111-117行一致）
+        float[] position = pose.getPosition();
+        if (position[0] != 0.0f || position[1] != 0.0f || position[2] != 0.0f) {
+            matrixStack.translate(position[0], -position[1], position[2]);
+        }
+        if (scale[0] != 1.0f || scale[1] != 1.0f || scale[2] != 1.0f) {
+            matrixStack.scale(scale[0], scale[1], scale[2]);
+        }
+
+        // 注意：身体旋转在renderOverlayWith3DSkinLayers方法中处理，不在这里处理
+
+        // 只在第一次应用变换时记录日志，避免每帧都输出导致卡顿
+        if (!hasLoggedMeshCreation) {
+            ModuleLogger.debug(LOG_MODULE, "✓ 已应用玩偶基础变换 - 实体旋转(Y:{:.1f}, X:{:.1f}), Y偏移:{:.3f}, 模型缩放:{:.1f}, 位置: [{}, {}, {}], 缩放: [{}, {}, {}]",
+                    yRot, xRot, yOffset, modelScale,
+                    position[0], position[1], position[2],
+                    scale[0], scale[1], scale[2]);
+        }
+    }
+
     /**
      * 渲染单个部件，应用位置和缩放
      * @param poseStack 变换矩阵栈
@@ -576,13 +641,21 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
 
         // 不再预先检查皮肤路径，让3D渲染系统自己验证皮肤格式
         // 3D皮肤层mod会检查皮肤是否为有效的64x64格式，如果不是会自动回退到2D渲染
-        ModuleLogger.info(LOG_MODULE, "🎯 第6次修复生效：皮肤路径 {}，移除路径检查，允许尝试3D渲染", skinLocation);
+        // 只在第一次调用时记录日志，避免每帧都输出导致卡顿
+        if (!hasLoggedSkinCheck) {
+            ModuleLogger.info(LOG_MODULE, "🎯 第6次修复生效：皮肤路径 {}，移除路径检查，允许尝试3D渲染", skinLocation);
+            hasLoggedSkinCheck = true;
+        }
 
         // 计算距离：应该计算到玩家的距离，而不是到相机的距离
         // 3D皮肤层的LOD是基于到玩家的距离
         var player = client.player;
         if (player == null) {
-            ModuleLogger.debug(LOG_MODULE, "玩家对象为空，无法使用3D渲染");
+            // 只在第一次调用时记录日志
+            if (!hasLoggedDistanceCheck) {
+                ModuleLogger.debug(LOG_MODULE, "玩家对象为空，无法使用3D渲染");
+                hasLoggedDistanceCheck = true;
+            }
             return false;
         }
 
@@ -593,10 +666,14 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
         double distance = Math.sqrt(distanceSq);
         boolean shouldUse = distanceSq <= 12.0 * 12.0;
 
-        ModuleLogger.debug(LOG_MODULE, "距离检测: 实体位置({:.1f}, {:.1f}, {:.1f}), 玩家位置({:.1f}, {:.1f}, {:.1f}), 到玩家距离={:.2f}格, 阈值=144.0, 使用3D渲染={}",
-                entityPos.x, entityPos.y, entityPos.z,
-                playerPos.x, playerPos.y, playerPos.z,
-                distance, shouldUse);
+        // 只在第一次调用时记录距离检测日志，避免每帧都输出导致卡顿
+        if (!hasLoggedDistanceCheck) {
+            ModuleLogger.debug(LOG_MODULE, "距离检测: 实体位置({:.1f}, {:.1f}, {:.1f}), 玩家位置({:.1f}, {:.1f}, {:.1f}), 到玩家距离={:.2f}格, 阈值=144.0, 使用3D渲染={}",
+                    entityPos.x, entityPos.y, entityPos.z,
+                    playerPos.x, playerPos.y, playerPos.z,
+                    distance, shouldUse);
+            hasLoggedDistanceCheck = true;
+        }
 
         // 12格以内且为标准Minecraft皮肤时使用3D渲染
         return shouldUse;
@@ -654,48 +731,99 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
             
             // 渲染各个部位的3D网格
             render3DMeshPart(matrixStack, playerModel.hat, skinData.getHeadMesh(),
-                    "HEAD", vertexConsumer, light, overlay, hatPosition, hatScale);
+                    "HEAD", vertexConsumer, light, overlay, hatPosition, hatScale, skinLocation);
             
             render3DMeshPart(matrixStack, playerModel.leftArm, skinData.getLeftArmMesh(),
                     thinArms ? "LEFT_ARM_SLIM" : "LEFT_ARM", vertexConsumer, light, overlay,
-                    leftArmPosition, leftArmScale);
+                    leftArmPosition, leftArmScale, skinLocation);
             
             render3DMeshPart(matrixStack, playerModel.rightArm, skinData.getRightArmMesh(),
                     thinArms ? "RIGHT_ARM_SLIM" : "RIGHT_ARM", vertexConsumer, light, overlay,
-                    rightArmPosition, rightArmScale);
+                    rightArmPosition, rightArmScale, skinLocation);
             
             render3DMeshPart(matrixStack, playerModel.body, skinData.getTorsoMesh(),
-                    "BODY", vertexConsumer, light, overlay, bodyPosition, bodyScale);
+                    "BODY", vertexConsumer, light, overlay, bodyPosition, bodyScale, skinLocation);
             
             render3DMeshPart(matrixStack, playerModel.leftLeg, skinData.getLeftLegMesh(),
-                    "LEFT_LEG", vertexConsumer, light, overlay, leftLegPosition, leftLegScale);
+                    "LEFT_LEG", vertexConsumer, light, overlay, leftLegPosition, leftLegScale, skinLocation);
             
             render3DMeshPart(matrixStack, playerModel.rightLeg, skinData.getRightLegMesh(),
-                    "RIGHT_LEG", vertexConsumer, light, overlay, rightLegPosition, rightLegScale);
+                    "RIGHT_LEG", vertexConsumer, light, overlay, rightLegPosition, rightLegScale, skinLocation);
             
             matrixStack.pop();
         } else {
             // 没有身体旋转时，正常渲染
             render3DMeshPart(matrixStack, playerModel.hat, skinData.getHeadMesh(),
-                    "HEAD", vertexConsumer, light, overlay, hatPosition, hatScale);
+                    "HEAD", vertexConsumer, light, overlay, hatPosition, hatScale, skinLocation);
             
             render3DMeshPart(matrixStack, playerModel.leftArm, skinData.getLeftArmMesh(),
                     thinArms ? "LEFT_ARM_SLIM" : "LEFT_ARM", vertexConsumer, light, overlay,
-                    leftArmPosition, leftArmScale);
+                    leftArmPosition, leftArmScale, skinLocation);
             
             render3DMeshPart(matrixStack, playerModel.rightArm, skinData.getRightArmMesh(),
                     thinArms ? "RIGHT_ARM_SLIM" : "RIGHT_ARM", vertexConsumer, light, overlay,
-                    rightArmPosition, rightArmScale);
+                    rightArmPosition, rightArmScale, skinLocation);
             
             render3DMeshPart(matrixStack, playerModel.body, skinData.getTorsoMesh(),
-                    "BODY", vertexConsumer, light, overlay, bodyPosition, bodyScale);
+                    "BODY", vertexConsumer, light, overlay, bodyPosition, bodyScale, skinLocation);
             
             render3DMeshPart(matrixStack, playerModel.leftLeg, skinData.getLeftLegMesh(),
-                    "LEFT_LEG", vertexConsumer, light, overlay, leftLegPosition, leftLegScale);
+                    "LEFT_LEG", vertexConsumer, light, overlay, leftLegPosition, leftLegScale, skinLocation);
             
             render3DMeshPart(matrixStack, playerModel.rightLeg, skinData.getRightLegMesh(),
-                    "RIGHT_LEG", vertexConsumer, light, overlay, rightLegPosition, rightLegScale);
+                    "RIGHT_LEG", vertexConsumer, light, overlay, rightLegPosition, rightLegScale, skinLocation);
         }
+    }
+    
+    /**
+     * 手动应用3D偏移，使外层皮肤稍微向外偏移以形成3D效果
+     * 当OffsetProvider不可用时使用此方法
+     * 
+     * @param matrixStack 变换矩阵栈
+     * @param offsetProviderName 部位名称（如 "HEAD", "BODY" 等）
+     */
+    private void applyManual3DOffset(MatrixStack matrixStack, String offsetProviderName) {
+        // 3D皮肤层的典型偏移距离：约0.01-0.02个单位（在Minecraft坐标系统中）
+        // 经过模型缩放（0.5倍）后，实际偏移约为0.02-0.04个单位
+        // 减小偏移距离，避免网格被渲染到视野外
+        float offsetDistance = 0.01f; // 减小偏移，确保网格在正确位置
+        
+        // 根据部位应用不同的偏移方向
+        switch (offsetProviderName) {
+            case "HEAD":
+                // 头部：向上和向前偏移
+                matrixStack.translate(0.0, offsetDistance * 0.5, offsetDistance);
+                break;
+            case "BODY":
+                // 身体：向前偏移
+                matrixStack.translate(0.0, 0.0, offsetDistance);
+                break;
+            case "LEFT_ARM":
+            case "LEFT_ARM_SLIM":
+                // 左臂：向左和向前偏移
+                matrixStack.translate(-offsetDistance * 0.3, 0.0, offsetDistance);
+                break;
+            case "RIGHT_ARM":
+            case "RIGHT_ARM_SLIM":
+                // 右臂：向右和向前偏移
+                matrixStack.translate(offsetDistance * 0.3, 0.0, offsetDistance);
+                break;
+            case "LEFT_LEG":
+                // 左腿：向左和向前偏移
+                matrixStack.translate(-offsetDistance * 0.3, 0.0, offsetDistance);
+                break;
+            case "RIGHT_LEG":
+                // 右腿：向右和向前偏移
+                matrixStack.translate(offsetDistance * 0.3, 0.0, offsetDistance);
+                break;
+            default:
+                // 默认：向前偏移
+                matrixStack.translate(0.0, 0.0, offsetDistance);
+                break;
+        }
+        
+        // 始终记录偏移应用，不依赖hasLoggedMeshCreation
+        ModuleLogger.debug(LOG_MODULE, "✓ 已应用手动3D偏移: {}，偏移距离: {:.3f}", offsetProviderName, offsetDistance);
     }
     
     /**
@@ -707,19 +835,56 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
                                   String offsetProviderName,
                                   net.minecraft.client.render.VertexConsumer vertexConsumer,
                                   int light, int overlay,
-                                  float[] position, float[] scale) {
+                                  float[] position, float[] scale,
+                                  Identifier skinTexture) {
         if (mesh == null) {
-            if (!hasLoggedMeshCreation) {
-                ModuleLogger.debug(LOG_MODULE, "跳过渲染 {}（mesh为null）", offsetProviderName);
-            }
+            ModuleLogger.warn(LOG_MODULE, "✗ 跳过渲染 {}（mesh为null）", offsetProviderName);
             return;
         }
 
+        // 只在第一次渲染时记录开始日志，避免每帧都输出导致卡顿
         if (!hasLoggedMeshCreation) {
-            ModuleLogger.debug(LOG_MODULE, "渲染3D网格部件: {}", offsetProviderName);
+            ModuleLogger.debug(LOG_MODULE, "🎨 开始渲染3D网格部件: {}", offsetProviderName);
         }
 
         try {
+            // 详细日志：记录ModelPart的状态（只在第一次渲染时记录，避免每帧都输出导致卡顿）
+            if (!hasLoggedMeshCreation) {
+                try {
+                    java.lang.reflect.Field xField = modelPart.getClass().getDeclaredField("x");
+                    java.lang.reflect.Field yField = modelPart.getClass().getDeclaredField("y");
+                    java.lang.reflect.Field zField = modelPart.getClass().getDeclaredField("z");
+                    java.lang.reflect.Field xRotField = modelPart.getClass().getDeclaredField("xRot");
+                    java.lang.reflect.Field yRotField = modelPart.getClass().getDeclaredField("yRot");
+                    java.lang.reflect.Field zRotField = modelPart.getClass().getDeclaredField("zRot");
+                    xField.setAccessible(true);
+                    yField.setAccessible(true);
+                    zField.setAccessible(true);
+                    xRotField.setAccessible(true);
+                    yRotField.setAccessible(true);
+                    zRotField.setAccessible(true);
+                    float x = xField.getFloat(modelPart);
+                    float y = yField.getFloat(modelPart);
+                    float z = zField.getFloat(modelPart);
+                    float xRot = xRotField.getFloat(modelPart);
+                    float yRot = yRotField.getFloat(modelPart);
+                    float zRot = zRotField.getFloat(modelPart);
+                    ModuleLogger.debug(LOG_MODULE, "📊 {} ModelPart状态 - 位置: ({:.3f}, {:.3f}, {:.3f}), 旋转: ({:.3f}, {:.3f}, {:.3f})", 
+                                     offsetProviderName, x, y, z, xRot, yRot, zRot);
+                } catch (Exception e) {
+                    ModuleLogger.debug(LOG_MODULE, "⚠ {} 无法读取ModelPart状态: {}", offsetProviderName, e.getMessage());
+                }
+                
+                // 详细日志：记录mesh的初始状态
+                try {
+                    Method isVisibleMethod = mesh.getClass().getMethod("isVisible");
+                    boolean visibleBefore = (Boolean) isVisibleMethod.invoke(mesh);
+                    ModuleLogger.debug(LOG_MODULE, "📊 {} mesh初始状态 - visible: {}", offsetProviderName, visibleBefore);
+                } catch (Exception e) {
+                    ModuleLogger.debug(LOG_MODULE, "⚠ {} 无法读取mesh初始visible状态: {}", offsetProviderName, e.getMessage());
+                }
+            }
+            
             // 获取OffsetProvider
             Object offsetProvider = Doll3DSkinUtil.getOffsetProvider(offsetProviderName);
             if (offsetProvider == null) {
@@ -734,72 +899,129 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
                 }
             }
             
-            matrixStack.push();
+            // 详细日志：记录MatrixStack的当前状态（只在第一次渲染时记录）
+            if (!hasLoggedMeshCreation) {
+                try {
+                    var pose = matrixStack.peek();
+                    var matrix = pose.getPositionMatrix();
+                    ModuleLogger.debug(LOG_MODULE, "📊 {} MatrixStack状态 - 变换矩阵已应用", offsetProviderName);
+                } catch (Exception e) {
+                    ModuleLogger.debug(LOG_MODULE, "⚠ {} 无法读取MatrixStack状态: {}", offsetProviderName, e.getMessage());
+                }
+            }
             
+            matrixStack.push();
+
             // 应用位置偏移
             if (position[0] != 0.0f || position[1] != 0.0f || position[2] != 0.0f) {
                 matrixStack.translate(position[0], -position[1], position[2]);
             }
-            
+
             // 应用缩放
             if (scale[0] != 1.0f || scale[1] != 1.0f || scale[2] != 1.0f) {
                 matrixStack.scale(scale[0], scale[1], scale[2]);
             }
             
-            // 应用ModelPart的变换（通过反射调用，因为方法在不同版本中可能不同）
-            // 在1.20.1中，ModelPart可能没有translateAndRotate方法，我们尝试调用
+            // 应用额外的缩放因子来放大3D皮肤层，使其更明显
+            // 这个缩放因子会让3D层比基础皮肤层稍大，形成更明显的3D效果
+            float sizeMultiplier = 1.10f; // 放大10%，可以根据需要调整
+            matrixStack.scale(sizeMultiplier, sizeMultiplier, sizeMultiplier);
+            // 只在第一次渲染时记录缩放日志
+            if (!hasLoggedMeshCreation) {
+                ModuleLogger.debug(LOG_MODULE, "📊 {} 应用3D层大小缩放: {:.3f}", offsetProviderName, sizeMultiplier);
+            }
+
+            // 重要：为3D网格完全禁用深度测试和深度写入，让它可以显示在所有其他内容之上
+            // 这解决了外层被内层完全遮挡的问题
             try {
-                // 尝试调用translateAndRotate方法（如果存在）
-                Method translateAndRotateMethod = modelPart.getClass().getMethod("translateAndRotate", MatrixStack.class);
-                translateAndRotateMethod.invoke(modelPart, matrixStack);
-            } catch (NoSuchMethodException e) {
-                // 如果方法不存在，手动应用ModelPart的变换
-                // 在1.20.1中，我们需要手动应用pivot和rotation
+                // 完全禁用深度测试和深度写入，确保3D网格显示在最上层
+                RenderSystem.disableDepthTest();
+                RenderSystem.depthMask(false);
+
+                // 只在第一次渲染时记录深度设置日志
+                if (!hasLoggedMeshCreation) {
+                    ModuleLogger.debug(LOG_MODULE, "✓ 已完全禁用深度测试和深度写入以显示3D网格");
+                }
+
+            } catch (Exception e) {
+                ModuleLogger.warn(LOG_MODULE, "⚠ {} 无法修改深度测试设置，3D网格可能被遮挡: {}", offsetProviderName, e.getMessage());
+            }
+            
+            // 重要：在渲染前，确保mesh已经复制了ModelPart的状态并设置为可见
+            // CustomizableModelPart.render()方法内部会调用translateAndRotate(poseStack)，
+            // 这会应用mesh自己的位置和旋转（x, y, z, xRot, yRot, zRot）
+            // 所以我们需要先通过copyFrom()复制ModelPart的状态到mesh
+            try {
+                // 详细日志：记录copyFrom前的mesh状态
                 try {
-                    // 获取pivot位置
-                    java.lang.reflect.Field pivotXField = modelPart.getClass().getDeclaredField("pivotX");
-                    java.lang.reflect.Field pivotYField = modelPart.getClass().getDeclaredField("pivotY");
-                    java.lang.reflect.Field pivotZField = modelPart.getClass().getDeclaredField("pivotZ");
-                    pivotXField.setAccessible(true);
-                    pivotYField.setAccessible(true);
-                    pivotZField.setAccessible(true);
-                    
-                    float pivotX = pivotXField.getFloat(modelPart);
-                    float pivotY = pivotYField.getFloat(modelPart);
-                    float pivotZ = pivotZField.getFloat(modelPart);
-                    
-                    // 应用pivot变换
-                    if (pivotX != 0 || pivotY != 0 || pivotZ != 0) {
-                        matrixStack.translate(pivotX / 16.0f, pivotY / 16.0f, pivotZ / 16.0f);
-                    }
-                    
-                    // 获取rotation（通过setAngles设置的）
-                    java.lang.reflect.Field pitchField = modelPart.getClass().getDeclaredField("pitch");
-                    java.lang.reflect.Field yawField = modelPart.getClass().getDeclaredField("yaw");
-                    java.lang.reflect.Field rollField = modelPart.getClass().getDeclaredField("roll");
-                    pitchField.setAccessible(true);
-                    yawField.setAccessible(true);
-                    rollField.setAccessible(true);
-                    
-                    float pitch = pitchField.getFloat(modelPart);
-                    float yaw = yawField.getFloat(modelPart);
-                    float roll = rollField.getFloat(modelPart);
-                    
-                    // 应用旋转
-                    if (pitch != 0) matrixStack.multiply(new Quaternionf().rotateX(pitch));
-                    if (yaw != 0) matrixStack.multiply(new Quaternionf().rotateY(yaw));
-                    if (roll != 0) matrixStack.multiply(new Quaternionf().rotateZ(roll));
-                    
-                    // 移回pivot
-                    if (pivotX != 0 || pivotY != 0 || pivotZ != 0) {
-                        matrixStack.translate(-pivotX / 16.0f, -pivotY / 16.0f, -pivotZ / 16.0f);
-                    }
-                } catch (Exception ex) {
-                    // 如果无法手动应用变换，就跳过
-                    ModuleLogger.debug(LOG_MODULE, "无法手动应用ModelPart变换，跳过");
+                    java.lang.reflect.Field meshXField = mesh.getClass().getDeclaredField("x");
+                    java.lang.reflect.Field meshYField = mesh.getClass().getDeclaredField("y");
+                    java.lang.reflect.Field meshZField = mesh.getClass().getDeclaredField("z");
+                    java.lang.reflect.Field meshXRotField = mesh.getClass().getDeclaredField("xRot");
+                    java.lang.reflect.Field meshYRotField = mesh.getClass().getDeclaredField("yRot");
+                    java.lang.reflect.Field meshZRotField = mesh.getClass().getDeclaredField("zRot");
+                    meshXField.setAccessible(true);
+                    meshYField.setAccessible(true);
+                    meshZField.setAccessible(true);
+                    meshXRotField.setAccessible(true);
+                    meshYRotField.setAccessible(true);
+                    meshZRotField.setAccessible(true);
+                    float meshXBefore = meshXField.getFloat(mesh);
+                    float meshYBefore = meshYField.getFloat(mesh);
+                    float meshZBefore = meshZField.getFloat(mesh);
+                    float meshXRotBefore = meshXRotField.getFloat(mesh);
+                    float meshYRotBefore = meshYRotField.getFloat(mesh);
+                    float meshZRotBefore = meshZRotField.getFloat(mesh);
+                    ModuleLogger.debug(LOG_MODULE, "📊 {} copyFrom前mesh状态 - 位置: ({:.3f}, {:.3f}, {:.3f}), 旋转: ({:.3f}, {:.3f}, {:.3f})", 
+                                     offsetProviderName, meshXBefore, meshYBefore, meshZBefore, meshXRotBefore, meshYRotBefore, meshZRotBefore);
+                } catch (Exception e) {
+                    ModuleLogger.debug(LOG_MODULE, "⚠ {} 无法读取copyFrom前mesh状态: {}", offsetProviderName, e.getMessage());
+                }
+                
+                Method copyFromMethod = mesh.getClass().getMethod("copyFrom", net.minecraft.client.model.ModelPart.class);
+                copyFromMethod.invoke(mesh, modelPart);
+                
+                // 详细日志：记录copyFrom后的mesh状态
+                try {
+                    java.lang.reflect.Field meshXField = mesh.getClass().getDeclaredField("x");
+                    java.lang.reflect.Field meshYField = mesh.getClass().getDeclaredField("y");
+                    java.lang.reflect.Field meshZField = mesh.getClass().getDeclaredField("z");
+                    java.lang.reflect.Field meshXRotField = mesh.getClass().getDeclaredField("xRot");
+                    java.lang.reflect.Field meshYRotField = mesh.getClass().getDeclaredField("yRot");
+                    java.lang.reflect.Field meshZRotField = mesh.getClass().getDeclaredField("zRot");
+                    meshXField.setAccessible(true);
+                    meshYField.setAccessible(true);
+                    meshZField.setAccessible(true);
+                    meshXRotField.setAccessible(true);
+                    meshYRotField.setAccessible(true);
+                    meshZRotField.setAccessible(true);
+                    float meshXAfter = meshXField.getFloat(mesh);
+                    float meshYAfter = meshYField.getFloat(mesh);
+                    float meshZAfter = meshZField.getFloat(mesh);
+                    float meshXRotAfter = meshXRotField.getFloat(mesh);
+                    float meshYRotAfter = meshYRotField.getFloat(mesh);
+                    float meshZRotAfter = meshZRotField.getFloat(mesh);
+                    ModuleLogger.debug(LOG_MODULE, "✓ {} copyFrom后mesh状态 - 位置: ({:.3f}, {:.3f}, {:.3f}), 旋转: ({:.3f}, {:.3f}, {:.3f})", 
+                                     offsetProviderName, meshXAfter, meshYAfter, meshZAfter, meshXRotAfter, meshYRotAfter, meshZRotAfter);
+                } catch (Exception e) {
+                    ModuleLogger.debug(LOG_MODULE, "⚠ {} 无法读取copyFrom后mesh状态: {}", offsetProviderName, e.getMessage());
                 }
             } catch (Exception e) {
-                ModuleLogger.warn(LOG_MODULE, "应用ModelPart变换失败", e);
+                ModuleLogger.warn(LOG_MODULE, "⚠ {} 无法复制ModelPart状态到mesh: {}", offsetProviderName, e.getMessage(), e);
+            }
+            
+            // 确保mesh可见（render方法会检查visible属性）
+            try {
+                Method isVisibleMethod = mesh.getClass().getMethod("isVisible");
+                boolean visibleBefore = (Boolean) isVisibleMethod.invoke(mesh);
+                
+                Method setVisibleMethod = mesh.getClass().getMethod("setVisible", boolean.class);
+                setVisibleMethod.invoke(mesh, true);
+                
+                boolean visibleAfter = (Boolean) isVisibleMethod.invoke(mesh);
+                ModuleLogger.debug(LOG_MODULE, "✓ {} mesh可见性设置 - 之前: {}, 之后: {}", offsetProviderName, visibleBefore, visibleAfter);
+            } catch (Exception e) {
+                ModuleLogger.warn(LOG_MODULE, "⚠ {} 无法设置mesh可见: {}", offsetProviderName, e.getMessage(), e);
             }
             
             // 应用OffsetProvider的偏移（如果可用）
@@ -813,36 +1035,238 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
                     }
                 } catch (Exception e) {
                     if (!hasLoggedMeshCreation) {
-                        ModuleLogger.warn(LOG_MODULE, "⚠ 应用OffsetProvider偏移失败: {}，继续渲染", offsetProviderName, e);
+                        ModuleLogger.warn(LOG_MODULE, "⚠ 应用OffsetProvider偏移失败: {}，使用手动偏移", offsetProviderName, e);
                     }
+                    // OffsetProvider失败时，使用手动偏移
+                    applyManual3DOffset(matrixStack, offsetProviderName);
                 }
             } else {
-                if (!hasLoggedMeshCreation) {
-                    ModuleLogger.debug(LOG_MODULE, "跳过OffsetProvider偏移应用: {}（不可用）", offsetProviderName);
-                }
+                // OffsetProvider不可用时，使用手动偏移来创建3D效果
+                applyManual3DOffset(matrixStack, offsetProviderName);
             }
+            
+            // 移除放大，因为可能导致网格位置错误
+            // 3D网格本身已经有深度，不需要额外放大
+            // float scaleFactor = 1.015f;
+            // matrixStack.scale(scaleFactor, scaleFactor, scaleFactor);
 
             // 渲染3D网格
             try {
-                if (!hasLoggedMeshCreation) {
-                    ModuleLogger.debug(LOG_MODULE, "调用mesh.render()方法...");
+                ModuleLogger.debug(LOG_MODULE, "🔧 准备调用mesh.render()方法: {}, mesh类型: {}", offsetProviderName, mesh.getClass().getName());
+                
+                // 详细日志：记录渲染前的状态
+                ModuleLogger.debug(LOG_MODULE, "📊 {} 渲染前状态 - light: {}, overlay: {}, position: [{:.3f}, {:.3f}, {:.3f}], scale: [{:.3f}, {:.3f}, {:.3f}]", 
+                                 offsetProviderName, light, overlay, position[0], position[1], position[2], scale[0], scale[1], scale[2]);
+                
+                // 确保纹理已绑定（3D网格可能需要特定的纹理绑定）
+                try {
+                    if (skinTexture != null) {
+                        var textureManager = MinecraftClient.getInstance().getTextureManager();
+                        var texture = textureManager.getTexture(skinTexture);
+                        if (texture != null) {
+                            RenderSystem.setShaderTexture(0, skinTexture);
+                            ModuleLogger.debug(LOG_MODULE, "✓ {} 纹理绑定成功: {}", offsetProviderName, skinTexture);
+                        } else {
+                            ModuleLogger.warn(LOG_MODULE, "⚠ {} 纹理未加载: {}", offsetProviderName, skinTexture);
+                        }
+                    } else {
+                        ModuleLogger.warn(LOG_MODULE, "⚠ {} skinTexture为null", offsetProviderName);
+                    }
+                } catch (Exception texEx) {
+                    ModuleLogger.warn(LOG_MODULE, "⚠ {} 绑定纹理失败: {}", offsetProviderName, texEx.getMessage(), texEx);
                 }
-                Method renderMethod = mesh.getClass().getMethod("render",
-                        net.minecraft.client.model.ModelPart.class,
-                        MatrixStack.class,
-                        net.minecraft.client.render.VertexConsumer.class,
-                        int.class, int.class, int.class);
-                renderMethod.invoke(mesh, modelPart, matrixStack, vertexConsumer, light, overlay, 0xFFFFFFFF);
-                if (!hasLoggedMeshCreation) {
-                    ModuleLogger.debug(LOG_MODULE, "✓ {} 渲染完成", offsetProviderName);
-                    hasLoggedMeshCreation = true; // 标记已完成一次完整渲染
+                
+                // 详细日志：记录深度测试状态
+                try {
+                    // 注意：RenderSystem没有直接的方法来查询深度测试状态，但我们可以记录我们设置的状态
+                    ModuleLogger.debug(LOG_MODULE, "📊 {} 深度测试状态 - 已禁用深度测试和深度写入", offsetProviderName);
+                } catch (Exception e) {
+                    ModuleLogger.debug(LOG_MODULE, "⚠ {} 无法记录深度测试状态: {}", offsetProviderName, e.getMessage());
                 }
-            } catch (NoSuchMethodException e) {
-                ModuleLogger.error(LOG_MODULE, "✗ render方法未找到: {}", e.getMessage());
+
+                // 尝试多种render方法签名，以兼容不同版本的3D Skin Layers
+                // 根据源码，CustomizableModelPart有以下render方法：
+                // 1. render(ModelPart, PoseStack, VertexConsumer, int, int, int) - 6参数，需要ModelPart用于MeshTransformer
+                // 2. render(PoseStack, VertexConsumer, int, int) - 3参数，会传入null作为ModelPart
+                // 注意：在1.20.1中，PoseStack和MatrixStack是同一个类，但反射查找时需要尝试两种类型
+                boolean renderSuccess = false;
+                String usedMethod = null;
+                Exception lastException = null;
+
+                // 方法1：6参数版本 (ModelPart, PoseStack/MatrixStack, VertexConsumer, int, int, int)
+                // 这是最完整的版本，需要ModelPart来获取MeshTransformer
+                // 先尝试PoseStack类型（源码中的实际类型）
+                try {
+                    // 尝试使用PoseStack（com.mojang.blaze3d.vertex.PoseStack）
+                    Class<?> poseStackClass = Class.forName("com.mojang.blaze3d.vertex.PoseStack");
+                    Method renderMethod = mesh.getClass().getMethod("render",
+                            net.minecraft.client.model.ModelPart.class,
+                            poseStackClass,
+                            net.minecraft.client.render.VertexConsumer.class,
+                            int.class, int.class, int.class);
+                    ModuleLogger.debug(LOG_MODULE, "尝试6参数render方法（PoseStack，带ModelPart和颜色）: {}", offsetProviderName);
+                    renderMethod.invoke(mesh, modelPart, matrixStack, vertexConsumer, light, overlay, 0xFFFFFFFF);
+                    renderSuccess = true;
+                    usedMethod = "6参数（PoseStack+ModelPart+颜色）";
+                    ModuleLogger.debug(LOG_MODULE, "✓ {} 6参数render方法调用成功", offsetProviderName);
+                } catch (ClassNotFoundException | NoSuchMethodException e1) {
+                    // 如果PoseStack不存在或方法不存在，尝试MatrixStack
+                    try {
+                        Method renderMethod = mesh.getClass().getMethod("render",
+                                net.minecraft.client.model.ModelPart.class,
+                                MatrixStack.class,
+                                net.minecraft.client.render.VertexConsumer.class,
+                                int.class, int.class, int.class);
+                        ModuleLogger.debug(LOG_MODULE, "尝试6参数render方法（MatrixStack，带ModelPart和颜色）: {}", offsetProviderName);
+                        renderMethod.invoke(mesh, modelPart, matrixStack, vertexConsumer, light, overlay, 0xFFFFFFFF);
+                        renderSuccess = true;
+                        usedMethod = "6参数（MatrixStack+ModelPart+颜色）";
+                        ModuleLogger.debug(LOG_MODULE, "✓ {} 6参数render方法调用成功", offsetProviderName);
+                    } catch (NoSuchMethodException e2) {
+                        ModuleLogger.debug(LOG_MODULE, "6参数render方法不存在: {}", offsetProviderName);
+                        lastException = e2;
+                        // 方法2：5参数版本 (ModelPart, PoseStack/MatrixStack, VertexConsumer, int, int)
+                        try {
+                            Class<?> poseStackClass = Class.forName("com.mojang.blaze3d.vertex.PoseStack");
+                            Method renderMethod = mesh.getClass().getMethod("render",
+                                    net.minecraft.client.model.ModelPart.class,
+                                    poseStackClass,
+                                    net.minecraft.client.render.VertexConsumer.class,
+                                    int.class, int.class);
+                            ModuleLogger.debug(LOG_MODULE, "尝试5参数render方法（PoseStack，带ModelPart）: {}", offsetProviderName);
+                            renderMethod.invoke(mesh, modelPart, matrixStack, vertexConsumer, light, overlay);
+                            renderSuccess = true;
+                            usedMethod = "5参数（PoseStack+ModelPart）";
+                            ModuleLogger.debug(LOG_MODULE, "✓ {} 5参数render方法调用成功", offsetProviderName);
+                        } catch (ClassNotFoundException | NoSuchMethodException e3) {
+                            try {
+                                Method renderMethod = mesh.getClass().getMethod("render",
+                                        net.minecraft.client.model.ModelPart.class,
+                                        MatrixStack.class,
+                                        net.minecraft.client.render.VertexConsumer.class,
+                                        int.class, int.class);
+                                ModuleLogger.debug(LOG_MODULE, "尝试5参数render方法（MatrixStack，带ModelPart）: {}", offsetProviderName);
+                                renderMethod.invoke(mesh, modelPart, matrixStack, vertexConsumer, light, overlay);
+                                renderSuccess = true;
+                                usedMethod = "5参数（MatrixStack+ModelPart）";
+                                ModuleLogger.debug(LOG_MODULE, "✓ {} 5参数render方法调用成功", offsetProviderName);
+                            } catch (NoSuchMethodException e4) {
+                                ModuleLogger.debug(LOG_MODULE, "5参数render方法不存在: {}", offsetProviderName);
+                                lastException = e4;
+                                // 方法3：3参数版本 (PoseStack/MatrixStack, VertexConsumer, int, int)
+                                // 这个版本会传入null作为ModelPart，可能导致MeshTransformer无法正确工作
+                                try {
+                                    Class<?> poseStackClass = Class.forName("com.mojang.blaze3d.vertex.PoseStack");
+                                    Method renderMethod = mesh.getClass().getMethod("render",
+                                            poseStackClass,
+                                            net.minecraft.client.render.VertexConsumer.class,
+                                            int.class, int.class);
+                                    ModuleLogger.debug(LOG_MODULE, "尝试3参数render方法（PoseStack，无ModelPart）: {}", offsetProviderName);
+                                    renderMethod.invoke(mesh, matrixStack, vertexConsumer, light, overlay);
+                                    renderSuccess = true;
+                                    usedMethod = "3参数（PoseStack，ModelPart=null）";
+                                    ModuleLogger.debug(LOG_MODULE, "✓ {} 3参数render方法调用成功", offsetProviderName);
+                                } catch (ClassNotFoundException | NoSuchMethodException e5) {
+                                    try {
+                                        Method renderMethod = mesh.getClass().getMethod("render",
+                                                MatrixStack.class,
+                                                net.minecraft.client.render.VertexConsumer.class,
+                                                int.class, int.class);
+                                        ModuleLogger.debug(LOG_MODULE, "尝试3参数render方法（MatrixStack，无ModelPart）: {}", offsetProviderName);
+                                        renderMethod.invoke(mesh, matrixStack, vertexConsumer, light, overlay);
+                                        renderSuccess = true;
+                                        usedMethod = "3参数（MatrixStack，ModelPart=null）";
+                                        ModuleLogger.debug(LOG_MODULE, "✓ {} 3参数render方法调用成功", offsetProviderName);
+                                    } catch (NoSuchMethodException e6) {
+                                        ModuleLogger.error(LOG_MODULE, "✗ {} 所有render方法都未找到", offsetProviderName);
+                                        lastException = e6;
+                                    } catch (Exception e6) {
+                                        ModuleLogger.error(LOG_MODULE, "✗ {} 3参数render方法调用异常: {}", offsetProviderName, e6.getMessage(), e6);
+                                        lastException = e6;
+                                    }
+                                } catch (Exception e5) {
+                                    ModuleLogger.error(LOG_MODULE, "✗ {} 3参数render方法调用异常: {}", offsetProviderName, e5.getMessage(), e5);
+                                    lastException = e5;
+                                }
+                            } catch (Exception e4) {
+                                ModuleLogger.error(LOG_MODULE, "✗ {} 5参数render方法调用异常: {}", offsetProviderName, e4.getMessage(), e4);
+                                lastException = e4;
+                            }
+                        } catch (Exception e3) {
+                            ModuleLogger.error(LOG_MODULE, "✗ {} 5参数render方法调用异常: {}", offsetProviderName, e3.getMessage(), e3);
+                            lastException = e3;
+                        }
+                    } catch (Exception e2) {
+                        ModuleLogger.error(LOG_MODULE, "✗ {} 6参数render方法调用异常: {}", offsetProviderName, e2.getMessage(), e2);
+                        lastException = e2;
+                    }
+                } catch (Exception e1) {
+                    ModuleLogger.error(LOG_MODULE, "✗ {} 6参数render方法调用异常: {}", offsetProviderName, e1.getMessage(), e1);
+                    lastException = e1;
+                }
+
+                if (renderSuccess && usedMethod != null) {
+                    ModuleLogger.debug(LOG_MODULE, "✅ {} 3D网格render方法调用成功（使用{}方法）", offsetProviderName, usedMethod);
+                    
+                    // 详细日志：记录render方法调用后的状态
+                    try {
+                        Method isVisibleMethod = mesh.getClass().getMethod("isVisible");
+                        boolean visibleAfterRender = (Boolean) isVisibleMethod.invoke(mesh);
+                        ModuleLogger.debug(LOG_MODULE, "📊 {} render后mesh状态 - visible: {}", offsetProviderName, visibleAfterRender);
+                    } catch (Exception e) {
+                        ModuleLogger.debug(LOG_MODULE, "⚠ {} 无法读取render后mesh状态: {}", offsetProviderName, e.getMessage());
+                    }
+                    
+                    // 详细日志：检查是否有InvocationTargetException被包装
+                    if (lastException != null && lastException instanceof java.lang.reflect.InvocationTargetException) {
+                        Throwable cause = ((java.lang.reflect.InvocationTargetException) lastException).getTargetException();
+                        if (cause != null) {
+                            ModuleLogger.warn(LOG_MODULE, "⚠ {} render方法调用时发生内部异常（但调用成功）: {}", offsetProviderName, cause.getMessage());
+                            ModuleLogger.debug(LOG_MODULE, "异常堆栈: ", cause);
+                        }
+                    }
+                    
+                    if (!hasLoggedMeshCreation) {
+                        hasLoggedMeshCreation = true; // 标记已完成一次完整渲染（仅用于减少重复日志）
+                    }
+                } else {
+                    ModuleLogger.error(LOG_MODULE, "✗ {} 所有render方法调用都失败，最后异常: {}", 
+                                     offsetProviderName, lastException != null ? lastException.getMessage() : "未知错误");
+                    if (lastException != null) {
+                        ModuleLogger.error(LOG_MODULE, "异常堆栈: ", lastException);
+                        // 如果是InvocationTargetException，也记录内部异常
+                        if (lastException instanceof java.lang.reflect.InvocationTargetException) {
+                            Throwable cause = ((java.lang.reflect.InvocationTargetException) lastException).getTargetException();
+                            if (cause != null) {
+                                ModuleLogger.error(LOG_MODULE, "内部异常: {}", cause.getMessage(), cause);
+                            }
+                        }
+                    }
+                }
+
             } catch (Exception e) {
-                ModuleLogger.error(LOG_MODULE, "✗ 渲染3D网格失败", e);
+                ModuleLogger.error(LOG_MODULE, "✗ {} 渲染3D网格失败: {}", offsetProviderName, e.getMessage(), e);
+                // 详细日志：记录异常类型和堆栈
+                ModuleLogger.error(LOG_MODULE, "异常类型: {}, 异常类: {}", e.getClass().getName(), e.getClass().getSimpleName());
+                if (e.getCause() != null) {
+                    ModuleLogger.error(LOG_MODULE, "根本原因: {}", e.getCause().getMessage(), e.getCause());
+                }
             }
-            
+
+            // 恢复深度测试和深度写入状态到标准渲染设置
+            try {
+                // 恢复标准的Minecraft渲染状态：启用深度测试和深度写入
+                RenderSystem.enableDepthTest();
+                RenderSystem.depthMask(true);
+
+                // 只在第一次渲染时记录恢复日志
+                if (!hasLoggedMeshCreation) {
+                    ModuleLogger.debug(LOG_MODULE, "✓ 已恢复深度测试和深度写入状态到标准设置");
+                }
+            } catch (Exception e) {
+                ModuleLogger.warn(LOG_MODULE, "⚠ {} 无法恢复深度测试状态: {}", offsetProviderName, e.getMessage());
+            }
+
             matrixStack.pop();
             
         } catch (Exception e) {
