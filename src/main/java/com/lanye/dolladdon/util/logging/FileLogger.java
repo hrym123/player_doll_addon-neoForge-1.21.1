@@ -32,7 +32,7 @@ import java.util.concurrent.locks.ReentrantLock;
  */
 public class FileLogger {
     private static final String LOG_DIR_NAME = "logs";
-    private static final String MOD_LOG_PREFIX = "player_doll_addon";
+    private static final String MOD_LOG_PREFIX = "player_doll";
     private static final long MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
     private static final int MAX_BACKUP_FILES = 5;
 

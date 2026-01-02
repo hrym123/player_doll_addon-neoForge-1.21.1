@@ -34,13 +34,13 @@ public class DefaultFileInitializer {
             generateReadme(playerDollDir);
             
             // 从资源包复制姿态文件
-            copyIfNotExists(posesDir.resolve("standing.json"), "assets/player_doll_addon/defaults/poses/standing.json");
-            copyIfNotExists(posesDir.resolve("wave_up.json"), "assets/player_doll_addon/defaults/poses/wave_up.json");
+            copyIfNotExists(posesDir.resolve("standing.json"), "assets/player_doll/defaults/poses/standing.json");
+            copyIfNotExists(posesDir.resolve("wave_up.json"), "assets/player_doll/defaults/poses/wave_up.json");
             
             // 从资源包复制动作文件
-            copyIfNotExists(actionsDir.resolve("dance.json"), "assets/player_doll_addon/defaults/actions/dance.json");
-            copyIfNotExists(actionsDir.resolve("sit.json"), "assets/player_doll_addon/defaults/actions/sit.json");
-            copyIfNotExists(actionsDir.resolve("wave.json"), "assets/player_doll_addon/defaults/actions/wave.json");
+            copyIfNotExists(actionsDir.resolve("dance.json"), "assets/player_doll/defaults/actions/dance.json");
+            copyIfNotExists(actionsDir.resolve("sit.json"), "assets/player_doll/defaults/actions/sit.json");
+            copyIfNotExists(actionsDir.resolve("wave.json"), "assets/player_doll/defaults/actions/wave.json");
         } catch (Exception e) {
             ModuleLogger.error(LogModuleConfig.MODULE_RESOURCE, "初始化默认文件失败", e);
         }

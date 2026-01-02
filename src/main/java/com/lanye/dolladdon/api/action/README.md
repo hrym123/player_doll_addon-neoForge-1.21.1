@@ -4,7 +4,7 @@
 
 ### 1. 创建动作 JSON 文件
 
-在 `src/main/resources/assets/player_doll_addon/actions/` 目录下创建 JSON 文件，例如 `my_action.json`：
+在 `src/main/resources/assets/player_doll/actions/` 目录下创建 JSON 文件，例如 `my_action.json`：
 
 ```json
 {

@@ -1,5 +1,6 @@
 package com.lanye.dolladdon.util.pose;
 
+import com.lanye.dolladdon.PlayerDollAddon;
 import com.lanye.dolladdon.api.action.DollAction;
 import com.lanye.dolladdon.api.pose.DollPose;
 import com.lanye.dolladdon.util.logging.LogModuleConfig;

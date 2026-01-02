@@ -4,13 +4,13 @@ import com.lanye.dolladdon.base.entity.BaseDollEntity;
 import com.lanye.dolladdon.init.ModEntities;
 import com.lanye.dolladdon.init.ModItems;
 import com.lanye.dolladdon.util.init.DefaultFileInitializer;
+import com.lanye.dolladdon.util.logging.LogConfigManager;
 import com.lanye.dolladdon.util.logging.LogModuleConfig;
 import com.lanye.dolladdon.util.logging.ModuleLogger;
 import com.lanye.dolladdon.util.resource.ResourceFileGenerator;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.event.player.UseEntityCallback;
 import net.fabricmc.fabric.api.itemgroup.v1.FabricItemGroup;
-import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemGroup;
 import net.minecraft.item.ItemStack;
 import net.minecraft.text.Text;
@@ -24,7 +24,7 @@ import net.fabricmc.loader.api.FabricLoader;
 import java.nio.file.Path;
 
 public class PlayerDollAddon implements ModInitializer {
-    public static final String MODID = "player_doll_addon";
+    public static final String MODID = "player_doll";
     
     // 姿态文件目录路径（相对于游戏目录）
     public static final String POSES_DIR = "player_doll/poses";
@@ -34,7 +34,7 @@ public class PlayerDollAddon implements ModInitializer {
     // 创造模式物品栏
     public static final ItemGroup PLAYER_DOLL_TAB = FabricItemGroup.builder()
             .icon(() -> new ItemStack(ModItems.STEVE_DOLL))
-            .displayName(Text.translatable("itemGroup.player_doll_addon.player_doll_tab"))
+            .displayName(Text.translatable("itemGroup.player_doll.player_doll_tab"))
             .entries((displayContext, entries) -> {
                 // 添加史蒂夫玩偶物品（固定模型：粗手臂 + Steve默认皮肤）
                 entries.add(new ItemStack(ModItems.STEVE_DOLL));
@@ -53,7 +53,11 @@ public class PlayerDollAddon implements ModInitializer {
     @Override
     public void onInitialize() {
         // 初始化日志模块配置（必须在其他初始化之前）
-        LogModuleConfig.initializeModuleLevels();
+        LogConfigManager.initializeModuleLevels();
+
+        // 初始化文件日志系统（必须在其他日志操作之前）
+        LogConfigManager.initializeFileLogging();
+
         ModuleLogger.info(LogModuleConfig.MODULE_MAIN, "========== 玩偶模组开始初始化 ==========");
         
         try {
@@ -124,12 +128,10 @@ public class PlayerDollAddon implements ModInitializer {
                 }
                 
                 // 只处理玩偶实体
-                if (!(entity instanceof BaseDollEntity)) {
+                if (!(entity instanceof BaseDollEntity dollEntity)) {
                     return ActionResult.PASS;
                 }
-                
-                BaseDollEntity dollEntity = (BaseDollEntity) entity;
-                
+
                 // 记录交互尝试
                 double distance = player.getPos().distanceTo(entity.getPos());
                 ModuleLogger.info(LogModuleConfig.MODULE_ENTITY_INTERACT, 

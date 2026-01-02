@@ -1,5 +1,6 @@
 package com.lanye.dolladdon.util.resource;
 
+import com.lanye.dolladdon.PlayerDollAddon;
 import com.lanye.dolladdon.util.logging.LogModuleConfig;
 import com.lanye.dolladdon.util.logging.ModuleLogger;
 import net.fabricmc.loader.api.FabricLoader;

@@ -12,7 +12,7 @@
     "sources": ""
   },
   "license": "${mod_license}",
-  "icon": "assets/player_doll_addon/icon.png",
+  "icon": "assets/player_doll/icon.png",
   "environment": "*",
   "entrypoints": {
     "main": [

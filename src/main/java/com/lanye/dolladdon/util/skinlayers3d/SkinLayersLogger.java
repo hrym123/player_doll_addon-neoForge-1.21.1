@@ -36,8 +36,9 @@ public class SkinLayersLogger {
         ModuleLogger.configureFrameworkLogLevels(LogLevel.WARN, moduleLevels);
         
         // 通过LogModuleConfig配置模块级别
-        LogModuleConfig.setGlobalLevel(LogLevel.WARN);
-        LogModuleConfig.setModuleLevel(MODULE_NAME, LogLevel.DEBUG);
+        // 注意：日志配置已写死，无法在运行时修改
+        // LogConfigManager.setGlobalLevel(LogLevel.WARN);
+        // LogConfigManager.setModuleLevel(MODULE_NAME, LogLevel.DEBUG);
         
         LOGGER.info("日志级别配置完成：3D皮肤层=DEBUG，其他模块=WARN");
     }

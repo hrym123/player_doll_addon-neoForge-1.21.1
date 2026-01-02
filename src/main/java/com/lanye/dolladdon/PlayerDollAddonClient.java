@@ -39,7 +39,7 @@ public class PlayerDollAddonClient implements ClientModInitializer {
         // 配置日志级别：只保留[3D皮肤层]的DEBUG/INFO日志，其他模块只输出WARN及以上
         // 使用ModuleLogger统一管理日志级别
         com.lanye.dolladdon.util.logging.ModuleLogger.configureLogLevelsForDebugModules(
-                "player_doll_addon.3d_skin_layers",
+                "player_doll.3d_skin_layers",
                 "com.lanye.dolladdon.util.skinlayers3d.Doll3DSkinUtil",
                 "com.lanye.dolladdon.util.skinlayers3d.Doll3DSkinData"
         );

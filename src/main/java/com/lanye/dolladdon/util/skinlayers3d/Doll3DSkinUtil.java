@@ -107,17 +107,27 @@ public class Doll3DSkinUtil {
             meshClass = Class.forName("dev.tr7zw.skinlayers.api.Mesh");
             SkinLayersLogger.debug("✓ Mesh接口类加载成功");
             
-            // 获取OffsetProvider类
-            SkinLayersLogger.debug("正在加载OffsetProvider类...");
-            offsetProviderClass = Class.forName("dev.tr7zw.skinlayers.api.OffsetProvider");
-            SkinLayersLogger.debug("✓ OffsetProvider类加载成功");
-            
+            // 获取OffsetProvider类（注意：这是一个接口，不是具体的类）
+            SkinLayersLogger.debug("正在加载OffsetProvider接口...");
+            try {
+                offsetProviderClass = Class.forName("dev.tr7zw.skinlayers.api.OffsetProvider");
+                SkinLayersLogger.debug("✓ OffsetProvider接口加载成功");
+            } catch (ClassNotFoundException e) {
+                SkinLayersLogger.warn("⚠ OffsetProvider接口不存在，某些高级功能将被禁用");
+                SkinLayersLogger.warn("  这不会影响基本的3D网格创建，但可能影响位置偏移功能");
+                offsetProviderClass = null; // 标记为不可用
+            }
+
             available = true;
-            SkinLayersLogger.info("✓ 成功初始化3D皮肤层API反射");
+            SkinLayersLogger.info("✓ 成功初始化3D皮肤层API反射（OffsetProvider: {}）",
+                offsetProviderClass != null ? "可用" : "不可用");
             return true;
             
         } catch (ClassNotFoundException e) {
-            SkinLayersLogger.error("✗ 类未找到: {}", e.getMessage());
+            SkinLayersLogger.error("✗ 类未找到: {} - 请检查3D皮肤层mod版本是否正确", e.getMessage());
+            SkinLayersLogger.error("   期望的API包结构: dev.tr7zw.skinlayers.api.*");
+            SkinLayersLogger.error("   可能的原因: 1) mod版本不匹配 2) API已更改 3) mod未正确加载");
+            SkinLayersLogger.error("   当前安装的mod: skinlayers3d-fabric-1.6.5-mc1.20.1.jar");
             available = false;
             return false;
         } catch (NoSuchMethodException e) {
@@ -330,20 +340,23 @@ public class Doll3DSkinUtil {
     
     /**
      * 获取OffsetProvider常量
-     * 
+     *
      * @param name 常量名称（如 "HEAD", "BODY", "LEFT_ARM" 等）
      * @return OffsetProvider对象，如果失败返回null
      */
     public static Object getOffsetProvider(String name) {
-        if (!isAvailable()) {
+        if (!isAvailable() || offsetProviderClass == null) {
+            SkinLayersLogger.debug("OffsetProvider不可用，跳过: {}", name);
             return null;
         }
-        
+
         try {
-            Field field = offsetProviderClass.getField(name);
-            return field.get(null);
+            java.lang.reflect.Field field = offsetProviderClass.getField(name);
+            Object result = field.get(null);
+            SkinLayersLogger.debug("获取OffsetProvider成功: {} = {}", name, result);
+            return result;
         } catch (Exception e) {
-            SkinLayersLogger.error("获取OffsetProvider失败: {}", name, e);
+            SkinLayersLogger.warn("获取OffsetProvider失败: {} - {}", name, e.getMessage());
             return null;
         }
     }

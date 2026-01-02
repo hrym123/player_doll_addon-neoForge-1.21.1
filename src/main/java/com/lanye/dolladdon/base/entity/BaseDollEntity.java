@@ -44,7 +44,7 @@ import java.util.Map;
  */
 public abstract class BaseDollEntity extends Entity {
     // 模块化日志：从 LogModuleConfig 读取模块名称
-    // 可以通过 LogModuleConfig.setModuleLevel(模块名, LogLevel) 来控制日志级别
+    // 注意：日志配置已写死，无法在运行时修改
     private static final String LOG_MODULE_ENTITY = LogModuleConfig.MODULE_ENTITY;
     private static final String LOG_MODULE_POSE = LogModuleConfig.MODULE_ENTITY_POSE;
     private static final String LOG_MODULE_ACTION = LogModuleConfig.MODULE_ENTITY_ACTION;

@@ -271,17 +271,8 @@ public class ModuleLogger {
             return message;
         }
         try {
-            // 简单的参数替换实现
-            String result = message;
-            for (int i = 0; i < args.length; i++) {
-                String placeholder = "{" + i + "}";
-                if (result.contains(placeholder)) {
-                    result = result.replace(placeholder, String.valueOf(args[i]));
-                } else if (result.contains("{}")) {
-                    result = result.replaceFirst("\\{\\}", String.valueOf(args[i]));
-                }
-            }
-            return result;
+            // 使用更高效的SLF4J风格格式化
+            return java.text.MessageFormat.format(message.replace("{}", "{0}"), args);
         } catch (Exception e) {
             // 如果格式化失败，返回原始消息和参数的简单组合
             return message + " " + java.util.Arrays.toString(args);

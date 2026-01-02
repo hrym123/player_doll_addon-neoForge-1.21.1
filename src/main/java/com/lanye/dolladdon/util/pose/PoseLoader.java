@@ -35,7 +35,7 @@ public class PoseLoader {
     
     /**
      * 从资源文件加载姿态
-     * 资源文件路径格式：player_doll_addon:poses/{name}.json
+     * 资源文件路径格式：player_doll:poses/{name}.json
      * 
      * JSON格式示例：
      * {
