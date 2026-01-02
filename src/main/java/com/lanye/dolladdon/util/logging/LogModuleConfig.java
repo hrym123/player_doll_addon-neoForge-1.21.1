@@ -1,340 +1,234 @@
 package com.lanye.dolladdon.util.logging;
 
-import java.util.HashMap;
-import java.util.Map;
-
 /**
  * 日志模块配置类
  * 集中管理所有模块的声明、日志级别和模板
- * 
- * <p>所有日志相关的类都应该从这个类读取模块配置</p>
- * 
+ *
+ * <p><strong>重要：</strong>此类的所有配置都是写死的，不可修改！
+ * 配置在编译时确定，运行时无法更改。</p>
+ *
  * <p>使用示例：</p>
  * <pre>{@code
  * // 1. 使用模块常量
  * String moduleName = LogModuleConfig.MODULE_ENTITY;
- * 
- * // 2. 获取模块的日志级别
+ *
+ * // 2. 读取配置（唯一允许的操作）
  * LogLevel level = LogModuleConfig.getModuleLevel(moduleName);
- * 
- * // 3. 获取日志模板
  * String template = LogModuleConfig.getLogTemplate(moduleName);
- * 
- * // 4. 使用ModuleLogger记录日志
- * ModuleLogger.info(moduleName, template, args);
+ *
+ * // 3. 使用ModuleLogger记录日志
+ * ModuleLogger.info(moduleName, "日志消息");
+ *
+ * // ❌ 注意：配置不可修改！
+ * // LogModuleConfig.setModuleLevel(moduleName, LogLevel.DEBUG); // 编译错误！
  * }</pre>
  */
 public class LogModuleConfig {
-    
+
     // ==================== 模块常量声明 ====================
-    
+
     /**
      * 主模块（用于主初始化日志）
      */
     public static final String MODULE_MAIN = "main";
-    
+
     /**
      * 实体基础模块
      */
     public static final String MODULE_ENTITY = "entity";
-    
+
     /**
      * 实体姿态模块
      */
     public static final String MODULE_ENTITY_POSE = "entity.pose";
-    
+
     /**
      * 实体动作模块
      */
     public static final String MODULE_ENTITY_ACTION = "entity.action";
-    
+
     /**
      * 实体交互模块
      */
     public static final String MODULE_ENTITY_INTERACT = "entity.interact";
-    
+
     /**
      * 实体NBT模块
      */
     public static final String MODULE_ENTITY_NBT = "entity.nbt";
-    
+
     /**
      * 渲染模块
      */
     public static final String MODULE_RENDER = "render";
-    
+
     /**
      * 3D皮肤层模块
      */
     public static final String MODULE_3D_SKIN_LAYERS = "3d_skin_layers";
-    
+
     /**
      * 资源管理模块
      */
     public static final String MODULE_RESOURCE = "resource";
-    
+
     /**
      * 姿态加载器模块
      */
     public static final String MODULE_POSE_LOADER = "pose.loader";
-    
+
     /**
      * 动作加载器模块
      */
     public static final String MODULE_ACTION_LOADER = "action.loader";
-    
+
     /**
      * 资源生成器模块
      */
     public static final String MODULE_RESOURCE_GENERATOR = "resource.generator";
-    
+
     /**
      * 纹理扫描器模块
      */
     public static final String MODULE_TEXTURE_SCANNER = "texture.scanner";
-    
-    // ==================== 模块默认日志级别配置 ====================
-    
-    private static final Map<String, LogLevel> DEFAULT_MODULE_LEVELS = new HashMap<>();
-    
-    static {
-        // 主模块：默认INFO级别
-        DEFAULT_MODULE_LEVELS.put(MODULE_MAIN, LogLevel.INFO);
-        
-        // 实体相关模块
-        DEFAULT_MODULE_LEVELS.put(MODULE_ENTITY, LogLevel.WARN);
-        DEFAULT_MODULE_LEVELS.put(MODULE_ENTITY_POSE, LogLevel.WARN);
-        DEFAULT_MODULE_LEVELS.put(MODULE_ENTITY_ACTION, LogLevel.WARN);
-        DEFAULT_MODULE_LEVELS.put(MODULE_ENTITY_INTERACT, LogLevel.WARN);
-        DEFAULT_MODULE_LEVELS.put(MODULE_ENTITY_NBT, LogLevel.WARN);
-        
-        // 渲染模块
-        DEFAULT_MODULE_LEVELS.put(MODULE_RENDER, LogLevel.WARN);
-        
-        // 3D皮肤层模块
-        DEFAULT_MODULE_LEVELS.put(MODULE_3D_SKIN_LAYERS, LogLevel.DEBUG);
-        
-        // 资源管理模块
-        DEFAULT_MODULE_LEVELS.put(MODULE_RESOURCE, LogLevel.DEBUG);
-        DEFAULT_MODULE_LEVELS.put(MODULE_RESOURCE_GENERATOR, LogLevel.DEBUG);
-        DEFAULT_MODULE_LEVELS.put(MODULE_TEXTURE_SCANNER, LogLevel.DEBUG);
-        
-        // 加载器模块
-        DEFAULT_MODULE_LEVELS.put(MODULE_POSE_LOADER, LogLevel.WARN);
-        DEFAULT_MODULE_LEVELS.put(MODULE_ACTION_LOADER, LogLevel.WARN);
-    }
-    
-    // ==================== 日志模板配置 ====================
-    
-    private static final Map<String, String> LOG_TEMPLATES = new HashMap<>();
-    
-    static {
-        // 主模块模板
-        LOG_TEMPLATES.put(MODULE_MAIN, "[主模块] {}");
-        
-        // 实体模块模板
-        LOG_TEMPLATES.put(MODULE_ENTITY, "[实体] {}");
-        LOG_TEMPLATES.put(MODULE_ENTITY_POSE, "[实体-姿态] {}");
-        LOG_TEMPLATES.put(MODULE_ENTITY_ACTION, "[实体-动作] {}");
-        LOG_TEMPLATES.put(MODULE_ENTITY_INTERACT, "[实体-交互] {}");
-        LOG_TEMPLATES.put(MODULE_ENTITY_NBT, "[实体-NBT] {}");
-        
-        // 渲染模块模板
-        LOG_TEMPLATES.put(MODULE_RENDER, "[渲染] {}");
-        
-        // 3D皮肤层模块模板
-        LOG_TEMPLATES.put(MODULE_3D_SKIN_LAYERS, "[3D皮肤层] {}");
-        
-        // 资源管理模块模板
-        LOG_TEMPLATES.put(MODULE_RESOURCE, "[资源] {}");
-        LOG_TEMPLATES.put(MODULE_RESOURCE_GENERATOR, "[资源生成] {}");
-        LOG_TEMPLATES.put(MODULE_TEXTURE_SCANNER, "[纹理扫描] {}");
-        
-        // 加载器模块模板
-        LOG_TEMPLATES.put(MODULE_POSE_LOADER, "[姿态加载] {}");
-        LOG_TEMPLATES.put(MODULE_ACTION_LOADER, "[动作加载] {}");
-    }
-    
-    // ==================== 公共方法 ====================
-    
+
+    // ==================== 模块默认日志级别配置（写死，不可修改） ====================
+
+    // 主模块：默认WARN级别
+    private static final LogLevel LEVEL_MAIN = LogLevel.WARN;
+
+    // 实体相关模块：默认WARN级别
+    private static final LogLevel LEVEL_ENTITY = LogLevel.WARN;
+    private static final LogLevel LEVEL_ENTITY_POSE = LogLevel.WARN;
+    private static final LogLevel LEVEL_ENTITY_ACTION = LogLevel.WARN;
+    private static final LogLevel LEVEL_ENTITY_INTERACT = LogLevel.WARN;
+    private static final LogLevel LEVEL_ENTITY_NBT = LogLevel.WARN;
+
+    // 渲染模块：默认WARN级别
+    private static final LogLevel LEVEL_RENDER = LogLevel.WARN;
+
+    // 3D皮肤层模块：默认DEBUG级别（特殊配置）
+    private static final LogLevel LEVEL_3D_SKIN_LAYERS = LogLevel.DEBUG;
+
+    // 资源管理模块：默认WARN级别
+    private static final LogLevel LEVEL_RESOURCE = LogLevel.WARN;
+    private static final LogLevel LEVEL_RESOURCE_GENERATOR = LogLevel.WARN;
+    private static final LogLevel LEVEL_TEXTURE_SCANNER = LogLevel.WARN;
+
+    // 加载器模块：默认WARN级别
+    private static final LogLevel LEVEL_POSE_LOADER = LogLevel.WARN;
+    private static final LogLevel LEVEL_ACTION_LOADER = LogLevel.WARN;
+
+    // ==================== 日志模板配置（写死，不可修改） ====================
+
+    // 主模块模板
+    private static final String TEMPLATE_MAIN = "[主模块] {}";
+
+    // 实体模块模板
+    private static final String TEMPLATE_ENTITY = "[实体] {}";
+    private static final String TEMPLATE_ENTITY_POSE = "[实体-姿态] {}";
+    private static final String TEMPLATE_ENTITY_ACTION = "[实体-动作] {}";
+    private static final String TEMPLATE_ENTITY_INTERACT = "[实体-交互] {}";
+    private static final String TEMPLATE_ENTITY_NBT = "[实体-NBT] {}";
+
+    // 渲染模块模板
+    private static final String TEMPLATE_RENDER = "[渲染] {}";
+
+    // 3D皮肤层模块模板
+    private static final String TEMPLATE_3D_SKIN_LAYERS = "[3D皮肤层] {}";
+
+    // 资源管理模块模板
+    private static final String TEMPLATE_RESOURCE = "[资源] {}";
+    private static final String TEMPLATE_RESOURCE_GENERATOR = "[资源生成] {}";
+    private static final String TEMPLATE_TEXTURE_SCANNER = "[纹理扫描] {}";
+
+    // 加载器模块模板
+    private static final String TEMPLATE_POSE_LOADER = "[姿态加载] {}";
+    private static final String TEMPLATE_ACTION_LOADER = "[动作加载] {}";
+
+    // ==================== 配置读取方法 ====================
+
     /**
      * 获取模块的默认日志级别
-     * 
+     * 配置写死，不可修改
+     *
      * @param moduleName 模块名称
      * @return 日志级别，如果模块未配置则返回默认级别（INFO）
      */
     public static LogLevel getModuleLevel(String moduleName) {
-        return DEFAULT_MODULE_LEVELS.getOrDefault(moduleName, LogLevel.INFO);
+        if (moduleName == null) {
+            return LogLevel.INFO;
+        }
+
+        switch (moduleName) {
+            case MODULE_MAIN: return LEVEL_MAIN;
+            case MODULE_ENTITY: return LEVEL_ENTITY;
+            case MODULE_ENTITY_POSE: return LEVEL_ENTITY_POSE;
+            case MODULE_ENTITY_ACTION: return LEVEL_ENTITY_ACTION;
+            case MODULE_ENTITY_INTERACT: return LEVEL_ENTITY_INTERACT;
+            case MODULE_ENTITY_NBT: return LEVEL_ENTITY_NBT;
+            case MODULE_RENDER: return LEVEL_RENDER;
+            case MODULE_3D_SKIN_LAYERS: return LEVEL_3D_SKIN_LAYERS;
+            case MODULE_RESOURCE: return LEVEL_RESOURCE;
+            case MODULE_POSE_LOADER: return LEVEL_POSE_LOADER;
+            case MODULE_ACTION_LOADER: return LEVEL_ACTION_LOADER;
+            case MODULE_RESOURCE_GENERATOR: return LEVEL_RESOURCE_GENERATOR;
+            case MODULE_TEXTURE_SCANNER: return LEVEL_TEXTURE_SCANNER;
+            default: return LogLevel.INFO;
+        }
     }
-    
-    /**
-     * 设置模块的日志级别
-     * 这是唯一允许修改日志级别的方法
-     * 
-     * @param moduleName 模块名称
-     * @param level 日志级别
-     */
-    public static void setModuleLevel(String moduleName, LogLevel level) {
-        DEFAULT_MODULE_LEVELS.put(moduleName, level);
-        // 直接调用 ModuleLogger 的内部方法
-        ModuleLogger.setModuleLevelInternal(moduleName, level);
-    }
-    
+
     /**
      * 获取模块的日志模板
-     * 
+     * 配置写死，不可修改
+     *
      * @param moduleName 模块名称
      * @return 日志模板，如果模块未配置则返回默认模板 "{}"
      */
     public static String getLogTemplate(String moduleName) {
-        return LOG_TEMPLATES.getOrDefault(moduleName, "{}");
-    }
-    
-    /**
-     * 设置模块的日志模板
-     * 
-     * @param moduleName 模块名称
-     * @param template 日志模板（使用 {} 作为占位符）
-     */
-    public static void setLogTemplate(String moduleName, String template) {
-        LOG_TEMPLATES.put(moduleName, template);
-    }
-    
-    /**
-     * 注册新模块
-     * 
-     * @param moduleName 模块名称
-     * @param defaultLevel 默认日志级别
-     * @param template 日志模板
-     */
-    public static void registerModule(String moduleName, LogLevel defaultLevel, String template) {
-        DEFAULT_MODULE_LEVELS.put(moduleName, defaultLevel);
-        LOG_TEMPLATES.put(moduleName, template);
-        // 同步到ModuleLogger（使用内部方法）
-        ModuleLogger.setModuleLevelInternal(moduleName, defaultLevel);
-    }
-    
-    /**
-     * 初始化所有模块的日志级别
-     * 应该在应用启动时调用，确保所有模块使用配置的默认级别
-     */
-    public static void initializeModuleLevels() {
-        for (Map.Entry<String, LogLevel> entry : DEFAULT_MODULE_LEVELS.entrySet()) {
-            // 使用内部方法直接设置
-            ModuleLogger.setModuleLevelInternal(entry.getKey(), entry.getValue());
+        if (moduleName == null) {
+            return "{}";
+        }
+
+        switch (moduleName) {
+            case MODULE_MAIN: return TEMPLATE_MAIN;
+            case MODULE_ENTITY: return TEMPLATE_ENTITY;
+            case MODULE_ENTITY_POSE: return TEMPLATE_ENTITY_POSE;
+            case MODULE_ENTITY_ACTION: return TEMPLATE_ENTITY_ACTION;
+            case MODULE_ENTITY_INTERACT: return TEMPLATE_ENTITY_INTERACT;
+            case MODULE_ENTITY_NBT: return TEMPLATE_ENTITY_NBT;
+            case MODULE_RENDER: return TEMPLATE_RENDER;
+            case MODULE_3D_SKIN_LAYERS: return TEMPLATE_3D_SKIN_LAYERS;
+            case MODULE_RESOURCE: return TEMPLATE_RESOURCE;
+            case MODULE_POSE_LOADER: return TEMPLATE_POSE_LOADER;
+            case MODULE_ACTION_LOADER: return TEMPLATE_ACTION_LOADER;
+            case MODULE_RESOURCE_GENERATOR: return TEMPLATE_RESOURCE_GENERATOR;
+            case MODULE_TEXTURE_SCANNER: return TEMPLATE_TEXTURE_SCANNER;
+            default: return "{}";
         }
     }
-    
+
     /**
-     * 设置全局日志开关
-     * 
-     * @param enabled 是否启用所有模块日志
+     * 获取所有模块名称
+     * 配置写死，不可修改
+     *
+     * @return 所有模块名称的数组
      */
-    public static void setGlobalEnabled(boolean enabled) {
-        ModuleLogger.setGlobalEnabledInternal(enabled);
-    }
-    
-    /**
-     * 获取全局日志开关状态
-     * 
-     * @return 全局开关状态
-     */
-    public static boolean isGlobalEnabled() {
-        return ModuleLogger.isGlobalEnabled();
-    }
-    
-    /**
-     * 设置所有模块的日志级别为指定级别
-     * 
-     * @param level 日志级别
-     */
-    public static void setGlobalLevel(LogLevel level) {
-        for (String moduleName : DEFAULT_MODULE_LEVELS.keySet()) {
-            setModuleLevel(moduleName, level);
-        }
-    }
-    
-    /**
-     * 一键禁用所有模块日志
-     */
-    public static void disableAll() {
-        setGlobalEnabled(false);
-    }
-    
-    /**
-     * 一键启用所有模块日志（恢复到默认级别）
-     */
-    public static void enableAll() {
-        setGlobalEnabled(true);
-        initializeModuleLevels();
-    }
-    
-    /**
-     * 获取所有已注册的模块名称
-     * 
-     * @return 模块名称集合
-     */
-    public static java.util.Set<String> getAllModules() {
-        return DEFAULT_MODULE_LEVELS.keySet();
-    }
-    
-    /**
-     * 检查模块是否已注册
-     * 
-     * @param moduleName 模块名称
-     * @return 是否已注册
-     */
-    public static boolean isModuleRegistered(String moduleName) {
-        return DEFAULT_MODULE_LEVELS.containsKey(moduleName);
-    }
-    
-    /**
-     * 获取模块的完整日志消息（应用模板）
-     * 
-     * @param moduleName 模块名称
-     * @param message 原始消息
-     * @return 应用模板后的完整消息
-     */
-    public static String formatLogMessage(String moduleName, String message) {
-        String template = getLogTemplate(moduleName);
-        return template.replace("{}", message);
-    }
-    
-    /**
-     * 获取模块的完整日志消息（应用模板，支持参数）
-     * 
-     * @param moduleName 模块名称
-     * @param message 原始消息模板
-     * @param args 参数
-     * @return 应用模板后的完整消息
-     */
-    public static String formatLogMessage(String moduleName, String message, Object... args) {
-        String template = getLogTemplate(moduleName);
-        // 先格式化参数
-        String formattedMessage = formatMessage(message, args);
-        // 再应用模块模板
-        return template.replace("{}", formattedMessage);
-    }
-    
-    /**
-     * 格式化消息（简单的占位符替换）
-     * 注意：这是一个简单的实现，不支持复杂的格式化
-     */
-    private static String formatMessage(String template, Object... args) {
-        if (args == null || args.length == 0) {
-            return template;
-        }
-        
-        String result = template;
-        for (Object arg : args) {
-            // 简单替换第一个 {}
-            int index = result.indexOf("{}");
-            if (index >= 0) {
-                result = result.substring(0, index) + 
-                        (arg != null ? arg.toString() : "null") + 
-                        result.substring(index + 2);
-            }
-        }
-        return result;
+    public static String[] getAllModuleNames() {
+        return new String[] {
+            MODULE_MAIN,
+            MODULE_ENTITY,
+            MODULE_ENTITY_POSE,
+            MODULE_ENTITY_ACTION,
+            MODULE_ENTITY_INTERACT,
+            MODULE_ENTITY_NBT,
+            MODULE_RENDER,
+            MODULE_3D_SKIN_LAYERS,
+            MODULE_RESOURCE,
+            MODULE_POSE_LOADER,
+            MODULE_ACTION_LOADER,
+            MODULE_RESOURCE_GENERATOR,
+            MODULE_TEXTURE_SCANNER
+        };
     }
 }

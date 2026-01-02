@@ -17,7 +17,7 @@ import java.util.Map;
  * <p>使用示例：</p>
  * <pre>{@code
  * // 1. 使用 LogModuleConfig 中定义的模块常量
- * private static final String LOG_MODULE_ENTITY = LogModuleConfig.MODULE_ENTITY;
+ * private static final String LOG_MODULE_ENTITY = LogConfigManager.MODULE_ENTITY;
  * 
  * // 2. 获取日志对象
  * private static final Logger LOGGER = ModuleLogger.getLogger(LOG_MODULE_ENTITY);
@@ -28,17 +28,17 @@ import java.util.Map;
  * ModuleLogger.warn(LOG_MODULE_ENTITY, "警告: {}", error);
  * ModuleLogger.error(LOG_MODULE_ENTITY, "错误: {}", exception);
  * 
- * // 4. 控制日志级别（必须通过 LogModuleConfig）
- * LogModuleConfig.setModuleLevel("entity.pose", LogLevel.DEBUG);  // 设置为debug级别，输出所有日志
- * LogModuleConfig.setModuleLevel("entity.pose", LogLevel.INFO);  // 设置为info级别，输出info及以上
- * LogModuleConfig.setModuleLevel("entity.pose", LogLevel.WARN);  // 设置为warn级别，只输出warn和error
- * LogModuleConfig.setModuleLevel("entity.pose", LogLevel.ERROR);  // 设置为error级别，只输出error
- * LogModuleConfig.setModuleLevel("entity.pose", LogLevel.OFF);   // 设置为off级别，不输出任何日志
- * 
- * // 5. 全局控制（必须通过 LogModuleConfig）
- * LogModuleConfig.setGlobalLevel(LogLevel.WARN);  // 设置所有模块为WARN级别
- * LogModuleConfig.disableAll();                    // 一键禁用所有模块日志
- * LogModuleConfig.enableAll();                     // 一键启用所有模块日志（恢复到默认级别）
+ * // 4. 控制日志级别（必须通过 LogConfigManager）
+ * LogConfigManager.setModuleLevel("entity.pose", LogLevel.DEBUG);  // 设置为debug级别，输出所有日志
+ * LogConfigManager.setModuleLevel("entity.pose", LogLevel.INFO);  // 设置为info级别，输出info及以上
+ * LogConfigManager.setModuleLevel("entity.pose", LogLevel.WARN);  // 设置为warn级别，只输出warn和error
+ * LogConfigManager.setModuleLevel("entity.pose", LogLevel.ERROR);  // 设置为error级别，只输出error
+ * LogConfigManager.setModuleLevel("entity.pose", LogLevel.OFF);   // 设置为off级别，不输出任何日志
+ *
+ * // 5. 全局控制（必须通过 LogConfigManager）
+ * LogConfigManager.setGlobalLevel(LogLevel.WARN);  // 设置所有模块为WARN级别
+ * LogConfigManager.disableAll();                    // 一键禁用所有模块日志
+ * LogConfigManager.enableAll();                     // 一键启用所有模块日志（恢复到默认级别）
  * }</pre>
  * 
  * <p>模块命名建议：</p>
@@ -186,18 +186,18 @@ public class ModuleLogger {
         for (String module : debugModules) {
             moduleLevels.put(module, LogLevel.DEBUG);
         }
-        
+
         // 设置根日志级别为WARN
         configureFrameworkLogLevels(LogLevel.WARN, moduleLevels);
-        
-        // 同时更新ModuleLogger的模块级别（通过 LogModuleConfig）
+
+        // 同时更新ModuleLogger的模块级别（通过 LogConfigManager）
         for (String module : debugModules) {
-            LogModuleConfig.setModuleLevel(module, LogLevel.DEBUG);
+            LogConfigManager.setModuleLevel(module, LogLevel.DEBUG);
         }
-        // 设置全局级别为 WARN（通过 LogModuleConfig）
+        // 设置全局级别为 WARN（通过 LogConfigManager）
         for (String moduleName : loggers.keySet()) {
             if (!java.util.Arrays.asList(debugModules).contains(moduleName)) {
-                LogModuleConfig.setModuleLevel(moduleName, LogLevel.WARN);
+                LogConfigManager.setModuleLevel(moduleName, LogLevel.WARN);
             }
         }
     }
@@ -211,9 +211,9 @@ public class ModuleLogger {
         if (!loggers.containsKey(moduleName)) {
             Logger logger = LoggerFactory.getLogger(PlayerDollAddon.MODID + "." + moduleName);
             loggers.put(moduleName, logger);
-            // 优先从 LogModuleConfig 读取配置，如果未配置则使用默认级别
+            // 优先从 LogConfigManager 读取配置，如果未配置则使用默认级别
             if (!moduleLevels.containsKey(moduleName)) {
-                LogLevel configLevel = LogModuleConfig.getModuleLevel(moduleName);
+                LogLevel configLevel = LogConfigManager.getModuleLevel(moduleName);
                 moduleLevels.put(moduleName, configLevel);
             }
             // 兼容旧版本
@@ -236,8 +236,8 @@ public class ModuleLogger {
         if (moduleLevels.containsKey(moduleName)) {
             return moduleLevels.get(moduleName);
         }
-        // 否则从 LogModuleConfig 读取
-        return LogModuleConfig.getModuleLevel(moduleName);
+        // 否则从 LogConfigManager 读取
+        return LogConfigManager.getModuleLevel(moduleName);
     }
     
     /**
@@ -266,10 +266,38 @@ public class ModuleLogger {
      */
     @Deprecated
     public static void setModuleLevel(String moduleName, LogLevel level) {
-        // 重定向到 LogModuleConfig
-        LogModuleConfig.setModuleLevel(moduleName, level);
+        // 重定向到 LogConfigManager
+        LogConfigManager.setModuleLevel(moduleName, level);
     }
     
+    /**
+     * 格式化带参数的日志消息
+     * @param message 消息模板
+     * @param args 参数
+     * @return 格式化后的消息
+     */
+    private static String formatMessage(String message, Object... args) {
+        if (args == null || args.length == 0) {
+            return message;
+        }
+        try {
+            // 简单的参数替换实现
+            String result = message;
+            for (int i = 0; i < args.length; i++) {
+                String placeholder = "{" + i + "}";
+                if (result.contains(placeholder)) {
+                    result = result.replace(placeholder, String.valueOf(args[i]));
+                } else if (result.contains("{}")) {
+                    result = result.replaceFirst("\\{\\}", String.valueOf(args[i]));
+                }
+            }
+            return result;
+        } catch (Exception e) {
+            // 如果格式化失败，返回原始消息和参数的简单组合
+            return message + " " + java.util.Arrays.toString(args);
+        }
+    }
+
     /**
      * 检查指定模块是否应该输出指定级别的日志
      * @param moduleName 模块名称
@@ -306,8 +334,8 @@ public class ModuleLogger {
      */
     @Deprecated
     public static void setModuleEnabled(String moduleName, boolean enabled) {
-        // 重定向到 LogModuleConfig
-        LogModuleConfig.setModuleLevel(moduleName, enabled ? LogLevel.INFO : LogLevel.OFF);
+        // 重定向到 LogConfigManager
+        LogConfigManager.setModuleLevel(moduleName, enabled ? LogLevel.INFO : LogLevel.OFF);
     }
     
     /**
@@ -365,7 +393,7 @@ public class ModuleLogger {
     public static void enableAll() {
         setGlobalEnabledInternal(true);
         // 重新初始化所有模块级别
-        LogModuleConfig.initializeModuleLevels();
+        LogConfigManager.initializeModuleLevels();
     }
     
     /**
@@ -378,10 +406,8 @@ public class ModuleLogger {
      */
     @Deprecated
     public static void setGlobalLevel(LogLevel level) {
-        // 重定向到 LogModuleConfig
-        for (String moduleName : loggers.keySet()) {
-            LogModuleConfig.setModuleLevel(moduleName, level);
-        }
+        // 重定向到 LogConfigManager
+        LogConfigManager.setGlobalLevel(level);
     }
     
     /**
@@ -392,6 +418,7 @@ public class ModuleLogger {
     public static void debug(String moduleName, String message) {
         if (shouldLog(moduleName, LogLevel.DEBUG)) {
             getLogger(moduleName).debug(message);
+            FileLogger.log(moduleName, LogLevel.DEBUG, message);
         }
     }
     
@@ -404,6 +431,9 @@ public class ModuleLogger {
     public static void debug(String moduleName, String message, Object... args) {
         if (shouldLog(moduleName, LogLevel.DEBUG)) {
             getLogger(moduleName).debug(message, args);
+            // 格式化消息用于文件输出
+            String formattedMessage = formatMessage(message, args);
+            FileLogger.log(moduleName, LogLevel.DEBUG, formattedMessage);
         }
     }
     
@@ -415,6 +445,7 @@ public class ModuleLogger {
     public static void info(String moduleName, String message) {
         if (shouldLog(moduleName, LogLevel.INFO)) {
             getLogger(moduleName).info(message);
+            FileLogger.log(moduleName, LogLevel.INFO, message);
         }
     }
     
@@ -427,6 +458,8 @@ public class ModuleLogger {
     public static void info(String moduleName, String message, Object... args) {
         if (shouldLog(moduleName, LogLevel.INFO)) {
             getLogger(moduleName).info(message, args);
+            String formattedMessage = formatMessage(message, args);
+            FileLogger.log(moduleName, LogLevel.INFO, formattedMessage);
         }
     }
     
@@ -438,6 +471,7 @@ public class ModuleLogger {
     public static void warn(String moduleName, String message) {
         if (shouldLog(moduleName, LogLevel.WARN)) {
             getLogger(moduleName).warn(message);
+            FileLogger.log(moduleName, LogLevel.WARN, message);
         }
     }
     
@@ -450,6 +484,8 @@ public class ModuleLogger {
     public static void warn(String moduleName, String message, Object... args) {
         if (shouldLog(moduleName, LogLevel.WARN)) {
             getLogger(moduleName).warn(message, args);
+            String formattedMessage = formatMessage(message, args);
+            FileLogger.log(moduleName, LogLevel.WARN, formattedMessage);
         }
     }
     
@@ -461,6 +497,7 @@ public class ModuleLogger {
     public static void error(String moduleName, String message) {
         if (shouldLog(moduleName, LogLevel.ERROR)) {
             getLogger(moduleName).error(message);
+            FileLogger.log(moduleName, LogLevel.ERROR, message);
         }
     }
     
@@ -473,6 +510,8 @@ public class ModuleLogger {
     public static void error(String moduleName, String message, Object... args) {
         if (shouldLog(moduleName, LogLevel.ERROR)) {
             getLogger(moduleName).error(message, args);
+            String formattedMessage = formatMessage(message, args);
+            FileLogger.log(moduleName, LogLevel.ERROR, formattedMessage);
         }
     }
     
@@ -485,6 +524,7 @@ public class ModuleLogger {
     public static void error(String moduleName, String message, Throwable throwable) {
         if (shouldLog(moduleName, LogLevel.ERROR)) {
             getLogger(moduleName).error(message, throwable);
+            FileLogger.log(moduleName, LogLevel.ERROR, message, throwable);
         }
     }
 }
