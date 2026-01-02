@@ -37,6 +37,10 @@ public class Doll3DSkinUtil {
     
     // 预加载标志位，确保preloadExternalTexturesFor3DSkinLayers只执行一次
     private static boolean texturesPreloaded = false;
+    
+    // 日志控制标志位，避免频繁输出日志
+    private static boolean hasLoggedIsAvailable = false;
+    private static boolean hasLoggedSetup3dLayers = false;
 
     /**
          * 缓存键
@@ -180,16 +184,29 @@ public class Doll3DSkinUtil {
      */
     public static boolean isAvailable() {
         if (!PlayerDollAddonClient.IS_3D_SKIN_LAYERS_LOADED) {
-            ModuleLogger.debug(LOG_MODULE, "3D皮肤层mod未加载");
+            // 只在第一次调用时记录日志，避免每帧都输出导致卡顿
+            if (!hasLoggedIsAvailable) {
+                ModuleLogger.debug(LOG_MODULE, "3D皮肤层mod未加载");
+                hasLoggedIsAvailable = true;
+            }
             return false;
         }
 
         if (!initialize()) {
-            ModuleLogger.debug(LOG_MODULE, "3D皮肤层API初始化失败");
+            // 只在第一次调用时记录日志
+            if (!hasLoggedIsAvailable) {
+                ModuleLogger.debug(LOG_MODULE, "3D皮肤层API初始化失败");
+                hasLoggedIsAvailable = true;
+            }
             return false;
         }
 
-        ModuleLogger.debug(LOG_MODULE, "3D皮肤层API状态: {}", available ? "可用" : "不可用");
+        // 只在第一次调用时记录日志
+        if (!hasLoggedIsAvailable) {
+            ModuleLogger.debug(LOG_MODULE, "已初始化，可用状态: {}", available);
+            ModuleLogger.debug(LOG_MODULE, "3D皮肤层API状态: {}", available ? "可用" : "不可用");
+            hasLoggedIsAvailable = true;
+        }
         return available;
     }
     
@@ -416,10 +433,17 @@ public class Doll3DSkinUtil {
      * @return Doll3DSkinData对象，如果失败返回null
      */
     public static Doll3DSkinData setup3dLayers(Identifier skinLocation, boolean thinArms) {
-        ModuleLogger.info(LOG_MODULE, "开始设置3D皮肤层: {}, thinArms={}", skinLocation, thinArms);
+        // 只在第一次调用时记录日志，避免每帧都输出导致卡顿
+        if (!hasLoggedSetup3dLayers) {
+            ModuleLogger.info(LOG_MODULE, "开始设置3D皮肤层: {}, thinArms={}", skinLocation, thinArms);
+            hasLoggedSetup3dLayers = true;
+        }
         
         if (!isAvailable()) {
-            ModuleLogger.warn(LOG_MODULE, "✗ API不可用，无法设置3D皮肤层");
+            // 只在第一次调用时记录日志
+            if (!hasLoggedSetup3dLayers) {
+                ModuleLogger.warn(LOG_MODULE, "✗ API不可用，无法设置3D皮肤层");
+            }
             return null;
         }
 
@@ -432,7 +456,10 @@ public class Doll3DSkinUtil {
         if (cached != null && cached.getCurrentSkin() != null && 
             cached.getCurrentSkin().equals(skinLocation) && 
             cached.isThinArms() == thinArms) {
-            ModuleLogger.debug(LOG_MODULE, "✓ 使用缓存的3D皮肤数据");
+            // 只在第一次调用时记录日志
+            if (!hasLoggedSetup3dLayers) {
+                ModuleLogger.debug(LOG_MODULE, "✓ 使用缓存的3D皮肤数据");
+            }
             return cached;
         }
         
