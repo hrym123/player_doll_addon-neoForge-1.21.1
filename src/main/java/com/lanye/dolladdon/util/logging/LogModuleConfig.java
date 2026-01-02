@@ -68,6 +68,11 @@ public class LogModuleConfig {
     public static final String MODULE_3D_SKIN_LAYERS = "3d_skin_layers";
     
     /**
+     * 3D渲染偏移模块
+     */
+    public static final String MODULE_RENDER_3D_OFFSET = "render.3d_offset";
+    
+    /**
      * 资源管理模块
      */
     public static final String MODULE_RESOURCE = "resource";
@@ -108,7 +113,10 @@ public class LogModuleConfig {
     private static final LogLevel LEVEL_RENDER = LogLevel.WARN;
         
     // 3D皮肤层模块：默认DEBUG级别（特殊配置）
-    private static final LogLevel LEVEL_3D_SKIN_LAYERS = LogLevel.DEBUG;
+    private static final LogLevel LEVEL_3D_SKIN_LAYERS = LogLevel.WARN;
+    
+    // 3D渲染偏移模块：默认WARN级别
+    private static final LogLevel LEVEL_RENDER_3D_OFFSET = LogLevel.DEBUG;
         
     // 资源管理模块：默认WARN级别
     private static final LogLevel LEVEL_RESOURCE = LogLevel.WARN;
@@ -136,6 +144,9 @@ public class LogModuleConfig {
         
         // 3D皮肤层模块模板
     private static final String TEMPLATE_3D_SKIN_LAYERS = "[3D皮肤层] {}";
+    
+        // 3D渲染偏移模块模板
+    private static final String TEMPLATE_RENDER_3D_OFFSET = "[3D渲染偏移] {}";
         
         // 资源管理模块模板
     private static final String TEMPLATE_RESOURCE = "[资源] {}";
@@ -169,6 +180,7 @@ public class LogModuleConfig {
             case MODULE_ENTITY_NBT: return LEVEL_ENTITY_NBT;
             case MODULE_RENDER: return LEVEL_RENDER;
             case MODULE_3D_SKIN_LAYERS: return LEVEL_3D_SKIN_LAYERS;
+            case MODULE_RENDER_3D_OFFSET: return LEVEL_RENDER_3D_OFFSET;
             case MODULE_RESOURCE: return LEVEL_RESOURCE;
             case MODULE_POSE_LOADER: return LEVEL_POSE_LOADER;
             case MODULE_ACTION_LOADER: return LEVEL_ACTION_LOADER;
@@ -199,6 +211,7 @@ public class LogModuleConfig {
             case MODULE_ENTITY_NBT: return TEMPLATE_ENTITY_NBT;
             case MODULE_RENDER: return TEMPLATE_RENDER;
             case MODULE_3D_SKIN_LAYERS: return TEMPLATE_3D_SKIN_LAYERS;
+            case MODULE_RENDER_3D_OFFSET: return TEMPLATE_RENDER_3D_OFFSET;
             case MODULE_RESOURCE: return TEMPLATE_RESOURCE;
             case MODULE_POSE_LOADER: return TEMPLATE_POSE_LOADER;
             case MODULE_ACTION_LOADER: return TEMPLATE_ACTION_LOADER;
@@ -224,6 +237,7 @@ public class LogModuleConfig {
             MODULE_ENTITY_NBT,
             MODULE_RENDER,
             MODULE_3D_SKIN_LAYERS,
+            MODULE_RENDER_3D_OFFSET,
             MODULE_RESOURCE,
             MODULE_POSE_LOADER,
             MODULE_ACTION_LOADER,

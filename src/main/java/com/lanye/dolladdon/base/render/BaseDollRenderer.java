@@ -239,8 +239,8 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
 
         // 只在第一次渲染时记录检查结果，避免每帧都输出日志导致卡顿
         if (!hasLoggedRenderCheck) {
-            ModuleLogger.debug(LOG_MODULE, "渲染检查: modLoaded={}, apiAvailable={}, inRange={}, use3D={}",
-                    modLoaded, apiAvailable, inRange, use3DSkinLayers);
+        ModuleLogger.debug(LOG_MODULE, "渲染检查: modLoaded={}, apiAvailable={}, inRange={}, use3D={}",
+                modLoaded, apiAvailable, inRange, use3DSkinLayers);
             hasLoggedRenderCheck = true;
         }
 
@@ -316,7 +316,7 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
         if (willRender3DLast) {
             // 只在第一次渲染时记录日志，避免每帧都输出导致卡顿
             if (!hasLoggedMeshCreation) {
-                ModuleLogger.debug(LOG_MODULE, "🎨 执行延迟3D网格渲染 - 在所有渲染完成后");
+            ModuleLogger.debug(LOG_MODULE, "🎨 执行延迟3D网格渲染 - 在所有渲染完成后");
             }
             try {
                 // 为3D网格渲染应用玩偶的基础变换
@@ -325,15 +325,17 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
 
                 renderOverlayWith3DSkinLayers(matrixStack, overlayVertexConsumer, light, overlay,
                     skinLocation, bodyRotX, bodyRotY, bodyRotZ,
-                    hatPosition, hatCombinedScale,
-                    rightArmPosition, rightArmScale, leftArmPosition, leftArmScale,
-                    bodyPosition, bodyScale,
-                    rightLegPosition, rightLegScale, leftLegPosition, leftLegScale);
+                    hatPosition, hatCombinedScale, hatRot,
+                    rightArmPosition, rightArmScale, rightArmRot,
+                    leftArmPosition, leftArmScale, leftArmRot,
+                    bodyPosition, bodyScale, bodyRot,
+                    rightLegPosition, rightLegScale, rightLegRot,
+                    leftLegPosition, leftLegScale, leftLegRot);
 
                 matrixStack.pop();
                 // 只在第一次渲染时记录日志
                 if (!hasLoggedMeshCreation) {
-                    ModuleLogger.debug(LOG_MODULE, "✅ 延迟3D网格渲染完成 - 这应该在最上层显示");
+                ModuleLogger.debug(LOG_MODULE, "✅ 延迟3D网格渲染完成 - 这应该在最上层显示");
                     hasLoggedMeshCreation = true; // 标记已完成一次完整渲染
                 }
             } catch (Exception e) {
@@ -659,7 +661,7 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
         // 3D皮肤层mod会检查皮肤是否为有效的64x64格式，如果不是会自动回退到2D渲染
         // 只在第一次调用时记录日志，避免每帧都输出导致卡顿
         if (!hasLoggedSkinCheck) {
-            ModuleLogger.info(LOG_MODULE, "🎯 第6次修复生效：皮肤路径 {}，移除路径检查，允许尝试3D渲染", skinLocation);
+        ModuleLogger.info(LOG_MODULE, "🎯 第6次修复生效：皮肤路径 {}，移除路径检查，允许尝试3D渲染", skinLocation);
             hasLoggedSkinCheck = true;
         }
 
@@ -669,7 +671,7 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
         if (player == null) {
             // 只在第一次调用时记录日志
             if (!hasLoggedDistanceCheck) {
-                ModuleLogger.debug(LOG_MODULE, "玩家对象为空，无法使用3D渲染");
+            ModuleLogger.debug(LOG_MODULE, "玩家对象为空，无法使用3D渲染");
                 hasLoggedDistanceCheck = true;
             }
             return false;
@@ -684,10 +686,10 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
 
         // 只在第一次调用时记录距离检测日志，避免每帧都输出导致卡顿
         if (!hasLoggedDistanceCheck) {
-            ModuleLogger.debug(LOG_MODULE, "距离检测: 实体位置({:.1f}, {:.1f}, {:.1f}), 玩家位置({:.1f}, {:.1f}, {:.1f}), 到玩家距离={:.2f}格, 阈值=144.0, 使用3D渲染={}",
-                    entityPos.x, entityPos.y, entityPos.z,
-                    playerPos.x, playerPos.y, playerPos.z,
-                    distance, shouldUse);
+        ModuleLogger.debug(LOG_MODULE, "距离检测: 实体位置({:.1f}, {:.1f}, {:.1f}), 玩家位置({:.1f}, {:.1f}, {:.1f}), 到玩家距离={:.2f}格, 阈值=144.0, 使用3D渲染={}",
+                entityPos.x, entityPos.y, entityPos.z,
+                playerPos.x, playerPos.y, playerPos.z,
+                distance, shouldUse);
             hasLoggedDistanceCheck = true;
         }
 
@@ -703,12 +705,12 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
                                                int light, int overlay,
                                                Identifier skinLocation,
                                                float bodyRotX, float bodyRotY, float bodyRotZ,
-                                               float[] hatPosition, float[] hatScale,
-                                               float[] rightArmPosition, float[] rightArmScale,
-                                               float[] leftArmPosition, float[] leftArmScale,
-                                               float[] bodyPosition, float[] bodyScale,
-                                               float[] rightLegPosition, float[] rightLegScale,
-                                               float[] leftLegPosition, float[] leftLegScale) {
+                                               float[] hatPosition, float[] hatScale, float[] hatRot,
+                                               float[] rightArmPosition, float[] rightArmScale, float[] rightArmRot,
+                                               float[] leftArmPosition, float[] leftArmScale, float[] leftArmRot,
+                                               float[] bodyPosition, float[] bodyScale, float[] bodyRot,
+                                               float[] rightLegPosition, float[] rightLegScale, float[] rightLegRot,
+                                               float[] leftLegPosition, float[] leftLegScale, float[] leftLegRot) {
         if (!hasLogged3DRenderStart) {
             ModuleLogger.debug(LOG_MODULE, "开始3D渲染，皮肤: {}, thinArms: {}", skinLocation, thinArms);
             hasLogged3DRenderStart = true;
@@ -762,60 +764,60 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
         }
         
         try {
-            // 处理身体旋转
-            if (bodyRotX != 0 || bodyRotY != 0 || bodyRotZ != 0) {
-                matrixStack.push();
-                
-                float rotationCenterY = 0.375f;
-                matrixStack.translate(0.0, rotationCenterY, 0.0);
-                matrixStack.multiply(new Quaternionf().rotateX(bodyRotX));
-                matrixStack.multiply(new Quaternionf().rotateY(bodyRotY));
-                matrixStack.multiply(new Quaternionf().rotateZ(bodyRotZ));
-                matrixStack.translate(0.0, -rotationCenterY, 0.0);
-                
+        // 处理身体旋转
+        if (bodyRotX != 0 || bodyRotY != 0 || bodyRotZ != 0) {
+            matrixStack.push();
+            
+            float rotationCenterY = 0.375f;
+            matrixStack.translate(0.0, rotationCenterY, 0.0);
+            matrixStack.multiply(new Quaternionf().rotateX(bodyRotX));
+            matrixStack.multiply(new Quaternionf().rotateY(bodyRotY));
+            matrixStack.multiply(new Quaternionf().rotateZ(bodyRotZ));
+            matrixStack.translate(0.0, -rotationCenterY, 0.0);
+            
                 // 渲染各个部位的3D网格（已批量初始化，这里只负责变换和渲染）
                 render3DMeshPartFast(matrixStack, playerModel.hat, skinData.getHeadMesh(),
-                        "HEAD", vertexConsumer, light, overlay, hatPosition, hatScale);
-                
+                    "HEAD", vertexConsumer, light, overlay, hatPosition, hatScale, hatRot);
+            
                 render3DMeshPartFast(matrixStack, playerModel.leftArm, skinData.getLeftArmMesh(),
-                        thinArms ? "LEFT_ARM_SLIM" : "LEFT_ARM", vertexConsumer, light, overlay,
-                        leftArmPosition, leftArmScale);
-                
+                    thinArms ? "LEFT_ARM_SLIM" : "LEFT_ARM", vertexConsumer, light, overlay,
+                    leftArmPosition, leftArmScale, leftArmRot);
+            
                 render3DMeshPartFast(matrixStack, playerModel.rightArm, skinData.getRightArmMesh(),
-                        thinArms ? "RIGHT_ARM_SLIM" : "RIGHT_ARM", vertexConsumer, light, overlay,
-                        rightArmPosition, rightArmScale);
-                
+                    thinArms ? "RIGHT_ARM_SLIM" : "RIGHT_ARM", vertexConsumer, light, overlay,
+                    rightArmPosition, rightArmScale, rightArmRot);
+            
                 render3DMeshPartFast(matrixStack, playerModel.body, skinData.getTorsoMesh(),
-                        "BODY", vertexConsumer, light, overlay, bodyPosition, bodyScale);
-                
+                    "BODY", vertexConsumer, light, overlay, bodyPosition, bodyScale, bodyRot);
+            
                 render3DMeshPartFast(matrixStack, playerModel.leftLeg, skinData.getLeftLegMesh(),
-                        "LEFT_LEG", vertexConsumer, light, overlay, leftLegPosition, leftLegScale);
-                
+                    "LEFT_LEG", vertexConsumer, light, overlay, leftLegPosition, leftLegScale, leftLegRot);
+            
                 render3DMeshPartFast(matrixStack, playerModel.rightLeg, skinData.getRightLegMesh(),
-                        "RIGHT_LEG", vertexConsumer, light, overlay, rightLegPosition, rightLegScale);
-                
-                matrixStack.pop();
-            } else {
-                // 没有身体旋转时，正常渲染
+                    "RIGHT_LEG", vertexConsumer, light, overlay, rightLegPosition, rightLegScale, rightLegRot);
+            
+            matrixStack.pop();
+        } else {
+            // 没有身体旋转时，正常渲染
                 render3DMeshPartFast(matrixStack, playerModel.hat, skinData.getHeadMesh(),
-                        "HEAD", vertexConsumer, light, overlay, hatPosition, hatScale);
-                
+                    "HEAD", vertexConsumer, light, overlay, hatPosition, hatScale, hatRot);
+            
                 render3DMeshPartFast(matrixStack, playerModel.leftArm, skinData.getLeftArmMesh(),
-                        thinArms ? "LEFT_ARM_SLIM" : "LEFT_ARM", vertexConsumer, light, overlay,
-                        leftArmPosition, leftArmScale);
-                
+                    thinArms ? "LEFT_ARM_SLIM" : "LEFT_ARM", vertexConsumer, light, overlay,
+                    leftArmPosition, leftArmScale, leftArmRot);
+            
                 render3DMeshPartFast(matrixStack, playerModel.rightArm, skinData.getRightArmMesh(),
-                        thinArms ? "RIGHT_ARM_SLIM" : "RIGHT_ARM", vertexConsumer, light, overlay,
-                        rightArmPosition, rightArmScale);
-                
+                    thinArms ? "RIGHT_ARM_SLIM" : "RIGHT_ARM", vertexConsumer, light, overlay,
+                    rightArmPosition, rightArmScale, rightArmRot);
+            
                 render3DMeshPartFast(matrixStack, playerModel.body, skinData.getTorsoMesh(),
-                        "BODY", vertexConsumer, light, overlay, bodyPosition, bodyScale);
-                
+                    "BODY", vertexConsumer, light, overlay, bodyPosition, bodyScale, bodyRot);
+            
                 render3DMeshPartFast(matrixStack, playerModel.leftLeg, skinData.getLeftLegMesh(),
-                        "LEFT_LEG", vertexConsumer, light, overlay, leftLegPosition, leftLegScale);
-                
+                    "LEFT_LEG", vertexConsumer, light, overlay, leftLegPosition, leftLegScale, leftLegRot);
+            
                 render3DMeshPartFast(matrixStack, playerModel.rightLeg, skinData.getRightLegMesh(),
-                        "RIGHT_LEG", vertexConsumer, light, overlay, rightLegPosition, rightLegScale);
+                    "RIGHT_LEG", vertexConsumer, light, overlay, rightLegPosition, rightLegScale, rightLegRot);
             }
         } finally {
             // 重要：在所有3D部件渲染后统一恢复深度测试
@@ -846,7 +848,7 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
         initializeMesh(skinData.getTorsoMesh(), playerModel.body, "BODY");
         initializeMesh(skinData.getLeftLegMesh(), playerModel.leftLeg, "LEFT_LEG");
         initializeMesh(skinData.getRightLegMesh(), playerModel.rightLeg, "RIGHT_LEG");
-    }
+            }
     
     /**
      * 初始化单个mesh（copyFrom和setVisible）
@@ -855,7 +857,7 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
         if (mesh == null) {
             return;
         }
-        
+
         try {
             // 使用缓存的方法，避免每帧都查找
             if (cachedCopyFromMethod == null) {
@@ -878,16 +880,23 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
      * 手动应用3D偏移，使外层皮肤稍微向外偏移以形成3D效果
      * 当OffsetProvider不可用时使用此方法
      * 
+     * 注意：此方法在copyFrom之后、render之前调用
+     * render方法内部会调用translateAndRotate，先应用平移再应用旋转
+     * 所以我们的偏移会在ModelPart的局部坐标系中，会随着ModelPart的旋转而旋转
+     * 这样在站立、趴下、坐着等不同姿态下，偏移方向都会正确
+     * 
      * @param matrixStack 变换矩阵栈
      * @param offsetProviderName 部位名称（如 "HEAD", "BODY" 等）
+     * @param modelPart 模型部件（用于日志，实际偏移不依赖旋转角度）
      */
-    private void applyManual3DOffset(MatrixStack matrixStack, String offsetProviderName) {
+    private void applyManual3DOffset(MatrixStack matrixStack, String offsetProviderName, net.minecraft.client.model.ModelPart modelPart) {
         // 3D皮肤层的典型偏移距离：约0.01-0.02个单位（在Minecraft坐标系统中）
         // 经过模型缩放（0.5倍）后，实际偏移约为0.02-0.04个单位
         // 减小偏移距离，避免网格被渲染到视野外
         float offsetDistance = 0.01f; // 减小偏移，确保网格在正确位置
         
         // 根据部位应用不同的偏移方向
+        // 偏移在ModelPart的局部坐标系中，会随着旋转而旋转
         switch (offsetProviderName) {
             case "HEAD":
                 // 头部：向上和向前偏移
@@ -908,12 +917,14 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
                 matrixStack.translate(offsetDistance * 0.3, 0.0, offsetDistance);
                 break;
             case "LEFT_LEG":
-                // 左腿：向左和向前偏移
-                matrixStack.translate(-offsetDistance * 0.3, 0.0, offsetDistance);
+                // 左腿：主要向前偏移，减少左右偏移以避免平行时分离过大
+                // 偏移会在ModelPart的局部坐标系中，随着腿部旋转而旋转
+                matrixStack.translate(-offsetDistance * 0.1, 0.0, offsetDistance);
                 break;
             case "RIGHT_LEG":
-                // 右腿：向右和向前偏移
-                matrixStack.translate(offsetDistance * 0.3, 0.0, offsetDistance);
+                // 右腿：主要向前偏移，减少左右偏移以避免平行时分离过大
+                // 偏移会在ModelPart的局部坐标系中，随着腿部旋转而旋转
+                matrixStack.translate(offsetDistance * 0.1, 0.0, offsetDistance);
                 break;
             default:
                 // 默认：向前偏移
@@ -921,12 +932,12 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
                 break;
         }
         
-        // 只在第一次渲染时记录偏移应用日志
-        if (!hasLoggedMeshCreation) {
-            ModuleLogger.debug(LOG_MODULE, "✓ 已应用手动3D偏移: {}，偏移距离: {:.3f}", offsetProviderName, offsetDistance);
-        }
+        // 记录偏移应用日志
+        ModuleLogger.debug(LogModuleConfig.MODULE_RENDER_3D_OFFSET, 
+            "应用3D偏移: 部位={}, 偏移距离={:.3f}, 偏移方向=局部坐标系", 
+            offsetProviderName, offsetDistance);
     }
-    
+            
     /**
      * 快速渲染单个3D网格部件（已批量初始化，只负责变换和渲染）
      * 优化版本：移除了所有初始化逻辑，只保留变换和渲染
@@ -937,31 +948,20 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
                                       String offsetProviderName,
                                       net.minecraft.client.render.VertexConsumer vertexConsumer,
                                       int light, int overlay,
-                                      float[] position, float[] scale) {
+                                      float[] position, float[] scale,
+                                      float[] rotation) {
         if (mesh == null) {
             return;
         }
 
         try {
             matrixStack.push();
-
+                    
             // 应用位置偏移
             if (position[0] != 0.0f || position[1] != 0.0f || position[2] != 0.0f) {
                 matrixStack.translate(position[0], -position[1], position[2]);
             }
-
-            // 应用缩放
-            if (scale[0] != 1.0f || scale[1] != 1.0f || scale[2] != 1.0f) {
-                matrixStack.scale(scale[0], scale[1], scale[2]);
-            }
-            
-            // 应用额外的缩放因子来放大3D皮肤层
-            float sizeMultiplier = 1.20f; // 放大20%
-            matrixStack.scale(sizeMultiplier, sizeMultiplier, sizeMultiplier);
-            
-            // 应用手动3D偏移
-            applyManual3DOffset(matrixStack, offsetProviderName);
-            
+                    
             // 更新mesh状态（因为ModelPart可能已经改变）
             try {
                 if (cachedCopyFromMethod != null) {
@@ -970,7 +970,62 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
             } catch (Exception e) {
                 // 静默失败
             }
-
+            
+            // 关键修复：清除mesh内部的旋转信息，避免双重应用旋转
+            // 问题分析：
+            // 1. mesh.copyFrom()会将ModelPart的旋转信息复制到mesh内部
+            // 2. mesh.render()内部可能会使用mesh内部存储的旋转信息
+            // 3. 即使我们在MatrixStack中应用了旋转，mesh.render()内部可能还会再次应用旋转
+            // 解决方案：在copyFrom()之后，使用mesh.setRotation(0, 0, 0)清除mesh内部的旋转
+            try {
+                java.lang.reflect.Method setRotationMethod = mesh.getClass().getMethod("setRotation", float.class, float.class, float.class);
+                setRotationMethod.invoke(mesh, 0.0f, 0.0f, 0.0f);
+                ModuleLogger.debug(LogModuleConfig.MODULE_RENDER_3D_OFFSET, 
+                    "部位={}: 已清除mesh内部旋转", offsetProviderName);
+            } catch (Exception e) {
+                ModuleLogger.debug(LogModuleConfig.MODULE_RENDER_3D_OFFSET, 
+                    "部位={}: 无法清除mesh内部旋转 - {}", offsetProviderName, e.getMessage());
+            }
+            
+            // 关键修复：在旋转之前应用偏移（在身体的坐标系中）
+            // 问题分析：
+            // 1. 问题描述："向前旋转 → 向后偏移"，说明偏移方向是反的
+            // 2. 如果偏移在旋转之后应用，偏移会随着部件旋转而旋转，导致位置错误
+            // 3. 如果偏移在旋转之前应用，偏移在身体的坐标系中，不会随着部件旋转而旋转
+            // 解决方案：在旋转之前应用偏移（在身体的坐标系中）
+            
+            // 使用姿态文件的旋转值（rotation参数），转换为弧度
+            float rotX = (float) Math.toRadians(rotation[0]);
+            float rotY = (float) Math.toRadians(rotation[1]);
+            float rotZ = (float) Math.toRadians(rotation[2]);
+            
+            ModuleLogger.debug(LogModuleConfig.MODULE_RENDER_3D_OFFSET, 
+                "部位={}: 姿态旋转值 (X:{:.1f}°, Y:{:.1f}°, Z:{:.1f}°), 缩放=({:.2f}, {:.2f}, {:.2f})", 
+                offsetProviderName, rotation[0], rotation[1], rotation[2], scale[0], scale[1], scale[2]);
+            
+            // 关键：在旋转之前应用偏移（在身体的坐标系中）
+            applyManual3DOffset(matrixStack, offsetProviderName, modelPart);
+            
+            // 应用旋转（使用姿态文件的旋转值）
+            if (rotX != 0.0F || rotY != 0.0F || rotZ != 0.0F) {
+                matrixStack.multiply(new Quaternionf().rotationZYX(rotZ, rotY, rotX));
+                ModuleLogger.debug(LogModuleConfig.MODULE_RENDER_3D_OFFSET, 
+                    "部位={}: 应用旋转 (X:{:.1f}°, Y:{:.1f}°, Z:{:.1f}°)", 
+                    offsetProviderName, rotation[0], rotation[1], rotation[2]);
+            }
+            
+            // 应用基础缩放
+            if (scale[0] != 1.0f || scale[1] != 1.0f || scale[2] != 1.0f) {
+                matrixStack.scale(scale[0], scale[1], scale[2]);
+                ModuleLogger.debug(LogModuleConfig.MODULE_RENDER_3D_OFFSET, 
+                    "部位={}: 应用基础缩放 ({:.2f}, {:.2f}, {:.2f})", 
+                    offsetProviderName, scale[0], scale[1], scale[2]);
+            }
+            
+            // 应用额外的缩放因子来放大3D皮肤层
+            float sizeMultiplier = 1.20f; // 放大20%
+            matrixStack.scale(sizeMultiplier, sizeMultiplier, sizeMultiplier);
+            
             // 使用缓存的render方法直接渲染
             if (cachedRenderMethod != null) {
                 try {
@@ -991,7 +1046,7 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
             
         } catch (Exception e) {
             // 静默失败，避免每帧都输出错误
-        }
+                }
     }
 
     /**
@@ -1000,27 +1055,27 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
     private static void initializeRenderMethodCache(Object mesh) {
         if (renderMethodCacheInitialized) {
             return;
-        }
-        
+                }
+
         try {
             // 尝试多种render方法签名，找到第一个可用的
             // 方法1：3参数版本 (MatrixStack, VertexConsumer, int, int) - 最常用
-            try {
+                try {
                 cachedRenderMethod = mesh.getClass().getMethod("render",
-                        MatrixStack.class,
-                        net.minecraft.client.render.VertexConsumer.class,
+                            MatrixStack.class,
+                            net.minecraft.client.render.VertexConsumer.class,
                         int.class, int.class);
                 renderMethodCacheInitialized = true;
                 ModuleLogger.debug(LOG_MODULE, "✓ 缓存render方法：3参数版本");
                 return;
-            } catch (NoSuchMethodException e1) {
+                } catch (NoSuchMethodException e1) {
                 // 尝试PoseStack
                 try {
                     cachedPoseStackClass = Class.forName("com.mojang.blaze3d.vertex.PoseStack");
                     cachedRenderMethod = mesh.getClass().getMethod("render",
                             cachedPoseStackClass,
-                            net.minecraft.client.render.VertexConsumer.class,
-                            int.class, int.class);
+                                net.minecraft.client.render.VertexConsumer.class,
+                                int.class, int.class);
                     renderMethodCacheInitialized = true;
                     ModuleLogger.debug(LOG_MODULE, "✓ 缓存render方法：3参数版本（PoseStack）");
                     return;
@@ -1030,16 +1085,16 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
             }
             
             // 方法2：5参数版本 (ModelPart, MatrixStack, VertexConsumer, int, int)
-            try {
+                        try {
                 cachedRenderMethod = mesh.getClass().getMethod("render",
                         net.minecraft.client.model.ModelPart.class,
-                        MatrixStack.class,
-                        net.minecraft.client.render.VertexConsumer.class,
-                        int.class, int.class);
+                                    MatrixStack.class,
+                                    net.minecraft.client.render.VertexConsumer.class,
+                                    int.class, int.class);
                 renderMethodCacheInitialized = true;
                 ModuleLogger.debug(LOG_MODULE, "✓ 缓存render方法：5参数版本");
                 return;
-            } catch (NoSuchMethodException e3) {
+                        } catch (NoSuchMethodException e3) {
                 // 继续尝试
             }
             
@@ -1055,14 +1110,14 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
                 return;
             } catch (NoSuchMethodException e4) {
                 ModuleLogger.error(LOG_MODULE, "✗ 无法找到任何render方法");
-            }
-        } catch (Exception e) {
+                }
+            } catch (Exception e) {
             ModuleLogger.error(LOG_MODULE, "✗ 初始化render方法缓存失败: {}", e.getMessage());
         }
         
         renderMethodCacheInitialized = true; // 标记为已初始化，避免重复尝试
     }
-    
+
     /**
      * 3D渲染失败时的2D渲染降级方案
      */
