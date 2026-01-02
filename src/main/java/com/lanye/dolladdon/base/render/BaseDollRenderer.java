@@ -918,19 +918,7 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
                 }
             }
             
-            // 获取OffsetProvider
-            Object offsetProvider = Doll3DSkinUtil.getOffsetProvider(offsetProviderName);
-            if (offsetProvider == null) {
-                if (!hasLoggedOffsetProviderStatus) {
-                    ModuleLogger.warn(LOG_MODULE, "⚠ OffsetProvider不可用: {}，跳过偏移应用但继续渲染", offsetProviderName);
-                    hasLoggedOffsetProviderStatus = true;
-                }
-            } else {
-                if (!hasLoggedOffsetProviderStatus) {
-                    ModuleLogger.debug(LOG_MODULE, "✓ OffsetProvider获取成功: {}", offsetProviderName);
-                    hasLoggedOffsetProviderStatus = true;
-                }
-            }
+            // OffsetProvider通常不可用，直接跳过检查，避免每帧都调用反射
             
             // 详细日志：记录MatrixStack的当前状态（只在第一次渲染时记录）
             if (!hasLoggedMeshCreation) {
@@ -957,7 +945,7 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
             
             // 应用额外的缩放因子来放大3D皮肤层，使其更明显
             // 这个缩放因子会让3D层比基础皮肤层稍大，形成更明显的3D效果
-            float sizeMultiplier = 1.10f; // 放大10%，可以根据需要调整
+            float sizeMultiplier = 1.15f; // 放大15%，可以根据需要调整
             matrixStack.scale(sizeMultiplier, sizeMultiplier, sizeMultiplier);
             // 只在第一次渲染时记录缩放日志
             if (!hasLoggedMeshCreation) {
@@ -1027,155 +1015,36 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
                 boolean renderSuccess = false;
                 Exception lastException = null;
 
-                // 方法1：6参数版本 (ModelPart, PoseStack/MatrixStack, VertexConsumer, int, int, int)
-                // 这是最完整的版本，需要ModelPart来获取MeshTransformer
-                // 先尝试PoseStack类型（源码中的实际类型）
-                try {
-                    // 尝试使用PoseStack（com.mojang.blaze3d.vertex.PoseStack）
-                    Class<?> poseStackClass = Class.forName("com.mojang.blaze3d.vertex.PoseStack");
-                    Method renderMethod = mesh.getClass().getMethod("render",
-                            net.minecraft.client.model.ModelPart.class,
-                            poseStackClass,
-                            net.minecraft.client.render.VertexConsumer.class,
-                            int.class, int.class, int.class);
-                    ModuleLogger.debug(LOG_MODULE, "尝试6参数render方法（PoseStack，带ModelPart和颜色）: {}", offsetProviderName);
-                    renderMethod.invoke(mesh, modelPart, matrixStack, vertexConsumer, light, overlay, 0xFFFFFFFF);
-                    renderSuccess = true;
-                    usedMethod = "6参数（PoseStack+ModelPart+颜色）";
-                    ModuleLogger.debug(LOG_MODULE, "✓ {} 6参数render方法调用成功", offsetProviderName);
-                } catch (ClassNotFoundException | NoSuchMethodException e1) {
-                    // 如果PoseStack不存在或方法不存在，尝试MatrixStack
+                // 使用缓存的render方法
+                if (cachedRenderMethod != null) {
                     try {
-                        Method renderMethod = mesh.getClass().getMethod("render",
-                                net.minecraft.client.model.ModelPart.class,
-                                MatrixStack.class,
-                                net.minecraft.client.render.VertexConsumer.class,
-                                int.class, int.class, int.class);
-                        ModuleLogger.debug(LOG_MODULE, "尝试6参数render方法（MatrixStack，带ModelPart和颜色）: {}", offsetProviderName);
-                        renderMethod.invoke(mesh, modelPart, matrixStack, vertexConsumer, light, overlay, 0xFFFFFFFF);
+                        // 根据方法参数数量调用
+                        int paramCount = cachedRenderMethod.getParameterCount();
+                        if (paramCount == 6) {
+                            // 6参数：render(ModelPart, MatrixStack, VertexConsumer, int, int, int)
+                            cachedRenderMethod.invoke(mesh, modelPart, matrixStack, vertexConsumer, light, overlay, 0xFFFFFFFF);
+                        } else if (paramCount == 5) {
+                            // 5参数：render(ModelPart, MatrixStack, VertexConsumer, int, int)
+                            cachedRenderMethod.invoke(mesh, modelPart, matrixStack, vertexConsumer, light, overlay);
+                        } else if (paramCount == 4) {
+                            // 3参数：render(MatrixStack, VertexConsumer, int, int)
+                            cachedRenderMethod.invoke(mesh, matrixStack, vertexConsumer, light, overlay);
+                        }
                         renderSuccess = true;
-                        usedMethod = "6参数（MatrixStack+ModelPart+颜色）";
-                        ModuleLogger.debug(LOG_MODULE, "✓ {} 6参数render方法调用成功", offsetProviderName);
-                    } catch (NoSuchMethodException e2) {
-                        ModuleLogger.debug(LOG_MODULE, "6参数render方法不存在: {}", offsetProviderName);
-                        lastException = e2;
-                        // 方法2：5参数版本 (ModelPart, PoseStack/MatrixStack, VertexConsumer, int, int)
-                        try {
-                            Class<?> poseStackClass = Class.forName("com.mojang.blaze3d.vertex.PoseStack");
-                            Method renderMethod = mesh.getClass().getMethod("render",
-                                    net.minecraft.client.model.ModelPart.class,
-                                    poseStackClass,
-                                    net.minecraft.client.render.VertexConsumer.class,
-                                    int.class, int.class);
-                            ModuleLogger.debug(LOG_MODULE, "尝试5参数render方法（PoseStack，带ModelPart）: {}", offsetProviderName);
-                            renderMethod.invoke(mesh, modelPart, matrixStack, vertexConsumer, light, overlay);
-                            renderSuccess = true;
-                            usedMethod = "5参数（PoseStack+ModelPart）";
-                            ModuleLogger.debug(LOG_MODULE, "✓ {} 5参数render方法调用成功", offsetProviderName);
-                        } catch (ClassNotFoundException | NoSuchMethodException e3) {
-                            try {
-                                Method renderMethod = mesh.getClass().getMethod("render",
-                                        net.minecraft.client.model.ModelPart.class,
-                                        MatrixStack.class,
-                                        net.minecraft.client.render.VertexConsumer.class,
-                                        int.class, int.class);
-                                ModuleLogger.debug(LOG_MODULE, "尝试5参数render方法（MatrixStack，带ModelPart）: {}", offsetProviderName);
-                                renderMethod.invoke(mesh, modelPart, matrixStack, vertexConsumer, light, overlay);
-                                renderSuccess = true;
-                                usedMethod = "5参数（MatrixStack+ModelPart）";
-                                ModuleLogger.debug(LOG_MODULE, "✓ {} 5参数render方法调用成功", offsetProviderName);
-                            } catch (NoSuchMethodException e4) {
-                                ModuleLogger.debug(LOG_MODULE, "5参数render方法不存在: {}", offsetProviderName);
-                                lastException = e4;
-                                // 方法3：3参数版本 (PoseStack/MatrixStack, VertexConsumer, int, int)
-                                // 这个版本会传入null作为ModelPart，可能导致MeshTransformer无法正确工作
-                                try {
-                                    Class<?> poseStackClass = Class.forName("com.mojang.blaze3d.vertex.PoseStack");
-                                    Method renderMethod = mesh.getClass().getMethod("render",
-                                            poseStackClass,
-                                            net.minecraft.client.render.VertexConsumer.class,
-                                            int.class, int.class);
-                                    ModuleLogger.debug(LOG_MODULE, "尝试3参数render方法（PoseStack，无ModelPart）: {}", offsetProviderName);
-                                    renderMethod.invoke(mesh, matrixStack, vertexConsumer, light, overlay);
-                                    renderSuccess = true;
-                                    usedMethod = "3参数（PoseStack，ModelPart=null）";
-                                    ModuleLogger.debug(LOG_MODULE, "✓ {} 3参数render方法调用成功", offsetProviderName);
-                                } catch (ClassNotFoundException | NoSuchMethodException e5) {
-                                    try {
-                                        Method renderMethod = mesh.getClass().getMethod("render",
-                                                MatrixStack.class,
-                                                net.minecraft.client.render.VertexConsumer.class,
-                                                int.class, int.class);
-                                        ModuleLogger.debug(LOG_MODULE, "尝试3参数render方法（MatrixStack，无ModelPart）: {}", offsetProviderName);
-                                        renderMethod.invoke(mesh, matrixStack, vertexConsumer, light, overlay);
-                                        renderSuccess = true;
-                                        usedMethod = "3参数（MatrixStack，ModelPart=null）";
-                                        ModuleLogger.debug(LOG_MODULE, "✓ {} 3参数render方法调用成功", offsetProviderName);
-                                    } catch (NoSuchMethodException e6) {
-                                        ModuleLogger.error(LOG_MODULE, "✗ {} 所有render方法都未找到", offsetProviderName);
-                                        lastException = e6;
-                                    } catch (Exception e6) {
-                                        ModuleLogger.error(LOG_MODULE, "✗ {} 3参数render方法调用异常: {}", offsetProviderName, e6.getMessage(), e6);
-                                        lastException = e6;
-                                    }
-                                } catch (Exception e5) {
-                                    ModuleLogger.error(LOG_MODULE, "✗ {} 3参数render方法调用异常: {}", offsetProviderName, e5.getMessage(), e5);
-                                    lastException = e5;
-                                }
-                            } catch (Exception e4) {
-                                ModuleLogger.error(LOG_MODULE, "✗ {} 5参数render方法调用异常: {}", offsetProviderName, e4.getMessage(), e4);
-                                lastException = e4;
-                            }
-                        } catch (Exception e3) {
-                            ModuleLogger.error(LOG_MODULE, "✗ {} 5参数render方法调用异常: {}", offsetProviderName, e3.getMessage(), e3);
-                            lastException = e3;
-                        }
-                    } catch (Exception e2) {
-                        ModuleLogger.error(LOG_MODULE, "✗ {} 6参数render方法调用异常: {}", offsetProviderName, e2.getMessage(), e2);
-                        lastException = e2;
-                    }
-                } catch (Exception e1) {
-                    ModuleLogger.error(LOG_MODULE, "✗ {} 6参数render方法调用异常: {}", offsetProviderName, e1.getMessage(), e1);
-                    lastException = e1;
-                }
-
-                if (renderSuccess && usedMethod != null) {
-                    ModuleLogger.debug(LOG_MODULE, "✅ {} 3D网格render方法调用成功（使用{}方法）", offsetProviderName, usedMethod);
-                    
-                    // 详细日志：记录render方法调用后的状态
-                    try {
-                        Method isVisibleMethod = mesh.getClass().getMethod("isVisible");
-                        boolean visibleAfterRender = (Boolean) isVisibleMethod.invoke(mesh);
-                        ModuleLogger.debug(LOG_MODULE, "📊 {} render后mesh状态 - visible: {}", offsetProviderName, visibleAfterRender);
                     } catch (Exception e) {
-                        ModuleLogger.debug(LOG_MODULE, "⚠ {} 无法读取render后mesh状态: {}", offsetProviderName, e.getMessage());
-                    }
-                    
-                    // 详细日志：检查是否有InvocationTargetException被包装
-                    if (lastException != null && lastException instanceof java.lang.reflect.InvocationTargetException) {
-                        Throwable cause = ((java.lang.reflect.InvocationTargetException) lastException).getTargetException();
-                        if (cause != null) {
-                            ModuleLogger.warn(LOG_MODULE, "⚠ {} render方法调用时发生内部异常（但调用成功）: {}", offsetProviderName, cause.getMessage());
-                            ModuleLogger.debug(LOG_MODULE, "异常堆栈: ", cause);
+                        lastException = e;
+                        if (!hasLoggedMeshCreation) {
+                            ModuleLogger.error(LOG_MODULE, "✗ {} render方法调用失败: {}", offsetProviderName, e.getMessage());
                         }
-                    }
-                    
-                    if (!hasLoggedMeshCreation) {
-                        hasLoggedMeshCreation = true; // 标记已完成一次完整渲染（仅用于减少重复日志）
                     }
                 } else {
-                    ModuleLogger.error(LOG_MODULE, "✗ {} 所有render方法调用都失败，最后异常: {}", 
-                                     offsetProviderName, lastException != null ? lastException.getMessage() : "未知错误");
-                    if (lastException != null) {
-                        ModuleLogger.error(LOG_MODULE, "异常堆栈: ", lastException);
-                        // 如果是InvocationTargetException，也记录内部异常
-                        if (lastException instanceof java.lang.reflect.InvocationTargetException) {
-                            Throwable cause = ((java.lang.reflect.InvocationTargetException) lastException).getTargetException();
-                            if (cause != null) {
-                                ModuleLogger.error(LOG_MODULE, "内部异常: {}", cause.getMessage(), cause);
-                            }
-                        }
+                    if (!hasLoggedMeshCreation) {
+                        ModuleLogger.error(LOG_MODULE, "✗ {} render方法未找到", offsetProviderName);
                     }
+                }
+                
+                if (renderSuccess && !hasLoggedMeshCreation) {
+                    hasLoggedMeshCreation = true;
                 }
 
             } catch (Exception e) {
@@ -1187,19 +1056,7 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
                 }
             }
 
-            // 恢复深度测试和深度写入状态到标准渲染设置
-            try {
-                // 恢复标准的Minecraft渲染状态：启用深度测试和深度写入
-                RenderSystem.enableDepthTest();
-                RenderSystem.depthMask(true);
-
-                // 只在第一次渲染时记录恢复日志
-                if (!hasLoggedMeshCreation) {
-                    ModuleLogger.debug(LOG_MODULE, "✓ 已恢复深度测试和深度写入状态到标准设置");
-                }
-            } catch (Exception e) {
-                ModuleLogger.warn(LOG_MODULE, "⚠ {} 无法恢复深度测试状态: {}", offsetProviderName, e.getMessage());
-            }
+            // 注意：深度测试已在renderOverlayWith3DSkinLayers中统一恢复，这里不需要再处理
 
             matrixStack.pop();
             
@@ -1208,6 +1065,75 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
         }
     }
 
+    /**
+     * 初始化render方法缓存（只执行一次）
+     */
+    private static void initializeRenderMethodCache(Object mesh) {
+        if (renderMethodCacheInitialized) {
+            return;
+        }
+        
+        try {
+            // 尝试多种render方法签名，找到第一个可用的
+            // 方法1：3参数版本 (MatrixStack, VertexConsumer, int, int) - 最常用
+            try {
+                cachedRenderMethod = mesh.getClass().getMethod("render",
+                        MatrixStack.class,
+                        net.minecraft.client.render.VertexConsumer.class,
+                        int.class, int.class);
+                renderMethodCacheInitialized = true;
+                ModuleLogger.debug(LOG_MODULE, "✓ 缓存render方法：3参数版本");
+                return;
+            } catch (NoSuchMethodException e1) {
+                // 尝试PoseStack
+                try {
+                    cachedPoseStackClass = Class.forName("com.mojang.blaze3d.vertex.PoseStack");
+                    cachedRenderMethod = mesh.getClass().getMethod("render",
+                            cachedPoseStackClass,
+                            net.minecraft.client.render.VertexConsumer.class,
+                            int.class, int.class);
+                    renderMethodCacheInitialized = true;
+                    ModuleLogger.debug(LOG_MODULE, "✓ 缓存render方法：3参数版本（PoseStack）");
+                    return;
+                } catch (Exception e2) {
+                    // 继续尝试其他方法
+                }
+            }
+            
+            // 方法2：5参数版本 (ModelPart, MatrixStack, VertexConsumer, int, int)
+            try {
+                cachedRenderMethod = mesh.getClass().getMethod("render",
+                        net.minecraft.client.model.ModelPart.class,
+                        MatrixStack.class,
+                        net.minecraft.client.render.VertexConsumer.class,
+                        int.class, int.class);
+                renderMethodCacheInitialized = true;
+                ModuleLogger.debug(LOG_MODULE, "✓ 缓存render方法：5参数版本");
+                return;
+            } catch (NoSuchMethodException e3) {
+                // 继续尝试
+            }
+            
+            // 方法3：6参数版本 (ModelPart, MatrixStack, VertexConsumer, int, int, int)
+            try {
+                cachedRenderMethod = mesh.getClass().getMethod("render",
+                        net.minecraft.client.model.ModelPart.class,
+                        MatrixStack.class,
+                        net.minecraft.client.render.VertexConsumer.class,
+                        int.class, int.class, int.class);
+                renderMethodCacheInitialized = true;
+                ModuleLogger.debug(LOG_MODULE, "✓ 缓存render方法：6参数版本");
+                return;
+            } catch (NoSuchMethodException e4) {
+                ModuleLogger.error(LOG_MODULE, "✗ 无法找到任何render方法");
+            }
+        } catch (Exception e) {
+            ModuleLogger.error(LOG_MODULE, "✗ 初始化render方法缓存失败: {}", e.getMessage());
+        }
+        
+        renderMethodCacheInitialized = true; // 标记为已初始化，避免重复尝试
+    }
+    
     /**
      * 3D渲染失败时的2D渲染降级方案
      */
