@@ -574,34 +574,29 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
             return false;
         }
 
-        // 只对标准的Minecraft玩家皮肤启用3D渲染
-        // 自定义玩偶皮肤不适用3D皮肤层，因为它们不是标准的64x64玩家皮肤格式
-        String namespace = skinLocation.getNamespace();
-        String path = skinLocation.getPath();
+        // 不再预先检查皮肤路径，让3D渲染系统自己验证皮肤格式
+        // 3D皮肤层mod会检查皮肤是否为有效的64x64格式，如果不是会自动回退到2D渲染
+        ModuleLogger.info(LOG_MODULE, "🎯 第6次修复生效：皮肤路径 {}，移除路径检查，允许尝试3D渲染", skinLocation);
 
-        // 检查是否为标准的Minecraft玩家皮肤路径
-        boolean isStandardMinecraftSkin = "minecraft".equals(namespace) &&
-                (path.startsWith("textures/entity/player/") ||
-                 path.startsWith("textures/entity/player/wide/") ||
-                 path.startsWith("textures/entity/player/slim/"));
-
-        if (!isStandardMinecraftSkin) {
-            ModuleLogger.debug(LOG_MODULE, "皮肤路径 {} 不是标准Minecraft玩家皮肤，跳过3D渲染", skinLocation);
+        // 计算距离：应该计算到玩家的距离，而不是到相机的距离
+        // 3D皮肤层的LOD是基于到玩家的距离
+        var player = client.player;
+        if (player == null) {
+            ModuleLogger.debug(LOG_MODULE, "玩家对象为空，无法使用3D渲染");
             return false;
         }
 
-        // 计算距离（使用距离的平方避免开方运算）
-        double distanceSq = entity.squaredDistanceTo(
-            client.gameRenderer.getCamera().getPos().x,
-            client.gameRenderer.getCamera().getPos().y,
-            client.gameRenderer.getCamera().getPos().z
-        );
+        var playerPos = player.getPos();
+        var entityPos = entity.getPos();
 
+        double distanceSq = entity.squaredDistanceTo(playerPos.x, playerPos.y, playerPos.z);
         double distance = Math.sqrt(distanceSq);
         boolean shouldUse = distanceSq <= 12.0 * 12.0;
 
-        ModuleLogger.debug(LOG_MODULE, "距离检测: 距离={}格, 使用3D渲染={}",
-                String.format("%.2f", distance), shouldUse);
+        ModuleLogger.debug(LOG_MODULE, "距离检测: 实体位置({:.1f}, {:.1f}, {:.1f}), 玩家位置({:.1f}, {:.1f}, {:.1f}), 到玩家距离={:.2f}格, 阈值=144.0, 使用3D渲染={}",
+                entityPos.x, entityPos.y, entityPos.z,
+                playerPos.x, playerPos.y, playerPos.z,
+                distance, shouldUse);
 
         // 12格以内且为标准Minecraft皮肤时使用3D渲染
         return shouldUse;
