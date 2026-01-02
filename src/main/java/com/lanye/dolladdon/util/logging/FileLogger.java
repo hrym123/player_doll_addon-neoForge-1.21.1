@@ -63,7 +63,7 @@ public class FileLogger {
             // 创建日志目录
             if (!Files.exists(logDirectory)) {
                 Files.createDirectories(logDirectory);
-                ModuleLogger.info(LogConfigManager.MODULE_MAIN, "[文件日志] 创建日志目录: {}", logDirectory);
+                ModuleLogger.info(LogModuleConfig.MODULE_MAIN, "[文件日志] 创建日志目录: {}", logDirectory);
             }
         } catch (Exception e) {
             System.err.println("[PlayerDollAddon] 无法创建日志目录: " + e.getMessage());
@@ -258,9 +258,9 @@ public class FileLogger {
     public static void setFileLoggingEnabled(boolean enabled) {
         fileLoggingEnabled = enabled;
         if (enabled) {
-            ModuleLogger.info(LogConfigManager.MODULE_MAIN, "[文件日志] 文件日志输出已启用");
+            ModuleLogger.info(LogModuleConfig.MODULE_MAIN, "[文件日志] 文件日志输出已启用");
         } else {
-            ModuleLogger.info(LogConfigManager.MODULE_MAIN, "[文件日志] 文件日志输出已禁用");
+            ModuleLogger.info(LogModuleConfig.MODULE_MAIN, "[文件日志] 文件日志输出已禁用");
         }
     }
 
@@ -277,9 +277,9 @@ public class FileLogger {
     public static void setSeparateModuleFiles(boolean separate) {
         separateModuleFiles = separate;
         if (separate) {
-            ModuleLogger.info(LogConfigManager.MODULE_MAIN, "[文件日志] 已启用按模块分离的日志文件");
+            ModuleLogger.info(LogModuleConfig.MODULE_MAIN, "[文件日志] 已启用按模块分离的日志文件");
         } else {
-            ModuleLogger.info(LogConfigManager.MODULE_MAIN, "[文件日志] 已禁用按模块分离的日志文件");
+            ModuleLogger.info(LogModuleConfig.MODULE_MAIN, "[文件日志] 已禁用按模块分离的日志文件");
         }
     }
 
@@ -304,7 +304,7 @@ public class FileLogger {
             }
         }
         fileWriters.clear();
-        ModuleLogger.info(LogConfigManager.MODULE_MAIN, "[文件日志] 所有日志文件已关闭");
+        ModuleLogger.info(LogModuleConfig.MODULE_MAIN, "[文件日志] 所有日志文件已关闭");
     }
 
     /**

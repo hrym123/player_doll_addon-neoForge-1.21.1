@@ -17,7 +17,7 @@ import java.util.Map;
  * <p>使用示例：</p>
  * <pre>{@code
  * // 1. 使用 LogModuleConfig 中定义的模块常量
- * private static final String LOG_MODULE_ENTITY = LogConfigManager.MODULE_ENTITY;
+ * private static final String LOG_MODULE_ENTITY = LogModuleConfig.MODULE_ENTITY;
  * 
  * // 2. 获取日志对象
  * private static final Logger LOGGER = ModuleLogger.getLogger(LOG_MODULE_ENTITY);
@@ -29,16 +29,14 @@ import java.util.Map;
  * ModuleLogger.error(LOG_MODULE_ENTITY, "错误: {}", exception);
  * 
  * // 4. 控制日志级别（必须通过 LogConfigManager）
- * LogConfigManager.setModuleLevel("entity.pose", LogLevel.DEBUG);  // 设置为debug级别，输出所有日志
- * LogConfigManager.setModuleLevel("entity.pose", LogLevel.INFO);  // 设置为info级别，输出info及以上
- * LogConfigManager.setModuleLevel("entity.pose", LogLevel.WARN);  // 设置为warn级别，只输出warn和error
- * LogConfigManager.setModuleLevel("entity.pose", LogLevel.ERROR);  // 设置为error级别，只输出error
- * LogConfigManager.setModuleLevel("entity.pose", LogLevel.OFF);   // 设置为off级别，不输出任何日志
+ * // 注意：配置已写死，无法在运行时修改
+ * // 日志级别在 LogModuleConfig 中定义，编译时确定
  *
  * // 5. 全局控制（必须通过 LogConfigManager）
- * LogConfigManager.setGlobalLevel(LogLevel.WARN);  // 设置所有模块为WARN级别
- * LogConfigManager.disableAll();                    // 一键禁用所有模块日志
- * LogConfigManager.enableAll();                     // 一键启用所有模块日志（恢复到默认级别）
+ * // 全局日志级别同样写死，无法修改
+ * // 注意：配置已写死，无法在运行时修改
+ * // LogConfigManager.disableAll();                 // 已移除，无法禁用所有日志
+ * // LogConfigManager.enableAll();                  // 已移除，无法启用所有日志
  * }</pre>
  * 
  * <p>模块命名建议：</p>
@@ -181,7 +179,7 @@ public class ModuleLogger {
      */
     public static void configureLogLevelsForDebugModules(String... debugModules) {
         Map<String, LogLevel> moduleLevels = new HashMap<>();
-        
+
         // 为指定的调试模块设置DEBUG级别
         for (String module : debugModules) {
             moduleLevels.put(module, LogLevel.DEBUG);
@@ -190,16 +188,8 @@ public class ModuleLogger {
         // 设置根日志级别为WARN
         configureFrameworkLogLevels(LogLevel.WARN, moduleLevels);
 
-        // 同时更新ModuleLogger的模块级别（通过 LogConfigManager）
-        for (String module : debugModules) {
-            LogConfigManager.setModuleLevel(module, LogLevel.DEBUG);
-        }
-        // 设置全局级别为 WARN（通过 LogConfigManager）
-        for (String moduleName : loggers.keySet()) {
-            if (!java.util.Arrays.asList(debugModules).contains(moduleName)) {
-                LogConfigManager.setModuleLevel(moduleName, LogLevel.WARN);
-            }
-        }
+        // 注意：ModuleLogger 的模块级别现在是写死的，无法在运行时修改
+        // 这些调用被移除，因为配置在 LogModuleConfig 中已写死
     }
     
     /**
@@ -213,7 +203,7 @@ public class ModuleLogger {
             loggers.put(moduleName, logger);
             // 优先从 LogConfigManager 读取配置，如果未配置则使用默认级别
             if (!moduleLevels.containsKey(moduleName)) {
-                LogLevel configLevel = LogConfigManager.getModuleLevel(moduleName);
+                LogLevel configLevel = LogModuleConfig.getModuleLevel(moduleName);
                 moduleLevels.put(moduleName, configLevel);
             }
             // 兼容旧版本
@@ -236,8 +226,8 @@ public class ModuleLogger {
         if (moduleLevels.containsKey(moduleName)) {
             return moduleLevels.get(moduleName);
         }
-        // 否则从 LogConfigManager 读取
-        return LogConfigManager.getModuleLevel(moduleName);
+        // 否则从 LogModuleConfig 读取默认配置
+        return LogModuleConfig.getModuleLevel(moduleName);
     }
     
     /**
@@ -257,17 +247,17 @@ public class ModuleLogger {
     
     /**
      * 设置指定模块的日志级别
-     * 
-     * @deprecated 请使用 {@link LogModuleConfig#setModuleLevel(String, LogLevel)} 来修改日志级别。
-     *             所有日志级别的修改都应该通过 LogModuleConfig 进行。
-     * 
+     *
+     * @deprecated 配置已写死，无法在运行时修改。
+     *             所有日志级别都在 LogModuleConfig 中定义，编译时确定。
+     *
      * @param moduleName 模块名称
      * @param level 日志级别
      */
     @Deprecated
     public static void setModuleLevel(String moduleName, LogLevel level) {
-        // 重定向到 LogConfigManager
-        LogConfigManager.setModuleLevel(moduleName, level);
+        // 配置已写死，无法修改
+        throw new UnsupportedOperationException("日志级别配置已写死，无法在运行时修改");
     }
     
     /**
@@ -325,17 +315,17 @@ public class ModuleLogger {
     
     /**
      * 设置指定模块的日志开关（兼容旧版本）
-     * 
-     * @deprecated 请使用 {@link LogModuleConfig#setModuleLevel(String, LogLevel)} 来修改日志级别。
-     *             所有日志级别的修改都应该通过 LogModuleConfig 进行。
-     * 
+     *
+     * @deprecated 配置已写死，无法在运行时修改。
+     *             所有日志级别都在 LogModuleConfig 中定义，编译时确定。
+     *
      * @param moduleName 模块名称
      * @param enabled 是否启用
      */
     @Deprecated
     public static void setModuleEnabled(String moduleName, boolean enabled) {
-        // 重定向到 LogConfigManager
-        LogConfigManager.setModuleLevel(moduleName, enabled ? LogLevel.INFO : LogLevel.OFF);
+        // 配置已写死，无法修改
+        throw new UnsupportedOperationException("日志级别配置已写死，无法在运行时修改");
     }
     
     /**
@@ -398,16 +388,16 @@ public class ModuleLogger {
     
     /**
      * 设置全局日志级别（为所有模块设置相同的级别）
-     * 
-     * @deprecated 请使用 {@link LogModuleConfig} 来修改日志配置。
-     *             所有日志级别的修改都应该通过 LogModuleConfig 进行。
-     * 
+     *
+     * @deprecated 配置已写死，无法在运行时修改。
+     *             所有日志级别都在 LogModuleConfig 中定义，编译时确定。
+     *
      * @param level 日志级别
      */
     @Deprecated
     public static void setGlobalLevel(LogLevel level) {
-        // 重定向到 LogConfigManager
-        LogConfigManager.setGlobalLevel(level);
+        // 配置已写死，无法修改
+        throw new UnsupportedOperationException("日志级别配置已写死，无法在运行时修改");
     }
     
     /**
