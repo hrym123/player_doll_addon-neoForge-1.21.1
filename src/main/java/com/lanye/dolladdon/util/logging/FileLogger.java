@@ -6,7 +6,10 @@ import net.fabricmc.loader.api.FabricLoader;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
+import java.nio.charset.StandardCharsets;
+import java.io.FileOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -39,6 +42,7 @@ public class FileLogger {
     // 日期格式
     private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd");
     private static final SimpleDateFormat TIME_FORMAT = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
+    private static final SimpleDateFormat DATETIME_FORMAT = new SimpleDateFormat("yyyy-MM-dd-HH-mm-ss");
 
     // 文件写入器缓存
     private static final ConcurrentMap<String, FileWriterInfo> fileWriters = new ConcurrentHashMap<>();
@@ -47,6 +51,9 @@ public class FileLogger {
     private static boolean fileLoggingEnabled = true;
     private static boolean separateModuleFiles = false; // 是否为每个模块创建单独的文件
     private static Path logDirectory;
+
+    // 当前会话的主日志文件名（启动时确定）
+    private static String currentSessionLogFileName;
 
     static {
         initializeLogDirectory();
@@ -64,6 +71,9 @@ public class FileLogger {
             if (!Files.exists(logDirectory)) {
                 Files.createDirectories(logDirectory);
                 ModuleLogger.info(LogModuleConfig.MODULE_MAIN, "[文件日志] 创建日志目录: {}", logDirectory);
+            } else {
+                // 清理旧的日志文件，只保留最新的5个
+                cleanupOldLogFiles();
             }
         } catch (Exception e) {
             System.err.println("[PlayerDollAddon] 无法创建日志目录: " + e.getMessage());
@@ -100,11 +110,17 @@ public class FileLogger {
      * 获取日志文件名
      */
     private static String getLogFileName(String moduleName) {
-        String dateStr = DATE_FORMAT.format(new Date());
+        // 如果是模块分离模式且指定了模块名，则为每个模块创建独立文件
         if (separateModuleFiles && moduleName != null && !moduleName.isEmpty()) {
-            return MOD_LOG_PREFIX + "-" + moduleName.replace(".", "_") + "-" + dateStr + ".log";
+            String datetimeStr = DATETIME_FORMAT.format(new Date());
+            return MOD_LOG_PREFIX + "-" + moduleName.replace(".", "_") + "-" + datetimeStr + ".log";
         } else {
-            return MOD_LOG_PREFIX + "-" + dateStr + ".log";
+            // 主日志文件使用会话固定的文件名
+            if (currentSessionLogFileName == null) {
+                String datetimeStr = DATETIME_FORMAT.format(new Date());
+                currentSessionLogFileName = MOD_LOG_PREFIX + "-" + datetimeStr + ".log";
+            }
+            return currentSessionLogFileName;
         }
     }
 
@@ -116,7 +132,7 @@ public class FileLogger {
         return fileWriters.computeIfAbsent(fileName, key -> {
             try {
                 Path logFile = logDirectory.resolve(key);
-                PrintWriter writer = new PrintWriter(new FileWriter(logFile.toFile(), true), true);
+                PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(logFile.toFile(), true), StandardCharsets.UTF_8), true);
                 return new FileWriterInfo(writer, logFile);
             } catch (IOException e) {
                 System.err.println("[PlayerDollAddon] 无法创建日志文件写入器: " + e.getMessage());
@@ -180,7 +196,7 @@ public class FileLogger {
             Files.move(writerInfo.filePath, backupFile);
 
             // 创建新的日志文件
-            PrintWriter newWriter = new PrintWriter(new FileWriter(writerInfo.filePath.toFile(), false), true);
+            PrintWriter newWriter = new PrintWriter(new OutputStreamWriter(new FileOutputStream(writerInfo.filePath.toFile(), false), StandardCharsets.UTF_8), true);
             writerInfo.writer = newWriter;
 
             writeHeader(writerInfo.writer, writerInfo.filePath.getFileName().toString());
@@ -304,6 +320,8 @@ public class FileLogger {
             }
         }
         fileWriters.clear();
+        // 重置会话文件名，为下次启动做准备
+        currentSessionLogFileName = null;
         ModuleLogger.info(LogModuleConfig.MODULE_MAIN, "[文件日志] 所有日志文件已关闭");
     }
 
@@ -312,5 +330,52 @@ public class FileLogger {
      */
     public static String[] getActiveLogFiles() {
         return fileWriters.keySet().toArray(new String[0]);
+    }
+
+    /**
+     * 清理旧的日志文件，只保留最新的5个
+     */
+    private static void cleanupOldLogFiles() {
+        try {
+            if (!Files.exists(logDirectory)) {
+                return;
+            }
+
+            // 获取所有日志文件
+            java.util.List<Path> logFiles = Files.list(logDirectory)
+                    .filter(Files::isRegularFile)
+                    .filter(path -> path.getFileName().toString().startsWith(MOD_LOG_PREFIX + "-"))
+                    .filter(path -> path.getFileName().toString().endsWith(".log"))
+                    .sorted((a, b) -> {
+                        try {
+                            // 按修改时间倒序排序（最新的在前面）
+                            return Long.compare(Files.getLastModifiedTime(b).toMillis(),
+                                              Files.getLastModifiedTime(a).toMillis());
+                        } catch (Exception e) {
+                            return 0;
+                        }
+                    })
+                    .collect(java.util.stream.Collectors.toList());
+
+            // 如果文件数量超过5个，删除旧的
+            if (logFiles.size() > MAX_BACKUP_FILES) {
+                for (int i = MAX_BACKUP_FILES; i < logFiles.size(); i++) {
+                    try {
+                        Files.delete(logFiles.get(i));
+                        ModuleLogger.debug(LogModuleConfig.MODULE_MAIN,
+                            "[文件日志] 删除旧日志文件: {}", logFiles.get(i).getFileName());
+                    } catch (Exception e) {
+                        ModuleLogger.warn(LogModuleConfig.MODULE_MAIN,
+                            "[文件日志] 无法删除旧日志文件 {}: {}", logFiles.get(i).getFileName(), e.getMessage());
+                    }
+                }
+                ModuleLogger.info(LogModuleConfig.MODULE_MAIN,
+                    "[文件日志] 日志文件清理完成，保留最新的 {} 个文件", MAX_BACKUP_FILES);
+            }
+
+        } catch (Exception e) {
+            ModuleLogger.warn(LogModuleConfig.MODULE_MAIN,
+                "[文件日志] 清理旧日志文件时出错: {}", e.getMessage());
+        }
     }
 }

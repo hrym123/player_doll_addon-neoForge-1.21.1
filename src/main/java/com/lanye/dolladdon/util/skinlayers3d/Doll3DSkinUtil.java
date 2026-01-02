@@ -1,13 +1,12 @@
 package com.lanye.dolladdon.util.skinlayers3d;
 
-import com.lanye.dolladdon.PlayerDollAddon;
 import com.lanye.dolladdon.PlayerDollAddonClient;
+import com.lanye.dolladdon.util.logging.ModuleLogger;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.texture.NativeImage;
 import net.minecraft.resource.Resource;
 import net.minecraft.util.Identifier;
 
-import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -17,9 +16,12 @@ import java.util.concurrent.ConcurrentHashMap;
  * 通过反射调用3D皮肤层mod的API来创建3D网格
  */
 public class Doll3DSkinUtil {
+    // 日志模块名称
+    private static final String LOG_MODULE = "3d_skin_layers";
+
     // 缓存已创建的3D皮肤数据
     private static final ConcurrentHashMap<CacheKey, Doll3DSkinData> CACHE = new ConcurrentHashMap<>();
-    
+
     // 反射相关的类和对象（延迟初始化）
     private static Class<?> meshHelperClass;
     private static Class<?> meshClass;
@@ -28,32 +30,21 @@ public class Doll3DSkinUtil {
     private static Method create3DMeshMethod;
     private static boolean initialized = false;
     private static boolean available = false;
-    
+
     /**
-     * 缓存键
-     */
-    private static class CacheKey {
-        private final Identifier skinLocation;
-        private final boolean thinArms;
-        
-        public CacheKey(Identifier skinLocation, boolean thinArms) {
-            this.skinLocation = skinLocation;
-            this.thinArms = thinArms;
-        }
-        
+         * 缓存键
+         */
+        private record CacheKey(Identifier skinLocation, boolean thinArms) {
+
         @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-            CacheKey cacheKey = (CacheKey) o;
-            return thinArms == cacheKey.thinArms && 
-                   skinLocation.equals(cacheKey.skinLocation);
-        }
-        
-        @Override
-        public int hashCode() {
-            return skinLocation.hashCode() * 31 + (thinArms ? 1 : 0);
-        }
+            public boolean equals(Object o) {
+                if (this == o) return true;
+                if (o == null || getClass() != o.getClass()) return false;
+                CacheKey cacheKey = (CacheKey) o;
+                return thinArms == cacheKey.thinArms &&
+                        skinLocation.equals(cacheKey.skinLocation);
+            }
+
     }
     
     /**
@@ -61,81 +52,104 @@ public class Doll3DSkinUtil {
      */
     private static boolean initialize() {
         if (initialized) {
-            SkinLayersLogger.debug("已初始化，可用状态: {}", available);
+            ModuleLogger.debug(LOG_MODULE, "已初始化，可用状态: {}", available);
             return available;
         }
         
         initialized = true;
         
         if (!PlayerDollAddonClient.IS_3D_SKIN_LAYERS_LOADED) {
-            SkinLayersLogger.warn("mod未加载，无法初始化");
+            ModuleLogger.warn(LOG_MODULE, "mod未加载，无法初始化");
             return false;
         }
         
-        SkinLayersLogger.info("开始初始化API反射...");
+        ModuleLogger.info(LOG_MODULE, "开始初始化API反射...");
         
         try {
             // 获取SkinLayersAPI类
-            SkinLayersLogger.debug("正在加载SkinLayersAPI类...");
+            ModuleLogger.debug(LOG_MODULE, "正在加载SkinLayersAPI类...");
             Class<?> apiClass = Class.forName("dev.tr7zw.skinlayers.api.SkinLayersAPI");
-            SkinLayersLogger.debug("✓ SkinLayersAPI类加载成功");
+            ModuleLogger.debug(LOG_MODULE, "✓ SkinLayersAPI类加载成功");
             
             // 获取getMeshHelper方法
-            SkinLayersLogger.debug("正在获取getMeshHelper方法...");
+            ModuleLogger.debug(LOG_MODULE, "正在获取getMeshHelper方法...");
             Method getMeshHelperMethod = apiClass.getMethod("getMeshHelper");
+            getMeshHelperMethod.setAccessible(true); // 绕过访问控制
             meshHelper = getMeshHelperMethod.invoke(null);
             
             if (meshHelper == null) {
-                SkinLayersLogger.error("✗ 无法获取MeshHelper实例（返回null）");
+                ModuleLogger.error(LOG_MODULE, "✗ 无法获取MeshHelper实例（返回null）");
                 return false;
             }
-            SkinLayersLogger.debug("✓ MeshHelper实例获取成功: {}", meshHelper.getClass().getName());
+            ModuleLogger.debug(LOG_MODULE, "✓ MeshHelper实例获取成功: {}", meshHelper.getClass().getName());
             
             // 获取MeshHelper类
             meshHelperClass = meshHelper.getClass();
             
             // 获取create3DMesh方法
-            // 方法签名：create3DMesh(NativeImage, int, int, int, int, int, boolean, float)
-            SkinLayersLogger.debug("正在获取create3DMesh方法...");
-            create3DMeshMethod = meshHelperClass.getMethod("create3DMesh",
-                    NativeImage.class, int.class, int.class, int.class,
-                    int.class, int.class, boolean.class, float.class);
-            SkinLayersLogger.debug("✓ create3DMesh方法获取成功");
+            // 尝试8参数版本（兼容旧版本）
+            ModuleLogger.debug(LOG_MODULE, "正在获取create3DMesh方法...");
+            try {
+                create3DMeshMethod = meshHelperClass.getMethod("create3DMesh",
+                        NativeImage.class, int.class, int.class, int.class,
+                        int.class, int.class, boolean.class, float.class);
+                // 绕过访问控制，允许调用私有内部类的方法
+                create3DMeshMethod.setAccessible(true);
+                ModuleLogger.debug(LOG_MODULE, "✓ 获取到8参数版本的create3DMesh方法");
+            } catch (NoSuchMethodException e) {
+                // 尝试9参数版本（新版本）
+                ModuleLogger.debug(LOG_MODULE, "8参数版本不存在，尝试9参数版本...");
+                create3DMeshMethod = meshHelperClass.getMethod("create3DMesh",
+                        NativeImage.class, int.class, int.class, int.class,
+                        int.class, int.class, boolean.class, float.class, boolean.class);
+                // 绕过访问控制，允许调用私有内部类的方法
+                create3DMeshMethod.setAccessible(true);
+                ModuleLogger.debug(LOG_MODULE, "✓ 获取到9参数版本的create3DMesh方法");
+            }
             
             // 获取Mesh接口类
-            SkinLayersLogger.debug("正在加载Mesh接口类...");
+            ModuleLogger.debug(LOG_MODULE, "正在加载Mesh接口类...");
             meshClass = Class.forName("dev.tr7zw.skinlayers.api.Mesh");
-            SkinLayersLogger.debug("✓ Mesh接口类加载成功");
+            ModuleLogger.debug(LOG_MODULE, "✓ Mesh接口类加载成功");
+
+            // 推迟API可用性测试到第一次实际使用时进行
+            // 避免在mod初始化阶段测试，此时3D皮肤层mod的配置可能还未完全初始化
+            // 这解决了 ModBase.config 为 null 的问题
+            ModuleLogger.debug(LOG_MODULE, "跳过初始化阶段的API测试，将在首次使用时进行完整测试");
+            ModuleLogger.info(LOG_MODULE, "✓ 基础API反射初始化成功，将启用3D皮肤层功能");
+            available = true;
             
             // 获取OffsetProvider类（注意：这是一个接口，不是具体的类）
-            SkinLayersLogger.debug("正在加载OffsetProvider接口...");
+            ModuleLogger.debug(LOG_MODULE, "正在加载OffsetProvider接口...");
             try {
                 offsetProviderClass = Class.forName("dev.tr7zw.skinlayers.api.OffsetProvider");
-                SkinLayersLogger.debug("✓ OffsetProvider接口加载成功");
+                ModuleLogger.debug(LOG_MODULE, "✓ OffsetProvider接口加载成功");
             } catch (ClassNotFoundException e) {
-                SkinLayersLogger.warn("⚠ OffsetProvider接口不存在，某些高级功能将被禁用");
-                SkinLayersLogger.warn("  这不会影响基本的3D网格创建，但可能影响位置偏移功能");
+                ModuleLogger.warn(LOG_MODULE, "⚠ OffsetProvider接口不存在，某些高级功能将被禁用");
+                ModuleLogger.warn(LOG_MODULE, "  这不会影响基本的3D网格创建，但可能影响位置偏移功能");
                 offsetProviderClass = null; // 标记为不可用
             }
 
             available = true;
-            SkinLayersLogger.info("✓ 成功初始化3D皮肤层API反射（OffsetProvider: {}）",
+            ModuleLogger.info(LOG_MODULE, "✓ 成功初始化3D皮肤层API反射（OffsetProvider: {}）",
                 offsetProviderClass != null ? "可用" : "不可用");
             return true;
             
         } catch (ClassNotFoundException e) {
-            SkinLayersLogger.error("✗ 类未找到: {} - 请检查3D皮肤层mod版本是否正确", e.getMessage());
-            SkinLayersLogger.error("   期望的API包结构: dev.tr7zw.skinlayers.api.*");
-            SkinLayersLogger.error("   可能的原因: 1) mod版本不匹配 2) API已更改 3) mod未正确加载");
-            SkinLayersLogger.error("   当前安装的mod: skinlayers3d-fabric-1.6.5-mc1.20.1.jar");
+            ModuleLogger.error(LOG_MODULE, "✗ 类未找到: {} - 请检查3D皮肤层mod版本是否正确", e.getMessage());
+            ModuleLogger.error(LOG_MODULE, "   期望的API包结构: dev.tr7zw.skinlayers.api.*");
+            ModuleLogger.error(LOG_MODULE, "   可能的原因: 1) mod版本不匹配 2) API已更改 3) mod未正确加载");
+            ModuleLogger.error(LOG_MODULE, "   建议的兼容版本: skinlayers3d-fabric-1.6.x (for MC 1.20.1)");
+            ModuleLogger.error(LOG_MODULE, "   当前支持的方法签名: 8参数和9参数版本");
+            ModuleLogger.error(LOG_MODULE, "   如果问题持续，请检查mod版本或报告给开发者");
             available = false;
             return false;
         } catch (NoSuchMethodException e) {
-            SkinLayersLogger.error("✗ 方法未找到: {}", e.getMessage());
+            ModuleLogger.error(LOG_MODULE, "✗ 方法未找到: {}", e.getMessage());
             available = false;
             return false;
         } catch (Exception e) {
-            SkinLayersLogger.error("✗ 初始化3D皮肤层API反射失败", e);
+            ModuleLogger.error(LOG_MODULE, "✗ 初始化3D皮肤层API反射失败", e);
             available = false;
             return false;
         }
@@ -146,14 +160,22 @@ public class Doll3DSkinUtil {
      */
     public static boolean isAvailable() {
         if (!PlayerDollAddonClient.IS_3D_SKIN_LAYERS_LOADED) {
+            ModuleLogger.debug(LOG_MODULE, "3D皮肤层mod未加载");
             return false;
         }
-        return initialize() && available;
+
+        if (!initialize()) {
+            ModuleLogger.debug(LOG_MODULE, "3D皮肤层API初始化失败");
+            return false;
+        }
+
+        ModuleLogger.debug(LOG_MODULE, "3D皮肤层API状态: {}", available ? "可用" : "不可用");
+        return available;
     }
     
     /**
      * 从皮肤纹理创建3D网格
-     * 
+     *
      * @param skin 皮肤纹理图像（必须是64x64）
      * @param width 宽度
      * @param height 高度
@@ -167,23 +189,41 @@ public class Doll3DSkinUtil {
     private static Object create3DMesh(NativeImage skin, int width, int height, int depth,
                                        int textureU, int textureV, boolean topPivot, float rotationOffset) {
         if (!isAvailable()) {
-            SkinLayersLogger.debug("API不可用，无法创建3D网格");
+            ModuleLogger.debug(LOG_MODULE, "API不可用，无法创建3D网格");
             return null;
         }
-        
+
         try {
-            SkinLayersLogger.debug("正在创建3D网格: {}x{}x{}, UV({},{}), topPivot={}, rotationOffset={}",
+            ModuleLogger.debug(LOG_MODULE, "正在创建3D网格: {}x{}x{}, UV({},{}), topPivot={}, rotationOffset={}",
                     width, height, depth, textureU, textureV, topPivot, rotationOffset);
-            Object mesh = create3DMeshMethod.invoke(meshHelper, skin, width, height, depth,
-                    textureU, textureV, topPivot, rotationOffset);
-            if (mesh == null) {
-                SkinLayersLogger.warn("create3DMesh返回null");
+
+            Object mesh;
+            if (create3DMeshMethod.getParameterCount() == 8) {
+                // 8参数版本
+                mesh = create3DMeshMethod.invoke(meshHelper, skin, width, height, depth,
+                        textureU, textureV, topPivot, rotationOffset);
             } else {
-                SkinLayersLogger.debug("✓ 3D网格创建成功: {}", mesh.getClass().getName());
+                // 9参数版本，加上mirror参数（默认为false）
+                mesh = create3DMeshMethod.invoke(meshHelper, skin, width, height, depth,
+                        textureU, textureV, topPivot, rotationOffset, false);
+            }
+
+            if (mesh == null) {
+                ModuleLogger.warn(LOG_MODULE, "create3DMesh返回null");
+            } else {
+                ModuleLogger.debug(LOG_MODULE, "✓ 3D网格创建成功: {}", mesh.getClass().getName());
             }
             return mesh;
         } catch (Exception e) {
-            SkinLayersLogger.error("✗ 创建3D网格失败", e);
+            ModuleLogger.error(LOG_MODULE, "✗ 创建3D网格失败", e);
+
+            // 检查是否是配置相关的问题，如果是则标记API不可用
+            String errorMessage = e.getMessage();
+            if (errorMessage != null && errorMessage.contains("ModBase.config") && errorMessage.contains("null")) {
+                ModuleLogger.error(LOG_MODULE, "检测到3D皮肤层配置问题，自动禁用API可用性");
+                available = false; // 标记API不可用，避免后续尝试
+            }
+
             return null;
         }
     }
@@ -192,35 +232,35 @@ public class Doll3DSkinUtil {
      * 从资源位置加载皮肤纹理
      */
     private static NativeImage loadSkinTexture(Identifier skinLocation) {
-        SkinLayersLogger.debug("正在加载皮肤纹理: {}", skinLocation);
+        ModuleLogger.debug(LOG_MODULE, "正在加载皮肤纹理: {}", skinLocation);
         try {
             Optional<Resource> resource = MinecraftClient.getInstance()
                     .getResourceManager().getResource(skinLocation);
             
             if (resource.isPresent()) {
-                SkinLayersLogger.debug("✓ 资源找到，正在读取...");
+                ModuleLogger.debug(LOG_MODULE, "✓ 资源找到，正在读取...");
                 // 在1.20.1中，Resource使用getInputStream()方法
                 NativeImage skin = NativeImage.read(resource.get().getInputStream());
                 
                 int width = skin.getWidth();
                 int height = skin.getHeight();
-                SkinLayersLogger.debug("皮肤尺寸: {}x{}", width, height);
+                ModuleLogger.debug(LOG_MODULE, "皮肤尺寸: {}x{}", width, height);
                 
                 // 检查是否为64x64皮肤（3D皮肤层只支持64x64）
                 if (width == 64 && height == 64) {
-                    SkinLayersLogger.debug("✓ 皮肤尺寸符合要求（64x64）");
+                    ModuleLogger.debug(LOG_MODULE, "✓ 皮肤尺寸符合要求（64x64）");
                     return skin;
                 } else {
-                    SkinLayersLogger.warn("✗ 皮肤 {} 不是64x64（实际: {}x{}），无法使用3D渲染", 
+                    ModuleLogger.warn(LOG_MODULE, "✗ 皮肤 {} 不是64x64（实际: {}x{}），无法使用3D渲染", 
                             skinLocation, width, height);
                     skin.close();
                     return null;
                 }
             } else {
-                SkinLayersLogger.warn("✗ 资源未找到: {}", skinLocation);
+                ModuleLogger.warn(LOG_MODULE, "✗ 资源未找到: {}", skinLocation);
             }
         } catch (Exception e) {
-            SkinLayersLogger.error("✗ 加载皮肤纹理失败: {}", skinLocation, e);
+            ModuleLogger.error(LOG_MODULE, "✗ 加载皮肤纹理失败: {}", skinLocation, e);
         }
         
         return null;
@@ -234,10 +274,10 @@ public class Doll3DSkinUtil {
      * @return Doll3DSkinData对象，如果失败返回null
      */
     public static Doll3DSkinData setup3dLayers(Identifier skinLocation, boolean thinArms) {
-        SkinLayersLogger.info("开始设置3D皮肤层: {}, thinArms={}", skinLocation, thinArms);
+        ModuleLogger.info(LOG_MODULE, "开始设置3D皮肤层: {}, thinArms={}", skinLocation, thinArms);
         
         if (!isAvailable()) {
-            SkinLayersLogger.warn("✗ API不可用，无法设置3D皮肤层");
+            ModuleLogger.warn(LOG_MODULE, "✗ API不可用，无法设置3D皮肤层");
             return null;
         }
         
@@ -247,41 +287,41 @@ public class Doll3DSkinUtil {
         if (cached != null && cached.getCurrentSkin() != null && 
             cached.getCurrentSkin().equals(skinLocation) && 
             cached.isThinArms() == thinArms) {
-            SkinLayersLogger.debug("✓ 使用缓存的3D皮肤数据");
+            ModuleLogger.debug(LOG_MODULE, "✓ 使用缓存的3D皮肤数据");
             return cached;
         }
         
         // 加载皮肤纹理
-        SkinLayersLogger.debug("加载皮肤纹理...");
+        ModuleLogger.debug(LOG_MODULE, "加载皮肤纹理...");
         NativeImage skin = loadSkinTexture(skinLocation);
         if (skin == null) {
-            SkinLayersLogger.warn("✗ 无法加载皮肤纹理，设置失败");
+            ModuleLogger.warn(LOG_MODULE, "✗ 无法加载皮肤纹理，设置失败");
             return null;
         }
         
         try {
-            SkinLayersLogger.debug("开始创建3D网格...");
+            ModuleLogger.debug(LOG_MODULE, "开始创建3D网格...");
             Doll3DSkinData data = new Doll3DSkinData();
             
             // 创建各个部位的3D网格（参考SkinUtil.setup3dLayers的实现）
-            SkinLayersLogger.debug("创建左腿网格...");
+            ModuleLogger.debug(LOG_MODULE, "创建左腿网格...");
             Object leftLegMesh = create3DMesh(skin, 4, 12, 4, 0, 48, true, 0f);
             data.setLeftLegMesh(leftLegMesh);
             
-            SkinLayersLogger.debug("创建右腿网格...");
+            ModuleLogger.debug(LOG_MODULE, "创建右腿网格...");
             Object rightLegMesh = create3DMesh(skin, 4, 12, 4, 0, 32, true, 0f);
             data.setRightLegMesh(rightLegMesh);
             
             // 手臂（根据thinArms选择不同的宽度）
             if (thinArms) {
-                SkinLayersLogger.debug("创建细手臂网格...");
+                ModuleLogger.debug(LOG_MODULE, "创建细手臂网格...");
                 // 细手臂：宽度3
                 Object leftArmMesh = create3DMesh(skin, 3, 12, 4, 48, 48, true, -2f);
                 Object rightArmMesh = create3DMesh(skin, 3, 12, 4, 40, 32, true, -2f);
                 data.setLeftArmMesh(leftArmMesh);
                 data.setRightArmMesh(rightArmMesh);
             } else {
-                SkinLayersLogger.debug("创建粗手臂网格...");
+                ModuleLogger.debug(LOG_MODULE, "创建粗手臂网格...");
                 // 粗手臂：宽度4
                 Object leftArmMesh = create3DMesh(skin, 4, 12, 4, 48, 48, true, -2f);
                 Object rightArmMesh = create3DMesh(skin, 4, 12, 4, 40, 32, true, -2f);
@@ -289,11 +329,11 @@ public class Doll3DSkinUtil {
                 data.setRightArmMesh(rightArmMesh);
             }
             
-            SkinLayersLogger.debug("创建身体网格...");
+            ModuleLogger.debug(LOG_MODULE, "创建身体网格...");
             Object torsoMesh = create3DMesh(skin, 8, 12, 4, 16, 32, true, 0);
             data.setTorsoMesh(torsoMesh);
             
-            SkinLayersLogger.debug("创建头部网格...");
+            ModuleLogger.debug(LOG_MODULE, "创建头部网格...");
             Object headMesh = create3DMesh(skin, 8, 8, 8, 32, 0, false, 0.6f);
             data.setHeadMesh(headMesh);
             
@@ -302,20 +342,20 @@ public class Doll3DSkinUtil {
             
             // 检查数据有效性
             if (data.hasValidData()) {
-                SkinLayersLogger.info("✓ 3D皮肤层设置成功，有效网格数: {}", 
+                ModuleLogger.info(LOG_MODULE, "✓ 3D皮肤层设置成功，有效网格数: {}", 
                         countValidMeshes(data));
             } else {
-                SkinLayersLogger.warn("✗ 3D皮肤层设置完成但无有效网格");
+                ModuleLogger.warn(LOG_MODULE, "✗ 3D皮肤层设置完成但无有效网格");
             }
             
             // 缓存结果
             CACHE.put(cacheKey, data);
-            SkinLayersLogger.debug("数据已缓存");
+            ModuleLogger.debug(LOG_MODULE, "数据已缓存");
             
             return data;
             
         } catch (Exception e) {
-            SkinLayersLogger.error("✗ 设置3D皮肤层失败: {}", skinLocation, e);
+            ModuleLogger.error(LOG_MODULE, "✗ 设置3D皮肤层失败: {}", skinLocation, e);
             return null;
         } finally {
             // 关闭NativeImage（如果不再需要）
@@ -346,17 +386,18 @@ public class Doll3DSkinUtil {
      */
     public static Object getOffsetProvider(String name) {
         if (!isAvailable() || offsetProviderClass == null) {
-            SkinLayersLogger.debug("OffsetProvider不可用，跳过: {}", name);
+            ModuleLogger.debug(LOG_MODULE, "OffsetProvider不可用，跳过: {}", name);
             return null;
         }
 
         try {
             java.lang.reflect.Field field = offsetProviderClass.getField(name);
+            field.setAccessible(true); // 绕过访问控制
             Object result = field.get(null);
-            SkinLayersLogger.debug("获取OffsetProvider成功: {} = {}", name, result);
+            ModuleLogger.debug(LOG_MODULE, "获取OffsetProvider成功: {} = {}", name, result);
             return result;
         } catch (Exception e) {
-            SkinLayersLogger.warn("获取OffsetProvider失败: {} - {}", name, e.getMessage());
+            ModuleLogger.warn(LOG_MODULE, "获取OffsetProvider失败: {} - {}", name, e.getMessage());
             return null;
         }
     }

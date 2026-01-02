@@ -27,7 +27,9 @@ import java.nio.file.Path;
 import java.util.Map;
 
 public class PlayerDollAddonClient implements ClientModInitializer {
-    
+    // 日志模块名称
+    private static final String LOG_MODULE = "3d_skin_layers";
+
     /**
      * 检测3D皮肤层mod是否已加载
      */
@@ -45,21 +47,21 @@ public class PlayerDollAddonClient implements ClientModInitializer {
         );
         
         // 输出3D皮肤层mod检测结果
-        com.lanye.dolladdon.util.skinlayers3d.SkinLayersLogger.info("========== 3D皮肤层兼容性检测 ==========");
+        ModuleLogger.info(LOG_MODULE, "========== 3D皮肤层兼容性检测 ==========");
         if (IS_3D_SKIN_LAYERS_LOADED) {
-            com.lanye.dolladdon.util.skinlayers3d.SkinLayersLogger.info("✓ 检测到3D皮肤层mod（skinlayers3d）");
-            com.lanye.dolladdon.util.skinlayers3d.SkinLayersLogger.info("正在初始化API...");
+            ModuleLogger.info(LOG_MODULE, "✓ 检测到3D皮肤层mod（skinlayers3d）");
+            ModuleLogger.info(LOG_MODULE, "正在初始化API...");
             // 尝试初始化API以验证是否可用
             boolean apiAvailable = com.lanye.dolladdon.util.skinlayers3d.Doll3DSkinUtil.isAvailable();
             if (apiAvailable) {
-                com.lanye.dolladdon.util.skinlayers3d.SkinLayersLogger.info("✓ API初始化成功，将启用3D皮肤渲染支持");
+                ModuleLogger.info(LOG_MODULE, "✓ API初始化成功，将启用3D皮肤渲染支持");
             } else {
-                com.lanye.dolladdon.util.skinlayers3d.SkinLayersLogger.warn("✗ API初始化失败，将使用默认2D渲染");
+                ModuleLogger.warn(LOG_MODULE, "✗ API初始化失败，将使用默认2D渲染");
             }
         } else {
-            com.lanye.dolladdon.util.skinlayers3d.SkinLayersLogger.info("未检测到3D皮肤层mod，使用默认2D渲染");
+            ModuleLogger.info(LOG_MODULE, "未检测到3D皮肤层mod，使用默认2D渲染");
         }
-        com.lanye.dolladdon.util.skinlayers3d.SkinLayersLogger.info("========================================");
+        ModuleLogger.info(LOG_MODULE, "========================================");
         // 注册动态资源包
         registerDynamicResourcePack();
         

@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 模块化日志管理器
@@ -64,6 +65,78 @@ public class ModuleLogger {
     
     // 默认日志级别（已关闭DEBUG级别，仅输出INFO及以上级别）
     private static final LogLevel DEFAULT_LEVEL = LogLevel.INFO;
+    
+    // ==================== 日志去重功能 ====================
+    
+    /**
+     * 日志去重信息
+     * 存储日志的去重相关信息
+     */
+    private static class DeduplicationInfo {
+        /** 首次输出的时间戳（毫秒） */
+        long firstLogTime;
+        /** 上次输出的时间戳（毫秒） */
+        long lastLogTime;
+        /** 重复次数（不包括首次输出） */
+        int repeatCount;
+        
+        DeduplicationInfo(long currentTime) {
+            this.firstLogTime = currentTime;
+            this.lastLogTime = currentTime;
+            this.repeatCount = 0;
+        }
+        
+        /**
+         * 增加重复计数
+         */
+        void incrementRepeat() {
+            repeatCount++;
+        }
+        
+        /**
+         * 更新最后输出时间
+         */
+        void updateLastLogTime(long currentTime) {
+            this.lastLogTime = currentTime;
+        }
+        
+        /**
+         * 计算输出频率（次/秒）
+         */
+        double getFrequency() {
+            long elapsed = lastLogTime - firstLogTime;
+            if (elapsed <= 0) {
+                return 0.0;
+            }
+            return (double)(repeatCount + 1) / (elapsed / 1000.0);
+        }
+    }
+    
+    /**
+     * 日志去重记录：存储已输出的日志消息和去重信息
+     * Key: 模块名 + "|" + 日志级别 + "|" + 格式化后的消息
+     * Value: 去重信息
+     */
+    private static final Map<String, DeduplicationInfo> deduplicationCache = new ConcurrentHashMap<>();
+    
+    /**
+     * 是否启用日志去重功能（默认启用）
+     */
+    private static boolean deduplicationEnabled = true;
+    
+    /**
+     * 日志去重时间窗口（毫秒）
+     * 相同的日志消息在此时间窗口内只会输出一次
+     * 默认值：5000毫秒（5秒）
+     */
+    private static long deduplicationWindowMs = 5000;
+    
+    /**
+     * ERROR级别日志的去重时间窗口（毫秒）
+     * ERROR级别使用更短的窗口，确保错误信息不会被过度抑制
+     * 默认值：1000毫秒（1秒）
+     */
+    private static long errorDeduplicationWindowMs = 1000;
     
     // 默认模块状态（可以在初始化时设置）
     static {
@@ -294,6 +367,164 @@ public class ModuleLogger {
     }
     
     /**
+     * 生成日志去重的键
+     * @param moduleName 模块名称
+     * @param level 日志级别
+     * @param message 日志消息（已格式化）
+     * @return 去重键
+     */
+    private static String generateDeduplicationKey(String moduleName, LogLevel level, String message) {
+        return moduleName + "|" + level.name() + "|" + message;
+    }
+    
+    /**
+     * 去重检查结果
+     */
+    private static class DeduplicationResult {
+        /** 是否应该输出日志 */
+        final boolean shouldLog;
+        /** 重复次数（如果没有重复则为0） */
+        final int repeatCount;
+        /** 输出频率（次/秒） */
+        final double frequency;
+        /** 格式化的重复信息（如果有重复） */
+        final String repeatInfo;
+        
+        DeduplicationResult(boolean shouldLog, int repeatCount, double frequency) {
+            this.shouldLog = shouldLog;
+            this.repeatCount = repeatCount;
+            this.frequency = frequency;
+            if (repeatCount > 0) {
+                this.repeatInfo = String.format(" [已重复 %d 次, %.2f 次/秒]", repeatCount, frequency);
+            } else {
+                this.repeatInfo = "";
+            }
+        }
+        
+        static DeduplicationResult skip() {
+            return new DeduplicationResult(false, 0, 0.0);
+        }
+        
+        static DeduplicationResult allow(int repeatCount, double frequency) {
+            return new DeduplicationResult(true, repeatCount, frequency);
+        }
+    }
+    
+    /**
+     * 检查日志是否应该输出（考虑去重）
+     * @param moduleName 模块名称
+     * @param level 日志级别
+     * @param message 日志消息（已格式化）
+     * @return 去重检查结果
+     */
+    private static DeduplicationResult checkDeduplication(String moduleName, LogLevel level, String message) {
+        if (!shouldLog(moduleName, level)) {
+            return DeduplicationResult.skip();
+        }
+        
+        // 如果去重功能未启用，直接返回允许输出
+        if (!deduplicationEnabled) {
+            return DeduplicationResult.allow(0, 0.0);
+        }
+        
+        // 生成去重键
+        String key = generateDeduplicationKey(moduleName, level, message);
+        
+        // 获取当前时间
+        long currentTime = System.currentTimeMillis();
+        
+        // 根据日志级别选择去重时间窗口
+        long windowMs = (level == LogLevel.ERROR) ? errorDeduplicationWindowMs : deduplicationWindowMs;
+        
+        // 检查是否已存在去重记录
+        DeduplicationInfo info = deduplicationCache.get(key);
+        
+        if (info != null) {
+            long timeSinceLastLog = currentTime - info.lastLogTime;
+            
+            if (timeSinceLastLog < windowMs) {
+                // 在去重窗口内，增加重复计数但不输出
+                info.incrementRepeat();
+                return DeduplicationResult.skip();
+            } else {
+                // 超过去重窗口，允许输出，并显示之前的重复信息
+                int repeatCount = info.repeatCount;
+                double frequency = info.getFrequency();
+                
+                // 重置去重信息（开始新的窗口）
+                info.firstLogTime = currentTime;
+                info.lastLogTime = currentTime;
+                info.repeatCount = 0;
+                
+                // 定期清理过期的去重缓存（避免内存泄漏）
+                // 每1000次调用清理一次（简单的概率清理）
+                if (deduplicationCache.size() > 1000 && System.currentTimeMillis() % 100 == 0) {
+                    cleanupDeduplicationCache(windowMs * 2); // 清理2倍窗口时间之前的记录
+                }
+                
+                return DeduplicationResult.allow(repeatCount, frequency);
+            }
+        } else {
+            // 首次出现，创建新的去重记录
+            deduplicationCache.put(key, new DeduplicationInfo(currentTime));
+            
+            // 定期清理过期的去重缓存
+            if (deduplicationCache.size() > 1000 && System.currentTimeMillis() % 100 == 0) {
+                cleanupDeduplicationCache(windowMs * 2);
+            }
+            
+            return DeduplicationResult.allow(0, 0.0);
+        }
+    }
+    
+    /**
+     * 清理过期的去重缓存
+     * @param maxAgeMs 最大保留时间（毫秒）
+     */
+    private static void cleanupDeduplicationCache(long maxAgeMs) {
+        long currentTime = System.currentTimeMillis();
+        deduplicationCache.entrySet().removeIf(entry -> {
+            DeduplicationInfo info = entry.getValue();
+            return (currentTime - info.lastLogTime) > maxAgeMs;
+        });
+    }
+    
+    /**
+     * 启用或禁用日志去重功能
+     * @param enabled 是否启用
+     */
+    public static void setDeduplicationEnabled(boolean enabled) {
+        deduplicationEnabled = enabled;
+        if (!enabled) {
+            // 禁用时清理缓存
+            deduplicationCache.clear();
+        }
+    }
+    
+    /**
+     * 设置日志去重时间窗口
+     * @param windowMs 时间窗口（毫秒）
+     */
+    public static void setDeduplicationWindow(long windowMs) {
+        deduplicationWindowMs = windowMs;
+    }
+    
+    /**
+     * 设置ERROR级别日志的去重时间窗口
+     * @param windowMs 时间窗口（毫秒）
+     */
+    public static void setErrorDeduplicationWindow(long windowMs) {
+        errorDeduplicationWindowMs = windowMs;
+    }
+    
+    /**
+     * 清除所有去重缓存（强制所有日志都能输出）
+     */
+    public static void clearDeduplicationCache() {
+        deduplicationCache.clear();
+    }
+    
+    /**
      * 检查指定模块的日志是否启用（兼容旧版本）
      * @param moduleName 模块名称
      * @return 如果全局开关和模块开关都启用，返回true
@@ -397,9 +628,11 @@ public class ModuleLogger {
      * @param message 日志消息
      */
     public static void debug(String moduleName, String message) {
-        if (shouldLog(moduleName, LogLevel.DEBUG)) {
-            getLogger(moduleName).debug(message);
-            FileLogger.log(moduleName, LogLevel.DEBUG, message);
+        DeduplicationResult result = checkDeduplication(moduleName, LogLevel.DEBUG, message);
+        if (result.shouldLog) {
+            String finalMessage = message + result.repeatInfo;
+            getLogger(moduleName).debug(finalMessage);
+            FileLogger.log(moduleName, LogLevel.DEBUG, finalMessage);
         }
     }
     
@@ -410,11 +643,19 @@ public class ModuleLogger {
      * @param args 参数
      */
     public static void debug(String moduleName, String message, Object... args) {
-        if (shouldLog(moduleName, LogLevel.DEBUG)) {
-            getLogger(moduleName).debug(message, args);
-            // 格式化消息用于文件输出
-            String formattedMessage = formatMessage(message, args);
-            FileLogger.log(moduleName, LogLevel.DEBUG, formattedMessage);
+        // 格式化消息用于去重检查
+        String formattedMessage = formatMessage(message, args);
+        DeduplicationResult result = checkDeduplication(moduleName, LogLevel.DEBUG, formattedMessage);
+        if (result.shouldLog) {
+            // 构建最终消息（包含重复信息）
+            String finalMessage = formattedMessage + result.repeatInfo;
+            // 如果消息包含参数占位符且没有重复，使用SLF4J的格式化；否则使用已格式化的消息
+            if (result.repeatInfo.isEmpty() && args != null && args.length > 0) {
+                getLogger(moduleName).debug(message, args);
+            } else {
+                getLogger(moduleName).debug(finalMessage);
+            }
+            FileLogger.log(moduleName, LogLevel.DEBUG, finalMessage);
         }
     }
     
@@ -424,9 +665,11 @@ public class ModuleLogger {
      * @param message 日志消息
      */
     public static void info(String moduleName, String message) {
-        if (shouldLog(moduleName, LogLevel.INFO)) {
-            getLogger(moduleName).info(message);
-            FileLogger.log(moduleName, LogLevel.INFO, message);
+        DeduplicationResult result = checkDeduplication(moduleName, LogLevel.INFO, message);
+        if (result.shouldLog) {
+            String finalMessage = message + result.repeatInfo;
+            getLogger(moduleName).info(finalMessage);
+            FileLogger.log(moduleName, LogLevel.INFO, finalMessage);
         }
     }
     
@@ -437,10 +680,17 @@ public class ModuleLogger {
      * @param args 参数
      */
     public static void info(String moduleName, String message, Object... args) {
-        if (shouldLog(moduleName, LogLevel.INFO)) {
-            getLogger(moduleName).info(message, args);
-            String formattedMessage = formatMessage(message, args);
-            FileLogger.log(moduleName, LogLevel.INFO, formattedMessage);
+        String formattedMessage = formatMessage(message, args);
+        DeduplicationResult result = checkDeduplication(moduleName, LogLevel.INFO, formattedMessage);
+        if (result.shouldLog) {
+            String finalMessage = formattedMessage + result.repeatInfo;
+            // 如果消息包含参数占位符且没有重复，使用SLF4J的格式化；否则使用已格式化的消息
+            if (result.repeatInfo.isEmpty() && args != null && args.length > 0) {
+                getLogger(moduleName).info(message, args);
+            } else {
+                getLogger(moduleName).info(finalMessage);
+            }
+            FileLogger.log(moduleName, LogLevel.INFO, finalMessage);
         }
     }
     
@@ -450,9 +700,11 @@ public class ModuleLogger {
      * @param message 日志消息
      */
     public static void warn(String moduleName, String message) {
-        if (shouldLog(moduleName, LogLevel.WARN)) {
-            getLogger(moduleName).warn(message);
-            FileLogger.log(moduleName, LogLevel.WARN, message);
+        DeduplicationResult result = checkDeduplication(moduleName, LogLevel.WARN, message);
+        if (result.shouldLog) {
+            String finalMessage = message + result.repeatInfo;
+            getLogger(moduleName).warn(finalMessage);
+            FileLogger.log(moduleName, LogLevel.WARN, finalMessage);
         }
     }
     
@@ -463,10 +715,17 @@ public class ModuleLogger {
      * @param args 参数
      */
     public static void warn(String moduleName, String message, Object... args) {
-        if (shouldLog(moduleName, LogLevel.WARN)) {
-            getLogger(moduleName).warn(message, args);
-            String formattedMessage = formatMessage(message, args);
-            FileLogger.log(moduleName, LogLevel.WARN, formattedMessage);
+        String formattedMessage = formatMessage(message, args);
+        DeduplicationResult result = checkDeduplication(moduleName, LogLevel.WARN, formattedMessage);
+        if (result.shouldLog) {
+            String finalMessage = formattedMessage + result.repeatInfo;
+            // 如果消息包含参数占位符且没有重复，使用SLF4J的格式化；否则使用已格式化的消息
+            if (result.repeatInfo.isEmpty() && args != null && args.length > 0) {
+                getLogger(moduleName).warn(message, args);
+            } else {
+                getLogger(moduleName).warn(finalMessage);
+            }
+            FileLogger.log(moduleName, LogLevel.WARN, finalMessage);
         }
     }
     
@@ -476,9 +735,11 @@ public class ModuleLogger {
      * @param message 日志消息
      */
     public static void error(String moduleName, String message) {
-        if (shouldLog(moduleName, LogLevel.ERROR)) {
-            getLogger(moduleName).error(message);
-            FileLogger.log(moduleName, LogLevel.ERROR, message);
+        DeduplicationResult result = checkDeduplication(moduleName, LogLevel.ERROR, message);
+        if (result.shouldLog) {
+            String finalMessage = message + result.repeatInfo;
+            getLogger(moduleName).error(finalMessage);
+            FileLogger.log(moduleName, LogLevel.ERROR, finalMessage);
         }
     }
     
@@ -489,10 +750,17 @@ public class ModuleLogger {
      * @param args 参数
      */
     public static void error(String moduleName, String message, Object... args) {
-        if (shouldLog(moduleName, LogLevel.ERROR)) {
-            getLogger(moduleName).error(message, args);
-            String formattedMessage = formatMessage(message, args);
-            FileLogger.log(moduleName, LogLevel.ERROR, formattedMessage);
+        String formattedMessage = formatMessage(message, args);
+        DeduplicationResult result = checkDeduplication(moduleName, LogLevel.ERROR, formattedMessage);
+        if (result.shouldLog) {
+            String finalMessage = formattedMessage + result.repeatInfo;
+            // 如果消息包含参数占位符且没有重复，使用SLF4J的格式化；否则使用已格式化的消息
+            if (result.repeatInfo.isEmpty() && args != null && args.length > 0) {
+                getLogger(moduleName).error(message, args);
+            } else {
+                getLogger(moduleName).error(finalMessage);
+            }
+            FileLogger.log(moduleName, LogLevel.ERROR, finalMessage);
         }
     }
     
@@ -503,9 +771,13 @@ public class ModuleLogger {
      * @param throwable 异常对象
      */
     public static void error(String moduleName, String message, Throwable throwable) {
-        if (shouldLog(moduleName, LogLevel.ERROR)) {
-            getLogger(moduleName).error(message, throwable);
-            FileLogger.log(moduleName, LogLevel.ERROR, message, throwable);
+        // 对于带异常的错误日志，将异常信息也加入去重键中
+        String messageWithException = message + (throwable != null ? " | " + throwable.getClass().getSimpleName() : "");
+        DeduplicationResult result = checkDeduplication(moduleName, LogLevel.ERROR, messageWithException);
+        if (result.shouldLog) {
+            String finalMessage = message + result.repeatInfo;
+            getLogger(moduleName).error(finalMessage, throwable);
+            FileLogger.log(moduleName, LogLevel.ERROR, finalMessage, throwable);
         }
     }
 }
