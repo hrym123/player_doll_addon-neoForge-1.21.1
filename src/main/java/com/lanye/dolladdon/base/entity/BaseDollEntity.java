@@ -1,5 +1,6 @@
 package com.lanye.dolladdon.base.entity;
 
+import com.lanye.dolladdon.api.action.ActionMode;
 import com.lanye.dolladdon.api.action.DollAction;
 import com.lanye.dolladdon.api.pose.DollPose;
 import com.lanye.dolladdon.api.pose.SimpleDollPose;
@@ -64,6 +65,7 @@ public abstract class BaseDollEntity extends Entity {
     private DollPose currentPose;
     private DollAction currentAction;
     private int actionTick = 0;
+    private String lastActionName = null; // 记录最后播放的动作名称（即使动作已停止也保留）
     
     // 当前姿态索引（用于循环切换）
     private int currentPoseIndex = -1;
@@ -286,19 +288,29 @@ public abstract class BaseDollEntity extends Entity {
                 }
             }
             
-            // 如果动作不循环且播放完成，停止动作
-            if (!currentAction.isLooping() && actionTick >= currentAction.getDuration()) {
-                currentAction = null;
-                actionTick = 0;
-                // 恢复standing姿态
-                DollPose standingPose = PoseActionManager.getPose("standing");
-                currentPose = standingPose != null ? standingPose : SimpleDollPose.createDefaultStandingPose();
-                // 姿态改变时更新碰撞箱
-                updateBoundingBox();
-            } else if (currentAction.isLooping()) {
-                // 循环动作，重置tick
-                if (actionTick >= currentAction.getDuration()) {
+            // 根据动作模式处理动作结束后的行为
+            if (actionTick >= currentAction.getDuration()) {
+                ActionMode mode = currentAction.getMode();
+                
+                if (mode == ActionMode.LOOP) {
+                    // 循环模式：重置tick，继续播放
                     actionTick = 0;
+                } else if (mode == ActionMode.HOLD) {
+                    // 保持模式：停止动作，但保持最后一个关键帧的姿态
+                    DollPose lastPose = currentAction.getPoseAt(currentAction.getDuration() - 1);
+                    if (lastPose != null) {
+                        currentPose = lastPose;
+                    }
+                    currentAction = null;
+                    actionTick = 0;
+                    updateBoundingBox();
+                } else { // ActionMode.ONCE
+                    // 一次性模式：停止动作，恢复standing姿态
+                    currentAction = null;
+                    actionTick = 0;
+                    DollPose standingPose = PoseActionManager.getPose("standing");
+                    currentPose = standingPose != null ? standingPose : SimpleDollPose.createDefaultStandingPose();
+                    updateBoundingBox();
                 }
             }
         }
@@ -752,8 +764,42 @@ public abstract class BaseDollEntity extends Entity {
         String oldActionName = this.currentAction != null ? this.currentAction.getName() : "null";
         this.currentAction = action;
         this.actionTick = 0;
+        // 记录最后播放的动作名称（即使动作已停止也保留，用于切换逻辑）
+        if (action != null) {
+            this.lastActionName = action.getName();
+        }
         ModuleLogger.debug(LOG_MODULE_ACTION, "设置动作: {} -> {}", oldActionName, 
             action != null ? action.getName() : "null");
+    }
+    
+    /**
+     * 通过动作名称播放动作（便捷方法）
+     * @param actionName 动作名称
+     * @return 如果动作存在并成功设置返回true，否则返回false
+     */
+    public boolean playAction(String actionName) {
+        if (actionName == null || actionName.isEmpty()) {
+            ModuleLogger.warn(LOG_MODULE_ACTION, "动作名称为空，无法播放");
+            return false;
+        }
+        
+        DollAction action = PoseActionManager.getAction(actionName);
+        if (action != null) {
+            setAction(action);
+            ModuleLogger.debug(LOG_MODULE_ACTION, "通过名称播放动作: {}", actionName);
+            return true;
+        } else {
+            ModuleLogger.warn(LOG_MODULE_ACTION, "动作不存在: {}", actionName);
+            return false;
+        }
+    }
+    
+    /**
+     * 获取最后播放的动作名称（即使动作已停止也返回）
+     * @return 最后播放的动作名称，如果没有则返回null
+     */
+    public String getLastActionName() {
+        return lastActionName;
     }
     
     /**

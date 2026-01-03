@@ -32,9 +32,11 @@ public class PlayerDollAddonClient implements ClientModInitializer {
 
     /**
      * 检测3D皮肤层mod是否已加载
+     * @deprecated 请使用 {@link com.lanye.dolladdon.util.skinlayers3d.SkinLayersDetector#IS_3D_SKIN_LAYERS_LOADED} 代替
      */
+    @Deprecated
     public static final boolean IS_3D_SKIN_LAYERS_LOADED = 
-            FabricLoader.getInstance().isModLoaded("skinlayers3d");
+            com.lanye.dolladdon.util.skinlayers3d.SkinLayersDetector.IS_3D_SKIN_LAYERS_LOADED;
     
     @Override
     public void onInitializeClient() {
@@ -48,7 +50,7 @@ public class PlayerDollAddonClient implements ClientModInitializer {
         
         // 输出3D皮肤层mod检测结果
         ModuleLogger.info(LOG_MODULE, "========== 3D皮肤层兼容性检测 ==========");
-        if (IS_3D_SKIN_LAYERS_LOADED) {
+        if (com.lanye.dolladdon.util.skinlayers3d.SkinLayersDetector.IS_3D_SKIN_LAYERS_LOADED) {
             ModuleLogger.info(LOG_MODULE, "✓ 检测到3D皮肤层mod（skinlayers3d）");
             ModuleLogger.info(LOG_MODULE, "正在初始化API...");
             // 尝试初始化API以验证是否可用
@@ -76,6 +78,9 @@ public class PlayerDollAddonClient implements ClientModInitializer {
         
         // 注册客户端连接事件
         registerClientConnectionEvents();
+        
+        // 注册按键处理
+        registerKeyBindings();
     }
     
     /**
@@ -243,6 +248,14 @@ public class PlayerDollAddonClient implements ClientModInitializer {
                 });
             });
         });
+    }
+    
+    /**
+     * 注册按键绑定
+     */
+    private void registerKeyBindings() {
+        com.lanye.dolladdon.client.DollActionKeyHandler.initialize();
+        com.lanye.dolladdon.client.DollActionKeyHandler.registerTickEvent();
     }
     
 }

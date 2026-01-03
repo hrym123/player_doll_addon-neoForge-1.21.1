@@ -9,13 +9,25 @@ import net.minecraft.util.math.MathHelper;
  */
 public class SimpleDollAction implements DollAction {
     private final String name;
-    private final boolean looping;
+    private final String displayName;
+    private final boolean looping; // 向后兼容字段
+    private final ActionMode mode;
     private final ActionKeyframe[] keyframes;
     private final int duration;
     
     public SimpleDollAction(String name, boolean looping, ActionKeyframe[] keyframes) {
+        this(name, null, looping, keyframes);
+    }
+    
+    public SimpleDollAction(String name, String displayName, boolean looping, ActionKeyframe[] keyframes) {
+        this(name, displayName, looping ? ActionMode.LOOP : ActionMode.ONCE, keyframes);
+    }
+    
+    public SimpleDollAction(String name, String displayName, ActionMode mode, ActionKeyframe[] keyframes) {
         this.name = name;
-        this.looping = looping;
+        this.displayName = displayName != null ? displayName : name;
+        this.mode = mode;
+        this.looping = (mode == ActionMode.LOOP); // 向后兼容
         this.keyframes = keyframes;
         
         // 计算总时长（最后一个关键帧的tick + 1）
@@ -34,8 +46,18 @@ public class SimpleDollAction implements DollAction {
     }
     
     @Override
+    public String getDisplayName() {
+        return displayName;
+    }
+    
+    @Override
     public boolean isLooping() {
         return looping;
+    }
+    
+    @Override
+    public ActionMode getMode() {
+        return mode;
     }
     
     @Override
@@ -49,8 +71,13 @@ public class SimpleDollAction implements DollAction {
             return null;
         }
         
-        // 如果循环，将tick限制在总时长内
-        int actualTick = looping ? (tick % duration) : Math.min(tick, duration - 1);
+        // 根据模式处理tick
+        int actualTick;
+        if (mode == ActionMode.LOOP) {
+            actualTick = tick % duration;
+        } else {
+            actualTick = Math.min(tick, duration - 1);
+        }
         
         // 如果只有一个关键帧，直接返回
         if (keyframes.length == 1) {

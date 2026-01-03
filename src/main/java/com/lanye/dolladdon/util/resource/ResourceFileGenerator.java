@@ -331,11 +331,27 @@ public class ResourceFileGenerator {
             zhCnEntries.put("entity." + modId + ".alex_doll", "艾利克斯玩偶");
             zhCnEntries.put("itemGroup." + modId + ".player_doll_tab", "玩家玩偶");
             
+            // 添加按键绑定翻译
+            zhCnEntries.put("key." + modId + ".play_action", "播放/切换动作");
+            zhCnEntries.put("category." + modId, "玩家玩偶");
+            zhCnEntries.put("message." + modId + ".no_actions", "没有可用的动作");
+            zhCnEntries.put("message." + modId + ".action_switched", "切换到动作: %s");
+            zhCnEntries.put("message." + modId + ".action_stopped", "动作已停止");
+            zhCnEntries.put("message." + modId + ".no_action_to_stop", "当前没有播放动作");
+            
             enUsEntries.put("item." + modId + ".steve_doll", "Steve Doll");
             enUsEntries.put("entity." + modId + ".steve_doll", "Steve Doll");
             enUsEntries.put("item." + modId + ".alex_doll", "Alex Doll");
             enUsEntries.put("entity." + modId + ".alex_doll", "Alex Doll");
             enUsEntries.put("itemGroup." + modId + ".player_doll_tab", "Player Dolls");
+            
+            // 添加按键绑定翻译
+            enUsEntries.put("key." + modId + ".play_action", "Play/Switch Action");
+            enUsEntries.put("category." + modId, "Player Doll");
+            enUsEntries.put("message." + modId + ".no_actions", "No actions available");
+            enUsEntries.put("message." + modId + ".action_switched", "Switched to action: %s");
+            enUsEntries.put("message." + modId + ".action_stopped", "Action stopped");
+            enUsEntries.put("message." + modId + ".no_action_to_stop", "No action is currently playing");
             
             // 为每个 PNG 文件生成翻译
             for (PngTextureScanner.PngTextureInfo pngInfo : pngFiles) {

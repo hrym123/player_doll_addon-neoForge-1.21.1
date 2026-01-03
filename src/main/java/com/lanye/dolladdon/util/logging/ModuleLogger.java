@@ -271,8 +271,16 @@ public class ModuleLogger {
             return message;
         }
         try {
-            // 使用更高效的SLF4J风格格式化
-            return java.text.MessageFormat.format(message.replace("{}", "{0}"), args);
+            // 使用SLF4J风格格式化，正确替换每个{}为对应的索引
+            StringBuilder sb = new StringBuilder(message);
+            int index = 0;
+            int pos = 0;
+            while ((pos = sb.indexOf("{}", pos)) != -1 && index < args.length) {
+                sb.replace(pos, pos + 2, "{" + index + "}");
+                pos += 2; // 跳过替换后的 "{0}" 等
+                index++;
+            }
+            return java.text.MessageFormat.format(sb.toString(), args);
         } catch (Exception e) {
             // 如果格式化失败，返回原始消息和参数的简单组合
             return message + " " + java.util.Arrays.toString(args);

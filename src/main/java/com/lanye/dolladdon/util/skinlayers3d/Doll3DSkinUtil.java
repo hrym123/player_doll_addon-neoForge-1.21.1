@@ -1,6 +1,5 @@
 package com.lanye.dolladdon.util.skinlayers3d;
 
-import com.lanye.dolladdon.PlayerDollAddonClient;
 import com.lanye.dolladdon.util.logging.ModuleLogger;
 import com.lanye.dolladdon.util.resource.ExternalTextureLoader;
 import net.minecraft.client.MinecraftClient;
@@ -69,7 +68,7 @@ public class Doll3DSkinUtil {
         
         initialized = true;
         
-        if (!PlayerDollAddonClient.IS_3D_SKIN_LAYERS_LOADED) {
+        if (!SkinLayersDetector.IS_3D_SKIN_LAYERS_LOADED) {
             ModuleLogger.warn(LOG_MODULE, "mod未加载，无法初始化");
             return false;
         }
@@ -183,7 +182,7 @@ public class Doll3DSkinUtil {
      * 检查3D皮肤层功能是否可用
      */
     public static boolean isAvailable() {
-        if (!PlayerDollAddonClient.IS_3D_SKIN_LAYERS_LOADED) {
+        if (!SkinLayersDetector.IS_3D_SKIN_LAYERS_LOADED) {
             // 只在第一次调用时记录日志，避免每帧都输出导致卡顿
             if (!hasLoggedIsAvailable) {
                 ModuleLogger.debug(LOG_MODULE, "3D皮肤层mod未加载");

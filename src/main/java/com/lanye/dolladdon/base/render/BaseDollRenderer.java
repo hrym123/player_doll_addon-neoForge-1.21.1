@@ -228,7 +228,7 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
         var overlayVertexConsumer = vertexConsumerProvider.getBuffer(translucentRenderType);
 
         // 检查是否使用3D皮肤层渲染
-        boolean modLoaded = PlayerDollAddonClient.IS_3D_SKIN_LAYERS_LOADED;
+        boolean modLoaded = com.lanye.dolladdon.util.skinlayers3d.SkinLayersDetector.IS_3D_SKIN_LAYERS_LOADED;
         boolean apiAvailable = Doll3DSkinUtil.isAvailable();
         boolean inRange = shouldUse3DSkinLayers(entity);
         boolean use3DSkinLayers = modLoaded && apiAvailable && inRange;

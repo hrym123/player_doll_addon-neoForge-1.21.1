@@ -3,6 +3,12 @@
   "entity.player_doll.steve_doll": "Steve Doll",
   "item.player_doll.alex_doll": "Alex Doll",
   "entity.player_doll.alex_doll": "Alex Doll",
-  "itemGroup.player_doll.player_doll_tab": "Player Dolls"
+  "itemGroup.player_doll.player_doll_tab": "Player Dolls",
+  "key.player_doll.play_action": "Play/Switch Action",
+  "category.player_doll": "Player Doll",
+  "message.player_doll.no_actions": "No actions available",
+  "message.player_doll.action_switched": "Switched to action: %s",
+  "message.player_doll.action_stopped": "Action stopped",
+  "message.player_doll.no_action_to_stop": "No action is currently playing"
 }
 

@@ -64,8 +64,9 @@ public class PoseActionManager {
         for (Map.Entry<String, DollAction> entry : loadedActions.entrySet()) {
             String actionName = entry.getKey();
             DollAction action = entry.getValue();
-            ModuleLogger.debug(LOG_MODULE_ACTION_LOADER, "注册动作: {} (循环: {}, 时长: {} ticks)", 
-                actionName, action.isLooping(), action.getDuration());
+            String displayName = action.getDisplayName() != null ? action.getDisplayName() : actionName;
+            ModuleLogger.debug(LOG_MODULE_ACTION_LOADER, "注册动作      : {} (显示名称: {}, 模式: {}, 时长: {} ticks)", 
+                actionName, displayName, action.getMode(), action.getDuration());
         }
         
         ModuleLogger.info(LogModuleConfig.MODULE_RESOURCE, "姿态和动作资源加载完成: {} 个姿态, {} 个动作", loadedPoses.size(), loadedActions.size());
@@ -129,12 +130,13 @@ public class PoseActionManager {
     public static void registerAction(String name, DollAction action) {
         boolean isNew = !actions.containsKey(name);
         actions.put(name, action);
+        String displayName = action.getDisplayName() != null ? action.getDisplayName() : name;
         if (isNew) {
-            ModuleLogger.info(LOG_MODULE_ACTION_LOADER, "注册新动作: {} (循环: {}, 时长: {} ticks)", 
-                name, action.isLooping(), action.getDuration());
+            ModuleLogger.info(LOG_MODULE_ACTION_LOADER, "注册新动作    : {} (显示名称: {}, 模式: {}, 时长: {} ticks)", 
+                name, displayName, action.getMode(), action.getDuration());
         } else {
-            ModuleLogger.debug(LOG_MODULE_ACTION_LOADER, "覆盖已存在动作: {} (循环: {}, 时长: {} ticks)", 
-                name, action.isLooping(), action.getDuration());
+            ModuleLogger.debug(LOG_MODULE_ACTION_LOADER, "覆盖已存在动作: {} (显示名称: {}, 模式: {}, 时长: {} ticks)", 
+                name, displayName, action.getMode(), action.getDuration());
         }
     }
     

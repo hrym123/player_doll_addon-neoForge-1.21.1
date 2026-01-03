@@ -7,6 +7,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.lanye.dolladdon.PlayerDollAddon;
 import com.lanye.dolladdon.api.action.ActionKeyframe;
+import com.lanye.dolladdon.api.action.ActionMode;
 import com.lanye.dolladdon.api.action.DollAction;
 import com.lanye.dolladdon.api.action.SimpleDollAction;
 import com.lanye.dolladdon.api.pose.DollPose;
@@ -85,11 +86,35 @@ public class ActionLoader {
     }
     
     /**
+     * 从JSON对象解析动作模式
+     * 优先读取 "mode" 字段，如果没有则从 "looping" 字段推断
+     */
+    private static ActionMode parseActionMode(JsonObject json) {
+        if (json.has("mode")) {
+            String modeStr = json.get("mode").getAsString().toUpperCase();
+            try {
+                return ActionMode.valueOf(modeStr);
+            } catch (IllegalArgumentException e) {
+                ModuleLogger.warn(LogModuleConfig.MODULE_ACTION_LOADER, "未知的动作模式: {}，使用默认模式 ONCE", modeStr);
+                return ActionMode.ONCE;
+            }
+        } else if (json.has("looping")) {
+            // 向后兼容：从 looping 字段推断模式
+            boolean looping = json.get("looping").getAsBoolean();
+            return looping ? ActionMode.LOOP : ActionMode.ONCE;
+        } else {
+            // 默认模式
+            return ActionMode.ONCE;
+        }
+    }
+    
+    /**
      * 从JSON对象解析动作
      */
     private static DollAction parseAction(ResourceManager resourceManager, JsonObject json) {
         String name = json.has("name") ? json.get("name").getAsString() : "unnamed";
-        boolean looping = json.has("looping") && json.get("looping").getAsBoolean();
+        String displayName = json.has("displayName") ? json.get("displayName").getAsString() : null;
+        ActionMode mode = parseActionMode(json);
         
         if (!json.has("keyframes") || !json.get("keyframes").isJsonArray()) {
             ModuleLogger.error(LogModuleConfig.MODULE_ACTION_LOADER,"动作缺少keyframes数组: {}", name);
@@ -139,7 +164,7 @@ public class ActionLoader {
             keyframes[i] = new ActionKeyframe(tick, pose);
         }
         
-        return new SimpleDollAction(name, looping, keyframes);
+        return new SimpleDollAction(name, displayName, mode, keyframes);
     }
     
     /**
@@ -151,17 +176,19 @@ public class ActionLoader {
         Map<String, DollAction> actions = new HashMap<>();
         
         if (!Files.exists(actionsDir) || !Files.isDirectory(actionsDir)) {
+            ModuleLogger.debug(LogModuleConfig.MODULE_ACTION_LOADER, "动作目录不存在或不是目录: {}", actionsDir);
             return actions;
         }
         
-        try {
-            Files.list(actionsDir)
-                .filter(path -> path.toString().endsWith(".json"))
+        try (var stream = Files.list(actionsDir)) {
+            stream.filter(path -> path.toString().endsWith(".json"))
                 .filter(Files::isRegularFile)
                 .forEach(actionFile -> {
                     try {
                         String fileName = actionFile.getFileName().toString();
                         String name = fileName.substring(0, fileName.length() - ".json".length());
+                        
+                        ModuleLogger.debug(LogModuleConfig.MODULE_ACTION_LOADER, "正在加载动作文件: {}", actionFile);
                         
                         try (InputStreamReader reader = new InputStreamReader(
                                 Files.newInputStream(actionFile), StandardCharsets.UTF_8)) {
@@ -170,6 +197,11 @@ public class ActionLoader {
                             DollAction action = parseActionFromFileSystem(json, actionsDir.getParent().resolve("poses"));
                             if (action != null) {
                                 actions.put(name, action);
+                                String displayName = action.getDisplayName() != null ? action.getDisplayName() : name;
+                                ModuleLogger.debug(LogModuleConfig.MODULE_ACTION_LOADER, "成功加载动作    : {} (显示名称: {}, 模式: {}, 时长: {} ticks)", 
+                                    name, displayName, action.getMode(), action.getDuration());
+                            } else {
+                                ModuleLogger.warn(LogModuleConfig.MODULE_ACTION_LOADER, "动作文件解析返回null: {}", actionFile);
                             }
                         }
                     } catch (Exception e) {
@@ -180,6 +212,8 @@ public class ActionLoader {
             ModuleLogger.error(LogModuleConfig.MODULE_ACTION_LOADER,"扫描文件系统动作目录失败: {}", actionsDir, e);
         }
         
+        ModuleLogger.debug(LogModuleConfig.MODULE_ACTION_LOADER, "从文件系统加载了 {} 个动作文件", actions.size());
+        
         return actions;
     }
     
@@ -187,43 +221,62 @@ public class ActionLoader {
      * 从文件系统解析动作（用于处理姿态引用）
      */
     private static DollAction parseActionFromFileSystem(JsonObject json, Path posesDir) {
-        String name = json.has("name") ? json.get("name").getAsString() : "unnamed";
-        boolean looping = json.has("looping") && json.get("looping").getAsBoolean();
-        
-        if (!json.has("keyframes") || !json.get("keyframes").isJsonArray()) {
-            ModuleLogger.error(LogModuleConfig.MODULE_ACTION_LOADER,"动作缺少keyframes数组: {}", name);
-            return null;
-        }
-        
-        JsonArray keyframesArray = json.get("keyframes").getAsJsonArray();
-        ActionKeyframe[] keyframes = new ActionKeyframe[keyframesArray.size()];
-        
-        for (int i = 0; i < keyframesArray.size(); i++) {
-            JsonObject keyframeObj = keyframesArray.get(i).getAsJsonObject();
+        try {
+            String name = json.has("name") ? json.get("name").getAsString() : "unnamed";
+            String displayName = json.has("displayName") ? json.get("displayName").getAsString() : null;
+            ActionMode mode = parseActionMode(json);
             
-            int tick = keyframeObj.has("tick") ? keyframeObj.get("tick").getAsInt() : 0;
+            if (!json.has("keyframes") || !json.get("keyframes").isJsonArray()) {
+                ModuleLogger.error(LogModuleConfig.MODULE_ACTION_LOADER,"动作缺少keyframes数组: {}", name);
+                return null;
+            }
             
-            DollPose pose = null;
-            if (keyframeObj.has("pose")) {
-                JsonElement poseElement = keyframeObj.get("pose");
-                if (poseElement.isJsonObject()) {
-                    // 内联姿态定义
-                    pose = PoseLoader.parsePose(poseElement.getAsJsonObject());
-                } else if (poseElement.isJsonPrimitive()) {
-                    // 引用其他姿态文件，从文件系统加载
-                    String poseName = poseElement.getAsString();
-                    pose = PoseLoader.loadPoseFromFileSystem(posesDir.resolve(poseName + ".json"));
+            JsonArray keyframesArray = json.get("keyframes").getAsJsonArray();
+            ActionKeyframe[] keyframes = new ActionKeyframe[keyframesArray.size()];
+            
+            for (int i = 0; i < keyframesArray.size(); i++) {
+                try {
+                    JsonObject keyframeObj = keyframesArray.get(i).getAsJsonObject();
+                    
+                    int tick = keyframeObj.has("tick") ? keyframeObj.get("tick").getAsInt() : 0;
+                    
+                    DollPose pose = null;
+                    if (keyframeObj.has("pose")) {
+                        JsonElement poseElement = keyframeObj.get("pose");
+                        if (poseElement.isJsonObject()) {
+                            // 内联姿态定义
+                            pose = PoseLoader.parsePose(poseElement.getAsJsonObject());
+                            if (pose == null) {
+                                ModuleLogger.warn(LogModuleConfig.MODULE_ACTION_LOADER, "动作 {} 的第 {} 个关键帧的内联姿态解析失败，使用默认姿态", name, i);
+                            }
+                        } else if (poseElement.isJsonPrimitive()) {
+                            // 引用其他姿态文件，从文件系统加载
+                            String poseName = poseElement.getAsString();
+                            Path poseFile = posesDir.resolve(poseName + ".json");
+                            pose = PoseLoader.loadPoseFromFileSystem(poseFile);
+                            if (pose == null) {
+                                ModuleLogger.debug(LogModuleConfig.MODULE_ACTION_LOADER, "动作 {} 的第 {} 个关键帧引用的姿态文件不存在: {}，使用默认姿态", name, i, poseFile);
+                            }
+                        }
+                    }
+                    
+                    if (pose == null) {
+                        pose = com.lanye.dolladdon.api.pose.SimpleDollPose.createDefaultStandingPose();
+                    }
+                    
+                    keyframes[i] = new ActionKeyframe(tick, pose);
+                } catch (Exception e) {
+                    ModuleLogger.error(LogModuleConfig.MODULE_ACTION_LOADER, "解析动作 {} 的第 {} 个关键帧失败", name, i, e);
+                    // 使用默认姿态作为后备
+                    keyframes[i] = new ActionKeyframe(0, com.lanye.dolladdon.api.pose.SimpleDollPose.createDefaultStandingPose());
                 }
             }
             
-            if (pose == null) {
-                pose = com.lanye.dolladdon.api.pose.SimpleDollPose.createDefaultStandingPose();
-            }
-            
-            keyframes[i] = new ActionKeyframe(tick, pose);
+            return new SimpleDollAction(name, displayName, mode, keyframes);
+        } catch (Exception e) {
+            ModuleLogger.error(LogModuleConfig.MODULE_ACTION_LOADER, "解析动作文件失败", e);
+            return null;
         }
-        
-        return new SimpleDollAction(name, looping, keyframes);
     }
     
     /**
