@@ -1004,93 +1004,18 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
                 // 静默失败
             }
             
-            // 关键修复：清除mesh内部的旋转信息，避免双重应用旋转
-            // 问题分析：
-            // 1. mesh.copyFrom()会将ModelPart的旋转信息复制到mesh内部
-            // 2. mesh.render()内部可能会使用mesh内部存储的旋转信息
-            // 3. 即使我们在MatrixStack中应用了旋转，mesh.render()内部可能还会再次应用旋转
-            // 解决方案：在copyFrom()之后，使用mesh.setRotation(0, 0, 0)清除mesh内部的旋转
-            try {
-                java.lang.reflect.Method setRotationMethod = mesh.getClass().getMethod("setRotation", float.class, float.class, float.class);
-                setRotationMethod.invoke(mesh, 0.0f, 0.0f, 0.0f);
-                ModuleLogger.debug(LogModuleConfig.MODULE_RENDER_3D_OFFSET, 
-                    "部位={}: 已清除mesh内部旋转", offsetProviderName);
-            } catch (Exception e) {
-                ModuleLogger.debug(LogModuleConfig.MODULE_RENDER_3D_OFFSET, 
-                    "部位={}: 无法清除mesh内部旋转 - {}", offsetProviderName, e.getMessage());
-            }
-            
-            // 关键修复：在旋转之前应用偏移（在身体的坐标系中）
-            // 问题分析：
-            // 1. 问题描述："向前旋转 → 向后偏移"，说明偏移方向是反的
-            // 2. 如果偏移在旋转之后应用，偏移会随着部件旋转而旋转，导致位置错误
-            // 3. 如果偏移在旋转之前应用，偏移在身体的坐标系中，不会随着部件旋转而旋转
-            // 解决方案：在旋转之前应用偏移（在身体的坐标系中）
-            
-            // 使用姿态文件的旋转值（rotation参数），转换为弧度
-            float rotX = (float) Math.toRadians(rotation[0]);
-            float rotY = (float) Math.toRadians(rotation[1]);
-            float rotZ = (float) Math.toRadians(rotation[2]);
+            // 关键：让mesh使用内部的旋转信息（通过copyFrom复制）
+            // mesh.render()会使用mesh内部存储的旋转信息来正确跟随ModelPart的旋转
+            // 不要清除mesh内部的旋转信息，也不要在MatrixStack中再次应用旋转，避免双重旋转
             
             ModuleLogger.debug(LogModuleConfig.MODULE_RENDER_3D_OFFSET, 
                 "部位={}: 姿态旋转值 (X:{:.1f}°, Y:{:.1f}°, Z:{:.1f}°), 缩放=({:.2f}, {:.2f}, {:.2f})", 
-                offsetProviderName, rotation[0], rotation[1], rotation[2], scale[0], scale[1], scale[2]);
+                offsetProviderName, Math.toDegrees(rotation[0]), Math.toDegrees(rotation[1]), Math.toDegrees(rotation[2]), 
+                scale[0], scale[1], scale[2]);
             
-            // 关键：在旋转之前应用偏移（在身体的坐标系中）
+            // 关键：在部件的局部坐标系中应用偏移（在旋转之后）
+            // 这样偏移会随着部件旋转而旋转，保持正确的相对位置
             applyManual3DOffset(matrixStack, offsetProviderName, modelPart);
-            
-            // 获取旋转轴配置
-            DollRenderConfig.OverlayRotationConfig rotationConfig = renderConfig.getOverlayRotationConfig();
-            
-            // 判断是否是腿部部件，腿部需要以pivot点（与身体连接处）作为旋转中心
-            boolean isLegPart = "LEFT_LEG".equals(offsetProviderName) || "RIGHT_LEG".equals(offsetProviderName);
-            boolean usePivotForRotation = rotationConfig.isUsePivotAsRotationCenter() || isLegPart;
-            
-            // 计算旋转中心
-            // pivot点的坐标是相对于ModelPart的局部原点的
-            float rotationCenterX = 0.0f;
-            float rotationCenterY = 0.0f;
-            float rotationCenterZ = 0.0f;
-            
-            if (usePivotForRotation && axisInfo != null) {
-                // pivot点相对于ModelPart的局部原点
-                rotationCenterX = axisInfo[6];  // pivotX
-                rotationCenterY = axisInfo[7];  // pivotY
-                rotationCenterZ = axisInfo[8];  // pivotZ
-                
-                if (isLegPart) {
-                    ModuleLogger.debug(LogModuleConfig.MODULE_RENDER_3D_OFFSET, 
-                        "部位={}: 使用pivot点作为旋转中心 (pivot=({:.3f}, {:.3f}, {:.3f}))", 
-                        offsetProviderName, rotationCenterX, rotationCenterY, rotationCenterZ);
-                }
-            }
-            
-            // 应用旋转中心偏移（如果配置了）
-            float[] centerOffset = rotationConfig.getRotationCenterOffset();
-            if (centerOffset[0] != 0.0f || centerOffset[1] != 0.0f || centerOffset[2] != 0.0f) {
-                rotationCenterX += centerOffset[0];
-                rotationCenterY += centerOffset[1];
-                rotationCenterZ += centerOffset[2];
-            }
-            
-            // 如果使用pivot点作为旋转中心，移动到旋转中心
-            if (usePivotForRotation && axisInfo != null) {
-                matrixStack.translate(rotationCenterX, rotationCenterY, rotationCenterZ);
-            }
-            
-            // 应用旋转（根据配置的旋转顺序）
-            if (rotX != 0.0F || rotY != 0.0F || rotZ != 0.0F) {
-                applyRotationByOrder(matrixStack, rotX, rotY, rotZ, rotationConfig.getRotationOrder());
-                ModuleLogger.debug(LogModuleConfig.MODULE_RENDER_3D_OFFSET, 
-                    "部位={}: 应用旋转 (X:{:.1f}°, Y:{:.1f}°, Z:{:.1f}°), 顺序={}, 旋转中心={}", 
-                    offsetProviderName, rotation[0], rotation[1], rotation[2], 
-                    rotationConfig.getRotationOrder(), usePivotForRotation ? "pivot点" : "部件位置");
-            }
-            
-            // 如果使用pivot点作为旋转中心，移回原位置
-            if (usePivotForRotation && axisInfo != null) {
-                matrixStack.translate(-rotationCenterX, -rotationCenterY, -rotationCenterZ);
-            }
             
             // 应用基础缩放
             if (scale[0] != 1.0f || scale[1] != 1.0f || scale[2] != 1.0f) {
