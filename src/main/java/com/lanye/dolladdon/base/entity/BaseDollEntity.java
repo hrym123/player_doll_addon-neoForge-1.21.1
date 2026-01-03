@@ -3,6 +3,7 @@ package com.lanye.dolladdon.base.entity;
 import com.lanye.dolladdon.api.action.DollAction;
 import com.lanye.dolladdon.api.pose.DollPose;
 import com.lanye.dolladdon.api.pose.SimpleDollPose;
+import com.lanye.dolladdon.base.DollEntityFactory;
 import com.lanye.dolladdon.util.logging.LogModuleConfig;
 import com.lanye.dolladdon.util.logging.ModuleLogger;
 import com.lanye.dolladdon.util.pose.PoseActionManager;
@@ -326,9 +327,9 @@ public abstract class BaseDollEntity extends Entity {
      */
     @Override
     public EntityDimensions getDimensions(EntityPose pose) {
-        // 返回固定尺寸（与DollEntityFactory中的sized(0.6f, 1f)保持一致）
+        // 返回固定尺寸（使用DollEntityFactory中的常量）
         // 实际碰撞箱会通过updateBoundingBox()根据姿态的scale动态调整
-        return EntityDimensions.fixed(0.6f, 1.0f);
+        return EntityDimensions.fixed(DollEntityFactory.DEFAULT_WIDTH, DollEntityFactory.DEFAULT_HEIGHT);
     }
     
     /**
@@ -350,9 +351,9 @@ public abstract class BaseDollEntity extends Entity {
      * 注意：如果getDimensions()正常工作，这个方法可能不再需要
      */
     private void updateBoundingBox() {
-        // 基础碰撞箱尺寸（与DollEntityFactory中的sized(0.6f, 1f)保持一致）
-        double baseWidth = 0.6;
-        double baseHeight = 1.0;
+        // 基础碰撞箱尺寸（使用DollEntityFactory中的常量）
+        double baseWidth = DollEntityFactory.DEFAULT_WIDTH;
+        double baseHeight = DollEntityFactory.DEFAULT_HEIGHT;
         
         // 获取当前姿态的scale
         DollPose pose = getCurrentPose();

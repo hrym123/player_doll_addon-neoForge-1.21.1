@@ -1,15 +1,20 @@
 package com.lanye.dolladdon.base.render;
 
+import com.lanye.dolladdon.info.OverlayPartsRotationInfo;
+import net.minecraft.client.model.ModelPart;
 import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.entity.model.PlayerEntityModel;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.util.Identifier;
 
 /**
  * 玩偶渲染辅助工具类
  * 提供渲染玩家模型的共同功能
+ * 
+ * 注意：此类使用 PlayerEntityModelWrapper 来访问模型部件，避免直接使用反射
  */
 public class DollRenderHelper {
     
@@ -56,6 +61,28 @@ public class DollRenderHelper {
     
     /**
      * 设置外层部分的旋转，使它们跟随基础部分的动作
+     * 使用 PlayerEntityModelWrapper 来访问外层部件，避免直接使用反射
+     * 
+     * @param playerModel 玩家模型
+     * @param rotationInfo 旋转信息对象，包含所有外层部件的旋转角度
+     */
+    @SuppressWarnings("unchecked")
+    public static void setOverlayPartsRotation(PlayerEntityModel<?> playerModel,
+                                              OverlayPartsRotationInfo rotationInfo) {
+        // 使用模型封装类来设置外层部件旋转
+        PlayerEntityModelWrapper wrapper = new PlayerEntityModelWrapper((PlayerEntityModel<PlayerEntity>) playerModel);
+        wrapper.setOverlayPartsRotation(
+            rotationInfo.getBodyRotation(),
+            rotationInfo.getLeftArmRotation(),
+            rotationInfo.getRightArmRotation(),
+            rotationInfo.getLeftLegRotation(),
+            rotationInfo.getRightLegRotation()
+        );
+    }
+    
+    /**
+     * 设置外层部分的旋转，使它们跟随基础部分的动作（兼容旧API）
+     * 使用 PlayerEntityModelWrapper 来访问外层部件，避免直接使用反射
      * 
      * @param playerModel 玩家模型
      * @param bodyRotX 身体的X旋转
@@ -73,59 +100,25 @@ public class DollRenderHelper {
      * @param rightLegRotX 右腿的X旋转
      * @param rightLegRotY 右腿的Y旋转
      * @param rightLegRotZ 右腿的Z旋转
+     * @deprecated 使用 {@link #setOverlayPartsRotation(PlayerEntityModel, OverlayPartsRotationInfo)} 代替
      */
+    @Deprecated
+    @SuppressWarnings("unchecked")
     public static void setOverlayPartsRotation(PlayerEntityModel<?> playerModel,
                                               float bodyRotX, float bodyRotY, float bodyRotZ,
                                               float leftArmRotX, float leftArmRotY, float leftArmRotZ,
                                               float rightArmRotX, float rightArmRotY, float rightArmRotZ,
                                               float leftLegRotX, float leftLegRotY, float leftLegRotZ,
                                               float rightLegRotX, float rightLegRotY, float rightLegRotZ) {
-        try {
-            // 使用反射访问PlayerEntityModel的外层部分并设置旋转
-            java.lang.reflect.Field leftSleeveField = PlayerEntityModel.class.getDeclaredField("leftSleeve");
-            java.lang.reflect.Field rightSleeveField = PlayerEntityModel.class.getDeclaredField("rightSleeve");
-            java.lang.reflect.Field leftPantsField = PlayerEntityModel.class.getDeclaredField("leftPants");
-            java.lang.reflect.Field rightPantsField = PlayerEntityModel.class.getDeclaredField("rightPants");
-            java.lang.reflect.Field jacketField = PlayerEntityModel.class.getDeclaredField("jacket");
-            
-            leftSleeveField.setAccessible(true);
-            rightSleeveField.setAccessible(true);
-            leftPantsField.setAccessible(true);
-            rightPantsField.setAccessible(true);
-            jacketField.setAccessible(true);
-            
-            // leftSleeve应该跟随leftArm的旋转
-            Object leftSleeve = leftSleeveField.get(playerModel);
-            if (leftSleeve instanceof net.minecraft.client.model.ModelPart) {
-                ((net.minecraft.client.model.ModelPart) leftSleeve).setAngles(leftArmRotX, leftArmRotY, leftArmRotZ);
-            }
-            
-            // rightSleeve应该跟随rightArm的旋转
-            Object rightSleeve = rightSleeveField.get(playerModel);
-            if (rightSleeve instanceof net.minecraft.client.model.ModelPart) {
-                ((net.minecraft.client.model.ModelPart) rightSleeve).setAngles(rightArmRotX, rightArmRotY, rightArmRotZ);
-            }
-            
-            // leftPants应该跟随leftLeg的旋转
-            Object leftPants = leftPantsField.get(playerModel);
-            if (leftPants instanceof net.minecraft.client.model.ModelPart) {
-                ((net.minecraft.client.model.ModelPart) leftPants).setAngles(leftLegRotX, leftLegRotY, leftLegRotZ);
-            }
-            
-            // rightPants应该跟随rightLeg的旋转
-            Object rightPants = rightPantsField.get(playerModel);
-            if (rightPants instanceof net.minecraft.client.model.ModelPart) {
-                ((net.minecraft.client.model.ModelPart) rightPants).setAngles(rightLegRotX, rightLegRotY, rightLegRotZ);
-            }
-            
-            // jacket应该跟随body的旋转
-            Object jacket = jacketField.get(playerModel);
-            if (jacket instanceof net.minecraft.client.model.ModelPart) {
-                ((net.minecraft.client.model.ModelPart) jacket).setAngles(bodyRotX, bodyRotY, bodyRotZ);
-            }
-        } catch (NoSuchFieldException | IllegalAccessException e) {
-            // 如果模型不支持这些字段，则忽略
-        }
+        // 创建旋转信息对象并调用新方法
+        OverlayPartsRotationInfo rotationInfo = new OverlayPartsRotationInfo(
+            bodyRotX, bodyRotY, bodyRotZ,
+            leftArmRotX, leftArmRotY, leftArmRotZ,
+            rightArmRotX, rightArmRotY, rightArmRotZ,
+            leftLegRotX, leftLegRotY, leftLegRotZ,
+            rightLegRotX, rightLegRotY, rightLegRotZ
+        );
+        setOverlayPartsRotation(playerModel, rotationInfo);
     }
     
     /**
@@ -136,61 +129,48 @@ public class DollRenderHelper {
      * 所以它们现在应该能够跟随基础部分的动作。
      * 
      * @param playerModel 玩家模型
-     * @param poseStack 变换矩阵栈
+     * @param matrixStack 变换矩阵栈
      * @param overlayVertexConsumer 外层顶点消费者
-     * @param packedLight 光照信息
-     * @param packedOverlay 覆盖纹理
+     * @param light 光照信息
+     * @param overlay 覆盖纹理
      */
+    @SuppressWarnings("unchecked")
     public static void renderOverlayParts(PlayerEntityModel<?> playerModel,
                                          MatrixStack matrixStack,
                                          VertexConsumer overlayVertexConsumer,
                                          int light,
                                          int overlay) {
-        try {
-            // 使用反射访问PlayerEntityModel的外层部分（如果存在）
-            java.lang.reflect.Field leftSleeveField = PlayerEntityModel.class.getDeclaredField("leftSleeve");
-            java.lang.reflect.Field rightSleeveField = PlayerEntityModel.class.getDeclaredField("rightSleeve");
-            java.lang.reflect.Field leftPantsField = PlayerEntityModel.class.getDeclaredField("leftPants");
-            java.lang.reflect.Field rightPantsField = PlayerEntityModel.class.getDeclaredField("rightPants");
-            java.lang.reflect.Field jacketField = PlayerEntityModel.class.getDeclaredField("jacket");
-            
-            leftSleeveField.setAccessible(true);
-            rightSleeveField.setAccessible(true);
-            leftPantsField.setAccessible(true);
-            rightPantsField.setAccessible(true);
-            jacketField.setAccessible(true);
-            
-            // 渲染左袖子外层
-            Object leftSleeve = leftSleeveField.get(playerModel);
-            if (leftSleeve instanceof net.minecraft.client.model.ModelPart) {
-                ((net.minecraft.client.model.ModelPart) leftSleeve).render(matrixStack, overlayVertexConsumer, light, overlay);
-            }
-            
-            // 渲染右袖子外层
-            Object rightSleeve = rightSleeveField.get(playerModel);
-            if (rightSleeve instanceof net.minecraft.client.model.ModelPart) {
-                ((net.minecraft.client.model.ModelPart) rightSleeve).render(matrixStack, overlayVertexConsumer, light, overlay);
-            }
-            
-            // 渲染左腿外层
-            Object leftPants = leftPantsField.get(playerModel);
-            if (leftPants instanceof net.minecraft.client.model.ModelPart) {
-                ((net.minecraft.client.model.ModelPart) leftPants).render(matrixStack, overlayVertexConsumer, light, overlay);
-            }
-            
-            // 渲染右腿外层
-            Object rightPants = rightPantsField.get(playerModel);
-            if (rightPants instanceof net.minecraft.client.model.ModelPart) {
-                ((net.minecraft.client.model.ModelPart) rightPants).render(matrixStack, overlayVertexConsumer, light, overlay);
-            }
-            
-            // 渲染夹克外层（身体外层）
-            Object jacket = jacketField.get(playerModel);
-            if (jacket instanceof net.minecraft.client.model.ModelPart) {
-                ((net.minecraft.client.model.ModelPart) jacket).render(matrixStack, overlayVertexConsumer, light, overlay);
-            }
-        } catch (NoSuchFieldException | IllegalAccessException e) {
-            // 如果模型不支持这些字段，则忽略
+        // 使用模型封装类来访问外层部件
+        PlayerEntityModelWrapper wrapper = new PlayerEntityModelWrapper((PlayerEntityModel<PlayerEntity>) playerModel);
+        
+        // 渲染左袖子外层
+        ModelPart leftSleeve = wrapper.getLeftSleeve();
+        if (leftSleeve != null) {
+            leftSleeve.render(matrixStack, overlayVertexConsumer, light, overlay);
+        }
+        
+        // 渲染右袖子外层
+        ModelPart rightSleeve = wrapper.getRightSleeve();
+        if (rightSleeve != null) {
+            rightSleeve.render(matrixStack, overlayVertexConsumer, light, overlay);
+        }
+        
+        // 渲染左腿外层
+        ModelPart leftPants = wrapper.getLeftPants();
+        if (leftPants != null) {
+            leftPants.render(matrixStack, overlayVertexConsumer, light, overlay);
+        }
+        
+        // 渲染右腿外层
+        ModelPart rightPants = wrapper.getRightPants();
+        if (rightPants != null) {
+            rightPants.render(matrixStack, overlayVertexConsumer, light, overlay);
+        }
+        
+        // 渲染夹克外层（身体外层）
+        ModelPart jacket = wrapper.getJacket();
+        if (jacket != null) {
+            jacket.render(matrixStack, overlayVertexConsumer, light, overlay);
         }
     }
 }
