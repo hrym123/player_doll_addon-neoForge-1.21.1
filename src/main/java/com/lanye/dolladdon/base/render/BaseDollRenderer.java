@@ -47,27 +47,21 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
     private static boolean renderMethodCacheInitialized = false;
     
     protected final PlayerEntityModel<PlayerEntity> playerModel;
+    protected final PlayerEntityModelWrapper modelWrapper;  // 模型封装类
     private final boolean thinArms;  // 是否为细手臂模型
+    private final DollRenderConfig renderConfig;  // 渲染配置
     
     protected BaseDollRenderer(EntityRendererFactory.Context context, PlayerEntityModel<PlayerEntity> playerModel) {
-        super(context);
-        this.playerModel = playerModel;
-        // 通过反射获取slim字段来判断是否为细手臂
-        this.thinArms = isThinArmsModel(playerModel);
+        this(context, playerModel, DollRenderConfig.getDefault());
     }
     
-    /**
-     * 判断模型是否为细手臂模型
-     */
-    private boolean isThinArmsModel(PlayerEntityModel<PlayerEntity> model) {
-        try {
-            java.lang.reflect.Field slimField = PlayerEntityModel.class.getDeclaredField("slim");
-            slimField.setAccessible(true);
-            return slimField.getBoolean(model);
-        } catch (Exception e) {
-            // 如果无法访问字段，默认使用粗手臂
-            return false;
-        }
+    protected BaseDollRenderer(EntityRendererFactory.Context context, PlayerEntityModel<PlayerEntity> playerModel, DollRenderConfig renderConfig) {
+        super(context);
+        this.playerModel = playerModel;
+        this.modelWrapper = new PlayerEntityModelWrapper(playerModel);
+        // 使用封装类获取是否为细手臂模型
+        this.thinArms = modelWrapper.hasThinArms();
+        this.renderConfig = renderConfig != null ? renderConfig : DollRenderConfig.getDefault();
     }
     
     /**
@@ -177,11 +171,13 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
         
         // 同时设置外层部分的旋转，使它们跟随基础部分的动作
         // 注意：身体的旋转通过 PoseStack 应用，所以 jacket 的旋转也设为0
-        setOverlayPartsRotation(0, 0, 0, // 身体旋转通过 PoseStack 应用
-                               leftArmRotX, leftArmRotY, leftArmRotZ,
-                               rightArmRotX, rightArmRotY, rightArmRotZ,
-                               leftLegRotX, leftLegRotY, leftLegRotZ,
-                               rightLegRotX, rightLegRotY, rightLegRotZ);
+        modelWrapper.setOverlayPartsRotation(
+            new float[]{0, 0, 0}, // 身体旋转通过 PoseStack 应用
+            new float[]{leftArmRotX, leftArmRotY, leftArmRotZ},
+            new float[]{rightArmRotX, rightArmRotY, rightArmRotZ},
+            new float[]{leftLegRotX, leftLegRotY, leftLegRotZ},
+            new float[]{rightLegRotX, rightLegRotY, rightLegRotZ}
+        );
         
         // 获取渲染类型
         var cutoutRenderType = net.minecraft.client.render.RenderLayer.getEntityCutoutNoCull(skinLocation);
@@ -429,6 +425,7 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
     
     /**
      * 设置外层部分的旋转，使它们跟随基础部分的动作
+     * 使用模型封装类来访问外层部件
      * 
      * @param bodyRotX 身体的X旋转
      * @param bodyRotY 身体的Y旋转
@@ -451,52 +448,14 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
                                         float rightArmRotX, float rightArmRotY, float rightArmRotZ,
                                         float leftLegRotX, float leftLegRotY, float leftLegRotZ,
                                         float rightLegRotX, float rightLegRotY, float rightLegRotZ) {
-        try {
-            // 使用反射访问PlayerEntityModel的外层部分并设置旋转
-            java.lang.reflect.Field leftSleeveField = PlayerEntityModel.class.getDeclaredField("leftSleeve");
-            java.lang.reflect.Field rightSleeveField = PlayerEntityModel.class.getDeclaredField("rightSleeve");
-            java.lang.reflect.Field leftPantsField = PlayerEntityModel.class.getDeclaredField("leftPants");
-            java.lang.reflect.Field rightPantsField = PlayerEntityModel.class.getDeclaredField("rightPants");
-            java.lang.reflect.Field jacketField = PlayerEntityModel.class.getDeclaredField("jacket");
-            
-            leftSleeveField.setAccessible(true);
-            rightSleeveField.setAccessible(true);
-            leftPantsField.setAccessible(true);
-            rightPantsField.setAccessible(true);
-            jacketField.setAccessible(true);
-            
-            // leftSleeve应该跟随leftArm的旋转
-            Object leftSleeve = leftSleeveField.get(playerModel);
-            if (leftSleeve instanceof net.minecraft.client.model.ModelPart) {
-                ((net.minecraft.client.model.ModelPart) leftSleeve).setAngles(leftArmRotX, leftArmRotY, leftArmRotZ);
-            }
-            
-            // rightSleeve应该跟随rightArm的旋转
-            Object rightSleeve = rightSleeveField.get(playerModel);
-            if (rightSleeve instanceof net.minecraft.client.model.ModelPart) {
-                ((net.minecraft.client.model.ModelPart) rightSleeve).setAngles(rightArmRotX, rightArmRotY, rightArmRotZ);
-            }
-            
-            // leftPants应该跟随leftLeg的旋转
-            Object leftPants = leftPantsField.get(playerModel);
-            if (leftPants instanceof net.minecraft.client.model.ModelPart) {
-                ((net.minecraft.client.model.ModelPart) leftPants).setAngles(leftLegRotX, leftLegRotY, leftLegRotZ);
-            }
-            
-            // rightPants应该跟随rightLeg的旋转
-            Object rightPants = rightPantsField.get(playerModel);
-            if (rightPants instanceof net.minecraft.client.model.ModelPart) {
-                ((net.minecraft.client.model.ModelPart) rightPants).setAngles(rightLegRotX, rightLegRotY, rightLegRotZ);
-            }
-            
-            // jacket应该跟随body的旋转（但身体的旋转通过 MatrixStack 应用，所以这里设为0）
-            Object jacket = jacketField.get(playerModel);
-            if (jacket instanceof net.minecraft.client.model.ModelPart) {
-                ((net.minecraft.client.model.ModelPart) jacket).setAngles(0, 0, 0);
-            }
-        } catch (NoSuchFieldException | IllegalAccessException e) {
-            // 如果模型不支持这些字段，则忽略
-        }
+        // 使用模型封装类设置外层部件旋转
+        modelWrapper.setOverlayPartsRotation(
+            new float[]{bodyRotX, bodyRotY, bodyRotZ},
+            new float[]{leftArmRotX, leftArmRotY, leftArmRotZ},
+            new float[]{rightArmRotX, rightArmRotY, rightArmRotZ},
+            new float[]{leftLegRotX, leftLegRotY, leftLegRotZ},
+            new float[]{rightLegRotX, rightLegRotY, rightLegRotZ}
+        );
     }
     
     /**
@@ -504,16 +463,8 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
      * 用于在渲染时临时设置，因为身体的旋转通过 PoseStack 应用
      */
     private void setBodyOverlayRotation(float bodyRotX, float bodyRotY, float bodyRotZ) {
-        try {
-            java.lang.reflect.Field jacketField = PlayerEntityModel.class.getDeclaredField("jacket");
-            jacketField.setAccessible(true);
-            Object jacket = jacketField.get(playerModel);
-            if (jacket instanceof net.minecraft.client.model.ModelPart) {
-                ((net.minecraft.client.model.ModelPart) jacket).setAngles(bodyRotX, bodyRotY, bodyRotZ);
-            }
-        } catch (NoSuchFieldException | IllegalAccessException e) {
-            // 如果模型不支持这些字段，则忽略
-        }
+        // 使用模型封装类设置身体外层旋转
+        modelWrapper.setBodyOverlayRotation(bodyRotX, bodyRotY, bodyRotZ);
     }
     
     /**
@@ -537,33 +488,22 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
                                       float[] leftArmPosition,
                                       float[] leftArmScale) {
         ModuleLogger.debug(LOG_MODULE, "渲染手臂外层部件");
-        try {
-            // 使用反射访问PlayerEntityModel的外层部分（如果存在）
-            java.lang.reflect.Field leftSleeveField = PlayerEntityModel.class.getDeclaredField("leftSleeve");
-            java.lang.reflect.Field rightSleeveField = PlayerEntityModel.class.getDeclaredField("rightSleeve");
-            
-            leftSleeveField.setAccessible(true);
-            rightSleeveField.setAccessible(true);
-            
-            // 渲染左袖子外层
-            Object leftSleeve = leftSleeveField.get(playerModel);
-            if (leftSleeve instanceof net.minecraft.client.model.ModelPart) {
-                ModuleLogger.debug(LOG_MODULE, "✓ 渲染左袖子外层");
-                renderPartWithTransform(matrixStack, (net.minecraft.client.model.ModelPart) leftSleeve, overlayVertexConsumer, light, overlay, leftArmPosition, leftArmScale);
-            } else {
-                ModuleLogger.debug(LOG_MODULE, "✗ 左袖子外层不存在或类型不匹配");
-            }
-            
-            // 渲染右袖子外层
-            Object rightSleeve = rightSleeveField.get(playerModel);
-            if (rightSleeve instanceof net.minecraft.client.model.ModelPart) {
-                ModuleLogger.debug(LOG_MODULE, "✓ 渲染右袖子外层");
-                renderPartWithTransform(matrixStack, (net.minecraft.client.model.ModelPart) rightSleeve, overlayVertexConsumer, light, overlay, rightArmPosition, rightArmScale);
-            } else {
-                ModuleLogger.debug(LOG_MODULE, "✗ 右袖子外层不存在或类型不匹配");
-            }
-        } catch (NoSuchFieldException | IllegalAccessException e) {
-            // 如果模型不支持这些字段，则忽略
+        
+        // 使用模型封装类访问外层部件
+        net.minecraft.client.model.ModelPart leftSleeve = modelWrapper.getLeftSleeve();
+        if (leftSleeve != null) {
+            ModuleLogger.debug(LOG_MODULE, "✓ 渲染左袖子外层");
+            renderPartWithTransform(matrixStack, leftSleeve, overlayVertexConsumer, light, overlay, leftArmPosition, leftArmScale);
+        } else {
+            ModuleLogger.debug(LOG_MODULE, "✗ 左袖子外层不存在");
+        }
+        
+        net.minecraft.client.model.ModelPart rightSleeve = modelWrapper.getRightSleeve();
+        if (rightSleeve != null) {
+            ModuleLogger.debug(LOG_MODULE, "✓ 渲染右袖子外层");
+            renderPartWithTransform(matrixStack, rightSleeve, overlayVertexConsumer, light, overlay, rightArmPosition, rightArmScale);
+        } else {
+            ModuleLogger.debug(LOG_MODULE, "✗ 右袖子外层不存在");
         }
     }
     
@@ -592,44 +532,30 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
                                           float[] leftLegPosition,
                                           float[] leftLegScale) {
         ModuleLogger.debug(LOG_MODULE, "渲染身体和腿部外层部件");
-        try {
-            // 使用反射访问PlayerEntityModel的外层部分（如果存在）
-            java.lang.reflect.Field leftPantsField = PlayerEntityModel.class.getDeclaredField("leftPants");
-            java.lang.reflect.Field rightPantsField = PlayerEntityModel.class.getDeclaredField("rightPants");
-            java.lang.reflect.Field jacketField = PlayerEntityModel.class.getDeclaredField("jacket");
-            
-            leftPantsField.setAccessible(true);
-            rightPantsField.setAccessible(true);
-            jacketField.setAccessible(true);
-            
-            // 渲染夹克外层（身体外层）
-            Object jacket = jacketField.get(playerModel);
-            if (jacket instanceof net.minecraft.client.model.ModelPart) {
-                ModuleLogger.debug(LOG_MODULE, "✓ 渲染夹克外层");
-                renderPartWithTransform(matrixStack, (net.minecraft.client.model.ModelPart) jacket, overlayVertexConsumer, light, overlay, bodyPosition, bodyScale);
-            } else {
-                ModuleLogger.debug(LOG_MODULE, "✗ 夹克外层不存在或类型不匹配");
-            }
-            
-            // 渲染左腿外层
-            Object leftPants = leftPantsField.get(playerModel);
-            if (leftPants instanceof net.minecraft.client.model.ModelPart) {
-                ModuleLogger.debug(LOG_MODULE, "✓ 渲染左腿外层");
-                renderPartWithTransform(matrixStack, (net.minecraft.client.model.ModelPart) leftPants, overlayVertexConsumer, light, overlay, leftLegPosition, leftLegScale);
-            } else {
-                ModuleLogger.debug(LOG_MODULE, "✗ 左腿外层不存在或类型不匹配");
-            }
+        
+        // 使用模型封装类访问外层部件
+        net.minecraft.client.model.ModelPart jacket = modelWrapper.getJacket();
+        if (jacket != null) {
+            ModuleLogger.debug(LOG_MODULE, "✓ 渲染夹克外层");
+            renderPartWithTransform(matrixStack, jacket, overlayVertexConsumer, light, overlay, bodyPosition, bodyScale);
+        } else {
+            ModuleLogger.debug(LOG_MODULE, "✗ 夹克外层不存在");
+        }
+        
+        net.minecraft.client.model.ModelPart leftPants = modelWrapper.getLeftPants();
+        if (leftPants != null) {
+            ModuleLogger.debug(LOG_MODULE, "✓ 渲染左腿外层");
+            renderPartWithTransform(matrixStack, leftPants, overlayVertexConsumer, light, overlay, leftLegPosition, leftLegScale);
+        } else {
+            ModuleLogger.debug(LOG_MODULE, "✗ 左腿外层不存在");
+        }
 
-            // 渲染右腿外层
-            Object rightPants = rightPantsField.get(playerModel);
-            if (rightPants instanceof net.minecraft.client.model.ModelPart) {
-                ModuleLogger.debug(LOG_MODULE, "✓ 渲染右腿外层");
-                renderPartWithTransform(matrixStack, (net.minecraft.client.model.ModelPart) rightPants, overlayVertexConsumer, light, overlay, rightLegPosition, rightLegScale);
-            } else {
-                ModuleLogger.debug(LOG_MODULE, "✗ 右腿外层不存在或类型不匹配");
-            }
-        } catch (NoSuchFieldException | IllegalAccessException e) {
-            // 如果模型不支持这些字段，则忽略
+        net.minecraft.client.model.ModelPart rightPants = modelWrapper.getRightPants();
+        if (rightPants != null) {
+            ModuleLogger.debug(LOG_MODULE, "✓ 渲染右腿外层");
+            renderPartWithTransform(matrixStack, rightPants, overlayVertexConsumer, light, overlay, rightLegPosition, rightLegScale);
+        } else {
+            ModuleLogger.debug(LOG_MODULE, "✗ 右腿外层不存在");
         }
     }
     
@@ -939,6 +865,73 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
     }
             
     /**
+     * 获取ModelPart的轴信息（旋转、位置、旋转中心）
+     * 
+     * @param modelPart ModelPart对象
+     * @return 包含轴信息的数组：[xRot, yRot, zRot, x, y, z, pivotX, pivotY, pivotZ]
+     *         如果获取失败，返回null
+     */
+    private float[] getModelPartAxisInfo(net.minecraft.client.model.ModelPart modelPart) {
+        try {
+            float[] axisInfo = new float[9];
+            
+            // 获取旋转信息（xRot, yRot, zRot）
+            try {
+                java.lang.reflect.Field xRotField = modelPart.getClass().getDeclaredField("xRot");
+                java.lang.reflect.Field yRotField = modelPart.getClass().getDeclaredField("yRot");
+                java.lang.reflect.Field zRotField = modelPart.getClass().getDeclaredField("zRot");
+                xRotField.setAccessible(true);
+                yRotField.setAccessible(true);
+                zRotField.setAccessible(true);
+                axisInfo[0] = xRotField.getFloat(modelPart);
+                axisInfo[1] = yRotField.getFloat(modelPart);
+                axisInfo[2] = zRotField.getFloat(modelPart);
+            } catch (Exception e) {
+                ModuleLogger.debug(LogModuleConfig.MODULE_RENDER_3D_OFFSET,
+                    "无法获取旋转信息: {}", e.getMessage());
+            }
+            
+            // 获取位置信息（x, y, z）
+            try {
+                java.lang.reflect.Field xField = modelPart.getClass().getDeclaredField("x");
+                java.lang.reflect.Field yField = modelPart.getClass().getDeclaredField("y");
+                java.lang.reflect.Field zField = modelPart.getClass().getDeclaredField("z");
+                xField.setAccessible(true);
+                yField.setAccessible(true);
+                zField.setAccessible(true);
+                axisInfo[3] = xField.getFloat(modelPart);
+                axisInfo[4] = yField.getFloat(modelPart);
+                axisInfo[5] = zField.getFloat(modelPart);
+            } catch (Exception e) {
+                ModuleLogger.debug(LogModuleConfig.MODULE_RENDER_3D_OFFSET,
+                    "无法获取位置信息: {}", e.getMessage());
+            }
+            
+            // 获取旋转中心信息（pivotX, pivotY, pivotZ）
+            try {
+                java.lang.reflect.Field pivotXField = modelPart.getClass().getDeclaredField("pivotX");
+                java.lang.reflect.Field pivotYField = modelPart.getClass().getDeclaredField("pivotY");
+                java.lang.reflect.Field pivotZField = modelPart.getClass().getDeclaredField("pivotZ");
+                pivotXField.setAccessible(true);
+                pivotYField.setAccessible(true);
+                pivotZField.setAccessible(true);
+                axisInfo[6] = pivotXField.getFloat(modelPart);
+                axisInfo[7] = pivotYField.getFloat(modelPart);
+                axisInfo[8] = pivotZField.getFloat(modelPart);
+            } catch (Exception e) {
+                ModuleLogger.debug(LogModuleConfig.MODULE_RENDER_3D_OFFSET,
+                    "无法获取旋转中心信息: {}", e.getMessage());
+            }
+            
+            return axisInfo;
+        } catch (Exception e) {
+            ModuleLogger.debug(LogModuleConfig.MODULE_RENDER_3D_OFFSET,
+                "获取ModelPart轴信息失败: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    /**
      * 快速渲染单个3D网格部件（已批量初始化，只负责变换和渲染）
      * 优化版本：移除了所有初始化逻辑，只保留变换和渲染
      */
@@ -952,6 +945,46 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
                                       float[] rotation) {
         if (mesh == null) {
             return;
+        }
+
+        // 获取并记录ModelPart的轴信息
+        float[] axisInfo = getModelPartAxisInfo(modelPart);
+        if (axisInfo != null) {
+            float xRot = axisInfo[0];      // X轴旋转（弧度）
+            float yRot = axisInfo[1];      // Y轴旋转（弧度）
+            float zRot = axisInfo[2];      // Z轴旋转（弧度）
+            float x = axisInfo[3];         // X位置
+            float y = axisInfo[4];         // Y位置
+            float z = axisInfo[5];         // Z位置
+            float pivotX = axisInfo[6];    // 旋转中心X
+            float pivotY = axisInfo[7];    // 旋转中心Y
+            float pivotZ = axisInfo[8];    // 旋转中心Z
+            
+            ModuleLogger.debug(LogModuleConfig.MODULE_RENDER_3D_OFFSET,
+                "部件信息 - 部位={}: " +
+                "ModelPart旋转(X:{:.2f}°, Y:{:.2f}°, Z:{:.2f}°), " +
+                "ModelPart位置({:.4f}, {:.4f}, {:.4f}), " +
+                "旋转中心({:.4f}, {:.4f}, {:.4f}), " +
+                "姿态旋转(X:{:.2f}°, Y:{:.2f}°, Z:{:.2f}°), " +
+                "姿态位置({:.4f}, {:.4f}, {:.4f}), " +
+                "姿态缩放({:.4f}, {:.4f}, {:.4f})",
+                offsetProviderName,
+                Math.toDegrees(xRot), Math.toDegrees(yRot), Math.toDegrees(zRot),
+                x, y, z,
+                pivotX, pivotY, pivotZ,
+                rotation[0], rotation[1], rotation[2],
+                position[0], position[1], position[2],
+                scale[0], scale[1], scale[2]);
+        } else {
+            ModuleLogger.debug(LogModuleConfig.MODULE_RENDER_3D_OFFSET,
+                "部件信息 - 部位={}: 无法获取ModelPart轴信息, " +
+                "姿态旋转(X:{:.2f}°, Y:{:.2f}°, Z:{:.2f}°), " +
+                "姿态位置({:.4f}, {:.4f}, {:.4f}), " +
+                "姿态缩放({:.4f}, {:.4f}, {:.4f})",
+                offsetProviderName,
+                rotation[0], rotation[1], rotation[2],
+                position[0], position[1], position[2],
+                scale[0], scale[1], scale[2]);
         }
 
         try {
@@ -1006,12 +1039,57 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
             // 关键：在旋转之前应用偏移（在身体的坐标系中）
             applyManual3DOffset(matrixStack, offsetProviderName, modelPart);
             
-            // 应用旋转（使用姿态文件的旋转值）
+            // 获取旋转轴配置
+            DollRenderConfig.OverlayRotationConfig rotationConfig = renderConfig.getOverlayRotationConfig();
+            
+            // 判断是否是腿部部件，腿部需要以pivot点（与身体连接处）作为旋转中心
+            boolean isLegPart = "LEFT_LEG".equals(offsetProviderName) || "RIGHT_LEG".equals(offsetProviderName);
+            boolean usePivotForRotation = rotationConfig.isUsePivotAsRotationCenter() || isLegPart;
+            
+            // 计算旋转中心
+            // pivot点的坐标是相对于ModelPart的局部原点的
+            float rotationCenterX = 0.0f;
+            float rotationCenterY = 0.0f;
+            float rotationCenterZ = 0.0f;
+            
+            if (usePivotForRotation && axisInfo != null) {
+                // pivot点相对于ModelPart的局部原点
+                rotationCenterX = axisInfo[6];  // pivotX
+                rotationCenterY = axisInfo[7];  // pivotY
+                rotationCenterZ = axisInfo[8];  // pivotZ
+                
+                if (isLegPart) {
+                    ModuleLogger.debug(LogModuleConfig.MODULE_RENDER_3D_OFFSET, 
+                        "部位={}: 使用pivot点作为旋转中心 (pivot=({:.3f}, {:.3f}, {:.3f}))", 
+                        offsetProviderName, rotationCenterX, rotationCenterY, rotationCenterZ);
+                }
+            }
+            
+            // 应用旋转中心偏移（如果配置了）
+            float[] centerOffset = rotationConfig.getRotationCenterOffset();
+            if (centerOffset[0] != 0.0f || centerOffset[1] != 0.0f || centerOffset[2] != 0.0f) {
+                rotationCenterX += centerOffset[0];
+                rotationCenterY += centerOffset[1];
+                rotationCenterZ += centerOffset[2];
+            }
+            
+            // 如果使用pivot点作为旋转中心，移动到旋转中心
+            if (usePivotForRotation && axisInfo != null) {
+                matrixStack.translate(rotationCenterX, rotationCenterY, rotationCenterZ);
+            }
+            
+            // 应用旋转（根据配置的旋转顺序）
             if (rotX != 0.0F || rotY != 0.0F || rotZ != 0.0F) {
-                matrixStack.multiply(new Quaternionf().rotationZYX(rotZ, rotY, rotX));
+                applyRotationByOrder(matrixStack, rotX, rotY, rotZ, rotationConfig.getRotationOrder());
                 ModuleLogger.debug(LogModuleConfig.MODULE_RENDER_3D_OFFSET, 
-                    "部位={}: 应用旋转 (X:{:.1f}°, Y:{:.1f}°, Z:{:.1f}°)", 
-                    offsetProviderName, rotation[0], rotation[1], rotation[2]);
+                    "部位={}: 应用旋转 (X:{:.1f}°, Y:{:.1f}°, Z:{:.1f}°), 顺序={}, 旋转中心={}", 
+                    offsetProviderName, rotation[0], rotation[1], rotation[2], 
+                    rotationConfig.getRotationOrder(), usePivotForRotation ? "pivot点" : "部件位置");
+            }
+            
+            // 如果使用pivot点作为旋转中心，移回原位置
+            if (usePivotForRotation && axisInfo != null) {
+                matrixStack.translate(-rotationCenterX, -rotationCenterY, -rotationCenterZ);
             }
             
             // 应用基础缩放
@@ -1049,6 +1127,60 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
                 }
     }
 
+    /**
+     * 根据旋转顺序应用旋转
+     * @param matrixStack 变换矩阵栈
+     * @param rotX X轴旋转（弧度）
+     * @param rotY Y轴旋转（弧度）
+     * @param rotZ Z轴旋转（弧度）
+     * @param order 旋转顺序
+     */
+    private void applyRotationByOrder(MatrixStack matrixStack, float rotX, float rotY, float rotZ, DollRenderConfig.RotationOrder order) {
+        Quaternionf quaternion = new Quaternionf();
+        
+        switch (order) {
+            case ZYX:
+                // Z-Y-X顺序（默认）
+                quaternion.rotationZYX(rotZ, rotY, rotX);
+                break;
+            case XYZ:
+                // X-Y-Z顺序
+                quaternion.rotationXYZ(rotX, rotY, rotZ);
+                break;
+            case YXZ:
+                // Y-X-Z顺序
+                quaternion.rotationYXZ(rotY, rotX, rotZ);
+                break;
+            case XZY:
+                // X-Z-Y顺序：先绕X轴，再绕Z轴，最后绕Y轴
+                quaternion.identity();
+                quaternion.rotateX(rotX);
+                quaternion.rotateZ(rotZ);
+                quaternion.rotateY(rotY);
+                break;
+            case YZX:
+                // Y-Z-X顺序：先绕Y轴，再绕Z轴，最后绕X轴
+                quaternion.identity();
+                quaternion.rotateY(rotY);
+                quaternion.rotateZ(rotZ);
+                quaternion.rotateX(rotX);
+                break;
+            case ZXY:
+                // Z-X-Y顺序：先绕Z轴，再绕X轴，最后绕Y轴
+                quaternion.identity();
+                quaternion.rotateZ(rotZ);
+                quaternion.rotateX(rotX);
+                quaternion.rotateY(rotY);
+                break;
+            default:
+                // 默认使用ZYX
+                quaternion.rotationZYX(rotZ, rotY, rotX);
+                break;
+        }
+        
+        matrixStack.multiply(quaternion);
+    }
+    
     /**
      * 初始化render方法缓存（只执行一次）
      */
