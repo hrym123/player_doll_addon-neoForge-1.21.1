@@ -333,7 +333,8 @@ public class FileLogger {
     }
 
     /**
-     * 清理旧的日志文件，只保留最新的5个
+     * 清理旧的日志文件，只保留最新的5组
+     * 每组包括主日志文件及其所有备份文件（.log.1, .log.2 等）
      */
     private static void cleanupOldLogFiles() {
         try {
@@ -341,36 +342,106 @@ public class FileLogger {
                 return;
             }
 
-            // 获取所有日志文件
-            java.util.List<Path> logFiles = Files.list(logDirectory)
+            // 获取所有日志相关文件（包括 .log 和 .log.X 备份文件）
+            java.util.List<Path> allLogFiles = Files.list(logDirectory)
                     .filter(Files::isRegularFile)
-                    .filter(path -> path.getFileName().toString().startsWith(MOD_LOG_PREFIX + "-"))
-                    .filter(path -> path.getFileName().toString().endsWith(".log"))
+                    .filter(path -> {
+                        String fileName = path.getFileName().toString();
+                        return fileName.startsWith(MOD_LOG_PREFIX + "-") && 
+                               (fileName.endsWith(".log") || fileName.matches(".*\\.log\\.\\d+$"));
+                    })
+                    .collect(java.util.stream.Collectors.toList());
+
+            // 将文件按组分类（同一日志文件的所有版本为一组）
+            // Key: 基础文件名（不含 .log 后缀和备份编号），Value: 该组的所有文件路径
+            java.util.Map<String, java.util.List<Path>> fileGroups = new java.util.HashMap<>();
+            
+            for (Path file : allLogFiles) {
+                String fileName = file.getFileName().toString();
+                String baseName;
+                
+                // 提取基础文件名
+                if (fileName.endsWith(".log")) {
+                    // 主日志文件：player_doll-2026-01-03-15-07-19.log
+                    baseName = fileName.substring(0, fileName.length() - 4); // 移除 .log
+                } else if (fileName.matches(".*\\.log\\.\\d+$")) {
+                    // 备份文件：player_doll-2026-01-03-15-07-19.log.1
+                    int lastDotIndex = fileName.lastIndexOf('.');
+                    int secondLastDotIndex = fileName.lastIndexOf('.', lastDotIndex - 1);
+                    baseName = fileName.substring(0, secondLastDotIndex); // 移除 .log.X
+                } else {
+                    continue;
+                }
+                
+                fileGroups.computeIfAbsent(baseName, k -> new java.util.ArrayList<>()).add(file);
+            }
+
+            // 计算每组的最后修改时间（取组中最新的文件时间）
+            java.util.List<java.util.Map.Entry<String, java.util.List<Path>>> sortedGroups = 
+                    fileGroups.entrySet().stream()
                     .sorted((a, b) -> {
                         try {
+                            // 获取每组的最新修改时间
+                            long timeA = a.getValue().stream()
+                                    .mapToLong(path -> {
+                                        try {
+                                            return Files.getLastModifiedTime(path).toMillis();
+                                        } catch (Exception e) {
+                                            return 0;
+                                        }
+                                    })
+                                    .max()
+                                    .orElse(0);
+                            
+                            long timeB = b.getValue().stream()
+                                    .mapToLong(path -> {
+                                        try {
+                                            return Files.getLastModifiedTime(path).toMillis();
+                                        } catch (Exception e) {
+                                            return 0;
+                                        }
+                                    })
+                                    .max()
+                                    .orElse(0);
+                            
                             // 按修改时间倒序排序（最新的在前面）
-                            return Long.compare(Files.getLastModifiedTime(b).toMillis(),
-                                              Files.getLastModifiedTime(a).toMillis());
+                            return Long.compare(timeB, timeA);
                         } catch (Exception e) {
                             return 0;
                         }
                     })
                     .collect(java.util.stream.Collectors.toList());
 
-            // 如果文件数量超过5个，删除旧的
-            if (logFiles.size() > MAX_BACKUP_FILES) {
-                for (int i = MAX_BACKUP_FILES; i < logFiles.size(); i++) {
-                    try {
-                        Files.delete(logFiles.get(i));
-                        ModuleLogger.debug(LogModuleConfig.MODULE_MAIN,
-                            "[文件日志] 删除旧日志文件: {}", logFiles.get(i).getFileName());
-                    } catch (Exception e) {
-                        ModuleLogger.warn(LogModuleConfig.MODULE_MAIN,
-                            "[文件日志] 无法删除旧日志文件 {}: {}", logFiles.get(i).getFileName(), e.getMessage());
+            // 如果文件组数量超过限制，删除旧的组
+            if (sortedGroups.size() > MAX_BACKUP_FILES) {
+                int deletedGroups = 0;
+                int deletedFiles = 0;
+                
+                for (int i = MAX_BACKUP_FILES; i < sortedGroups.size(); i++) {
+                    java.util.List<Path> groupFiles = sortedGroups.get(i).getValue();
+                    
+                    // 删除该组的所有文件
+                    for (Path file : groupFiles) {
+                        try {
+                            Files.delete(file);
+                            deletedFiles++;
+                            ModuleLogger.debug(LogModuleConfig.MODULE_MAIN,
+                                "[文件日志] 删除旧日志文件: {}", file.getFileName());
+                        } catch (Exception e) {
+                            ModuleLogger.warn(LogModuleConfig.MODULE_MAIN,
+                                "[文件日志] 无法删除旧日志文件 {}: {}", file.getFileName(), e.getMessage());
+                        }
                     }
+                    
+                    deletedGroups++;
                 }
+                
                 ModuleLogger.info(LogModuleConfig.MODULE_MAIN,
-                    "[文件日志] 日志文件清理完成，保留最新的 {} 个文件", MAX_BACKUP_FILES);
+                    "[文件日志] 日志文件清理完成，删除 {} 组共 {} 个文件，保留最新的 {} 组", 
+                    deletedGroups, deletedFiles, MAX_BACKUP_FILES);
+            } else {
+                ModuleLogger.debug(LogModuleConfig.MODULE_MAIN,
+                    "[文件日志] 日志文件数量在限制内（{} 组），无需清理", sortedGroups.size());
             }
 
         } catch (Exception e) {
