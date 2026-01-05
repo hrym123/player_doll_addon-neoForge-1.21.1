@@ -105,9 +105,35 @@ public class PlayerDollAddonClient implements ClientModInitializer {
         Map<String, net.minecraft.entity.EntityType<com.lanye.dolladdon.impl.entity.CustomTextureDollEntity>> customEntities = 
                 ModEntities.getAllCustomTextureDollEntityTypes();
         
+        // 获取所有自定义纹理信息，用于检测模型类型
+        com.lanye.dolladdon.util.resource.PngTextureScanner.PngTextureInfo[] pngInfos = 
+                com.lanye.dolladdon.util.resource.PngTextureScanner.scanPngFiles().toArray(
+                        new com.lanye.dolladdon.util.resource.PngTextureScanner.PngTextureInfo[0]);
+        
         for (Map.Entry<String, net.minecraft.entity.EntityType<com.lanye.dolladdon.impl.entity.CustomTextureDollEntity>> entry : customEntities.entrySet()) {
             try {
-                EntityRendererRegistry.register(entry.getValue(), CustomTextureDollRenderer::new);
+                String registryName = entry.getKey();
+                
+                // 查找对应的纹理信息
+                com.lanye.dolladdon.util.resource.PngTextureScanner.PngTextureInfo pngInfo = null;
+                for (com.lanye.dolladdon.util.resource.PngTextureScanner.PngTextureInfo info : pngInfos) {
+                    if (info.getRegistryName().equals(registryName)) {
+                        pngInfo = info;
+                        break;
+                    }
+                }
+                
+                // 检测模型类型
+                boolean isAlexModel = false;
+                if (pngInfo != null) {
+                    isAlexModel = CustomTextureDollRenderer.detectIsAlexModel(
+                            registryName, pngInfo.getTextureIdentifier());
+                }
+                
+                // 创建渲染器工厂，传入模型类型
+                final boolean finalIsAlexModel = isAlexModel;
+                EntityRendererRegistry.register(entry.getValue(), 
+                        context -> new CustomTextureDollRenderer(context, finalIsAlexModel));
             } catch (Exception e) {
                 ModuleLogger.error(LogModuleConfig.MODULE_RENDER, "[渲染器] ✗ 注册自定义纹理玩偶实体渲染器失败: {}", entry.getKey(), e);
             }
