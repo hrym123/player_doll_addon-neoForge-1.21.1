@@ -72,6 +72,7 @@ public abstract class BaseDollEntity extends Entity {
     private String lastActionName = null; // 记录最后播放的动作名称（即使动作已停止也保留）
     private DollPose actionStartPose = null; // 动作开始时的姿态（用于第一个关键帧插值）
     private String syncedActionName = null; // 同步的动作名称（用于客户端检测变化）
+    private Byte syncedPoseIndex = null; // 同步的姿态索引（用于客户端检测变化）
     
     // 当前姿态索引（用于循环切换）
     private int currentPoseIndex = -1;
@@ -392,6 +393,29 @@ public abstract class BaseDollEntity extends Entity {
                     }
                     this.currentAction = null;
                     this.actionTick = 0;
+                    
+                    // 动作被清空后，立即检查并应用同步的姿态索引
+                    // 这确保当使用姿态调试棒时，姿态能立即应用
+                    byte syncedIndex = this.dataTracker.get(DATA_POSE_INDEX);
+                    if (syncedIndex != 255) {
+                        int index = syncedIndex & 0xFF; // 转换为无符号整数
+                        // 无论索引是否相同，都重新加载姿态（确保姿态正确应用）
+                        currentPoseIndex = index;
+                        loadPoseByIndex();
+                        // 姿态改变时更新碰撞箱
+                        updateBoundingBox();
+                        ModuleLogger.debug(LOG_MODULE_POSE, "客户端动作清空后立即应用姿态: 索引={}", index);
+                    } else {
+                        // 如果同步值为255，使用standing姿态（索引0）
+                        if (currentPoseIndex != 0) {
+                            currentPoseIndex = 0;
+                        }
+                        DollPose standingPose = PoseActionManager.getPose("standing");
+                        currentPose = standingPose != null ? standingPose : SimpleDollPose.createDefaultStandingPose();
+                        // 姿态改变时更新碰撞箱
+                        updateBoundingBox();
+                        ModuleLogger.debug(LOG_MODULE_POSE, "客户端动作清空后立即应用standing姿态");
+                    }
                 }
             }
         }
@@ -399,21 +423,29 @@ public abstract class BaseDollEntity extends Entity {
         // 在客户端，根据同步的索引更新姿态（仅在无动作时执行，因为动作会覆盖姿态）
         if (this.getWorld().isClient && currentAction == null) {
             byte syncedIndex = this.dataTracker.get(DATA_POSE_INDEX);
-            if (syncedIndex != 255) {
-                int index = syncedIndex & 0xFF; // 转换为无符号整数
-                if (index != currentPoseIndex) {
-                    currentPoseIndex = index;
-                    loadPoseByIndex();
+            
+            // 如果同步的姿态索引发生变化，更新客户端的姿态
+            if (!java.util.Objects.equals(syncedIndex, this.syncedPoseIndex)) {
+                this.syncedPoseIndex = syncedIndex;
+                
+                if (syncedIndex != 255) {
+                    int index = syncedIndex & 0xFF; // 转换为无符号整数
+                    if (index != currentPoseIndex) {
+                        currentPoseIndex = index;
+                        loadPoseByIndex();
+                        // 姿态改变时更新碰撞箱
+                        updateBoundingBox();
+                        ModuleLogger.debug(LOG_MODULE_POSE, "客户端同步姿态: 索引={}", index);
+                    }
+                } else if (currentPoseIndex != 0) {
+                    // 如果同步值为255，使用standing姿态（索引0）
+                    currentPoseIndex = 0;
+                    DollPose standingPose = PoseActionManager.getPose("standing");
+                    currentPose = standingPose != null ? standingPose : SimpleDollPose.createDefaultStandingPose();
                     // 姿态改变时更新碰撞箱
                     updateBoundingBox();
+                    ModuleLogger.debug(LOG_MODULE_POSE, "客户端同步standing姿态");
                 }
-            } else if (currentPoseIndex != 0) {
-                // 如果同步值为255，使用standing姿态（索引0）
-                currentPoseIndex = 0;
-                DollPose standingPose = PoseActionManager.getPose("standing");
-                currentPose = standingPose != null ? standingPose : SimpleDollPose.createDefaultStandingPose();
-                // 姿态改变时更新碰撞箱
-                updateBoundingBox();
             }
         }
         
@@ -871,10 +903,8 @@ public abstract class BaseDollEntity extends Entity {
             return false;
         }
         
-        // 设置姿态
-        setPose(pose);
-        
-        // 更新姿态索引并同步到客户端
+        // 先更新姿态索引并同步到客户端（在清空动作之前）
+        // 这确保客户端在动作被清空时能立即应用正确的姿态
         List<String> poseNames = getAvailablePoseNames();
         int poseIndex = poseNames.indexOf(poseName);
         
@@ -890,12 +920,16 @@ public abstract class BaseDollEntity extends Entity {
                     this.dataTracker.set(DATA_POSE_INDEX, (byte) 255);
                 }
             }
-            ModuleLogger.debug(LOG_MODULE_POSE, "设置姿态并更新索引: {} (索引: {})", poseName, poseIndex);
-            return true;
         } else {
             ModuleLogger.warn(LOG_MODULE_POSE, "设置姿态失败: 姿态不在可用列表中: {}", poseName);
             return false;
         }
+        
+        // 然后设置姿态（这会清空动作并同步 DATA_ACTION_NAME）
+        setPose(pose);
+        
+        ModuleLogger.debug(LOG_MODULE_POSE, "设置姿态并更新索引: {} (索引: {})", poseName, poseIndex);
+        return true;
     }
     
     /**
