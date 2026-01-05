@@ -4,6 +4,7 @@ import com.lanye.dolladdon.PlayerDollAddon;
 import com.lanye.dolladdon.impl.item.ActionDebugStick;
 import com.lanye.dolladdon.impl.item.AlexDollItem;
 import com.lanye.dolladdon.impl.item.CustomTextureDollItem;
+import com.lanye.dolladdon.impl.item.PoseDebugStick;
 import com.lanye.dolladdon.impl.item.SteveDollItem;
 import com.lanye.dolladdon.util.logging.LogModuleConfig;
 import com.lanye.dolladdon.util.logging.ModuleLogger;
@@ -30,6 +31,9 @@ public class ModItems {
     // 动作调试棒
     public static Item ACTION_DEBUG_STICK;
     
+    // 姿态调试棒
+    public static Item POSE_DEBUG_STICK;
+    
     /**
      * 注册所有物品
      */
@@ -40,6 +44,9 @@ public class ModItems {
         
         // 注册动作调试棒
         ACTION_DEBUG_STICK = registerStandardDollItem("action_debug_stick", new ActionDebugStick());
+        
+        // 注册姿态调试棒
+        POSE_DEBUG_STICK = registerStandardDollItem("pose_debug_stick", new PoseDebugStick());
         
         // 扫描并注册所有 PNG 文件对应的物品
         registerCustomTextureDollItems();

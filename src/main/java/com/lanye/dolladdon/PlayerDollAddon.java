@@ -2,6 +2,7 @@ package com.lanye.dolladdon;
 
 import com.lanye.dolladdon.base.entity.BaseDollEntity;
 import com.lanye.dolladdon.impl.item.ActionDebugStick;
+import com.lanye.dolladdon.impl.item.PoseDebugStick;
 import com.lanye.dolladdon.init.ModEntities;
 import com.lanye.dolladdon.init.ModItems;
 import com.lanye.dolladdon.util.init.DefaultFileInitializer;
@@ -51,6 +52,9 @@ public class PlayerDollAddon implements ModInitializer {
                 
                 // 添加动作调试棒
                 entries.add(new ItemStack(ModItems.ACTION_DEBUG_STICK));
+                
+                // 添加姿态调试棒
+                entries.add(new ItemStack(ModItems.POSE_DEBUG_STICK));
             })
             .build();
 
@@ -136,11 +140,14 @@ public class PlayerDollAddon implements ModInitializer {
                     return ActionResult.PASS;
                 }
                 
-                // 检查玩家是否手持动作调试棒
+                // 检查玩家是否手持动作调试棒或姿态调试棒
                 ItemStack stack = player.getStackInHand(hand);
                 if (stack.getItem() instanceof ActionDebugStick) {
                     // 使用动作调试棒应用动作
                     return ActionDebugStick.applyActionToEntity(stack, player, dollEntity, world);
+                } else if (stack.getItem() instanceof PoseDebugStick) {
+                    // 使用姿态调试棒应用姿态
+                    return PoseDebugStick.applyPoseToEntity(stack, player, dollEntity, world);
                 }
 
                 // 记录交互尝试

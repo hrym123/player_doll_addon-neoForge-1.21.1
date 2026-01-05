@@ -342,6 +342,9 @@ public class ResourceFileGenerator {
             // 添加动作调试棒翻译
             zhCnEntries.put("item." + modId + ".action_debug_stick", "动作调试棒");
             
+            // 添加姿态调试棒翻译
+            zhCnEntries.put("item." + modId + ".pose_debug_stick", "姿态调试棒");
+            
             enUsEntries.put("item." + modId + ".steve_doll", "Steve Doll");
             enUsEntries.put("entity." + modId + ".steve_doll", "Steve Doll");
             enUsEntries.put("item." + modId + ".alex_doll", "Alex Doll");
@@ -358,6 +361,9 @@ public class ResourceFileGenerator {
             
             // 添加动作调试棒翻译
             enUsEntries.put("item." + modId + ".action_debug_stick", "Action Debug Stick");
+            
+            // 添加姿态调试棒翻译
+            enUsEntries.put("item." + modId + ".pose_debug_stick", "Pose Debug Stick");
             
             // 为每个 PNG 文件生成翻译
             for (PngTextureScanner.PngTextureInfo pngInfo : pngFiles) {

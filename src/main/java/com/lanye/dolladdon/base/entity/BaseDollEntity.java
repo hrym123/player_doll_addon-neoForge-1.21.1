@@ -856,6 +856,49 @@ public abstract class BaseDollEntity extends Entity {
     }
     
     /**
+     * 设置姿态并更新索引（用于姿态调试棒等外部调用）
+     * @param poseName 姿态名称
+     * @return 是否成功设置
+     */
+    public boolean setPoseByName(String poseName) {
+        if (poseName == null || poseName.isEmpty()) {
+            return false;
+        }
+        
+        DollPose pose = PoseActionManager.getPose(poseName);
+        if (pose == null) {
+            ModuleLogger.warn(LOG_MODULE_POSE, "设置姿态失败: 姿态不存在: {}", poseName);
+            return false;
+        }
+        
+        // 设置姿态
+        setPose(pose);
+        
+        // 更新姿态索引并同步到客户端
+        List<String> poseNames = getAvailablePoseNames();
+        int poseIndex = poseNames.indexOf(poseName);
+        
+        if (poseIndex >= 0) {
+            this.currentPoseIndex = poseIndex;
+            // 同步姿态索引到客户端（仅在服务端设置）
+            if (!this.getWorld().isClient) {
+                if (currentPoseIndex == 0) {
+                    this.dataTracker.set(DATA_POSE_INDEX, (byte) 255);
+                } else if (currentPoseIndex < 255) {
+                    this.dataTracker.set(DATA_POSE_INDEX, (byte) (currentPoseIndex & 0xFF));
+                } else {
+                    this.dataTracker.set(DATA_POSE_INDEX, (byte) 255);
+                }
+            }
+            ModuleLogger.debug(LOG_MODULE_POSE, "设置姿态并更新索引: {} (索引: {})", poseName, poseIndex);
+            return true;
+        } else {
+            ModuleLogger.warn(LOG_MODULE_POSE, "设置姿态失败: 姿态不在可用列表中: {}", poseName);
+            return false;
+        }
+    }
+    
+    /**
      * 获取当前动作
      * @return 当前动作，如果没有则返回null
      */
