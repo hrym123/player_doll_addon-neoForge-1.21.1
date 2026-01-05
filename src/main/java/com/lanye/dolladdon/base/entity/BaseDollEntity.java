@@ -845,6 +845,10 @@ public abstract class BaseDollEntity extends Entity {
             this.currentAction = null;
             this.actionTick = 0;
             this.actionStartPose = null;
+            // 同步动作名称到客户端（仅在服务端设置）
+            if (!this.getWorld().isClient) {
+                this.dataTracker.set(DATA_ACTION_NAME, ""); // 空字符串表示无动作
+            }
             // 姿态改变时更新碰撞箱
             updateBoundingBox();
             ModuleLogger.debug(LOG_MODULE_POSE, "设置姿态: {} -> {}", oldPoseName, pose.getName());
@@ -933,6 +937,10 @@ public abstract class BaseDollEntity extends Entity {
         this.currentAction = null;
         this.actionTick = 0;
         this.actionStartPose = null;
+        // 同步动作名称到客户端（仅在服务端设置）
+        if (!this.getWorld().isClient) {
+            this.dataTracker.set(DATA_ACTION_NAME, ""); // 空字符串表示无动作
+        }
         // 恢复standing姿态
         DollPose standingPose = PoseActionManager.getPose("standing");
         this.currentPose = standingPose != null ? standingPose : SimpleDollPose.createDefaultStandingPose();

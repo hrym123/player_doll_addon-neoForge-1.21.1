@@ -339,6 +339,9 @@ public class ResourceFileGenerator {
             zhCnEntries.put("message." + modId + ".action_stopped", "动作已停止");
             zhCnEntries.put("message." + modId + ".no_action_to_stop", "当前没有播放动作");
             
+            // 添加动作调试棒翻译
+            zhCnEntries.put("item." + modId + ".action_debug_stick", "动作调试棒");
+            
             enUsEntries.put("item." + modId + ".steve_doll", "Steve Doll");
             enUsEntries.put("entity." + modId + ".steve_doll", "Steve Doll");
             enUsEntries.put("item." + modId + ".alex_doll", "Alex Doll");
@@ -352,6 +355,9 @@ public class ResourceFileGenerator {
             enUsEntries.put("message." + modId + ".action_switched", "Switched to action: %s");
             enUsEntries.put("message." + modId + ".action_stopped", "Action stopped");
             enUsEntries.put("message." + modId + ".no_action_to_stop", "No action is currently playing");
+            
+            // 添加动作调试棒翻译
+            enUsEntries.put("item." + modId + ".action_debug_stick", "Action Debug Stick");
             
             // 为每个 PNG 文件生成翻译
             for (PngTextureScanner.PngTextureInfo pngInfo : pngFiles) {
