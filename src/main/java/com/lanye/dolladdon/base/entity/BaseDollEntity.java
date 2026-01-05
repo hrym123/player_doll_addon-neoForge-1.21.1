@@ -2,6 +2,7 @@ package com.lanye.dolladdon.base.entity;
 
 import com.lanye.dolladdon.api.action.ActionMode;
 import com.lanye.dolladdon.api.action.DollAction;
+import com.lanye.dolladdon.api.action.SimpleDollAction;
 import com.lanye.dolladdon.api.pose.DollPose;
 import com.lanye.dolladdon.api.pose.SimpleDollPose;
 import com.lanye.dolladdon.base.DollEntityFactory;
@@ -25,6 +26,7 @@ import net.minecraft.text.Text;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
 import net.minecraft.util.math.Box;
+import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 
@@ -60,12 +62,16 @@ public abstract class BaseDollEntity extends Entity {
     private static final TrackedData<Byte> DATA_CLIENT_FLAGS = DataTracker.registerData(BaseDollEntity.class, TrackedDataHandlerRegistry.BYTE);
     // 同步姿态索引到客户端（使用Byte，支持0-255个姿态，足够使用）
     private static final TrackedData<Byte> DATA_POSE_INDEX = DataTracker.registerData(BaseDollEntity.class, TrackedDataHandlerRegistry.BYTE);
+    // 同步动作名称到客户端（使用String，空字符串表示无动作）
+    private static final TrackedData<String> DATA_ACTION_NAME = DataTracker.registerData(BaseDollEntity.class, TrackedDataHandlerRegistry.STRING);
     
     // 姿态和动作相关字段
     private DollPose currentPose;
     private DollAction currentAction;
     private int actionTick = 0;
     private String lastActionName = null; // 记录最后播放的动作名称（即使动作已停止也保留）
+    private DollPose actionStartPose = null; // 动作开始时的姿态（用于第一个关键帧插值）
+    private String syncedActionName = null; // 同步的动作名称（用于客户端检测变化）
     
     // 当前姿态索引（用于循环切换）
     private int currentPoseIndex = -1;
@@ -115,6 +121,7 @@ public abstract class BaseDollEntity extends Entity {
     protected void initDataTracker() {
         this.dataTracker.startTracking(DATA_CLIENT_FLAGS, (byte) 0);
         this.dataTracker.startTracking(DATA_POSE_INDEX, (byte) 255); // 255 表示未设置（默认姿态）
+        this.dataTracker.startTracking(DATA_ACTION_NAME, ""); // 空字符串表示无动作
     }
     
     @Override
@@ -251,8 +258,136 @@ public abstract class BaseDollEntity extends Entity {
             updateBoundingBox();
         }
         
-        // 在客户端，根据同步的索引更新姿态
+        // 更新动作（服务端和客户端都执行，因为动作需要实时渲染）
+        if (currentAction != null) {
+            actionTick++;
+            ModuleLogger.debug(LOG_MODULE_ACTION, "动作tick更新: [{}] 动作={}, actionTick={}, duration={}", 
+                this.getWorld().isClient ? "客户端" : "服务端",
+                currentAction.getName(), actionTick, currentAction.getDuration());
+            
+            DollPose actionPose = null;
+            
+            // 如果是SimpleDollAction且在第一个关键帧区间，从起始姿态插值
+            if (currentAction instanceof SimpleDollAction simpleAction && actionStartPose != null) {
+                int firstDuration = simpleAction.getFirstKeyframeDuration();
+                DollPose firstKeyframePose = simpleAction.getFirstKeyframePose();
+                
+                ModuleLogger.debug(LOG_MODULE_ACTION, "第一个关键帧处理: firstDuration={}, firstKeyframePose={}", 
+                    firstDuration, firstKeyframePose != null ? "非空" : "空");
+                
+                if (firstKeyframePose != null) {
+                    // Case 1: firstDuration == 0，表示立即切换到第一个关键帧姿态
+                    // 仅在第一个tick时（actionTick == 1）使用第一个关键帧，之后使用getPoseAt
+                    if (firstDuration == 0 && actionTick == 1) {
+                        actionPose = firstKeyframePose;
+                        ModuleLogger.debug(LOG_MODULE_ACTION, "使用第一个关键帧（立即切换）: actionPose={}", actionPose != null ? "非空" : "空");
+                    }
+                    // Case 2: firstDuration > 0 且 actionTick <= firstDuration，进行插值
+                    else if (firstDuration > 0 && actionTick <= firstDuration) {
+                        float t = (float) actionTick / firstDuration;
+                        t = MathHelper.clamp(t, 0.0F, 1.0F);
+                        actionPose = interpolatePoses(actionStartPose, firstKeyframePose, t);
+                        ModuleLogger.debug(LOG_MODULE_ACTION, "第一个关键帧插值: t={}, actionPose={}", t, actionPose != null ? "非空" : "空");
+                    }
+                }
+            }
+            
+            // 如果还没有计算姿态，使用默认方法
+            if (actionPose == null) {
+                actionPose = currentAction.getPoseAt(actionTick);
+                ModuleLogger.debug(LOG_MODULE_ACTION, "调用getPoseAt({}): actionPose={}", actionTick, actionPose != null ? "非空" : "空");
+            }
+            
+            if (actionPose != null) {
+                // 检查姿态是否改变（包括scale的变化）
+                boolean poseChanged = currentPose != actionPose;
+                currentPose = actionPose;
+                // 如果姿态改变，更新碰撞箱
+                if (poseChanged) {
+                    updateBoundingBox();
+                }
+                ModuleLogger.debug(LOG_MODULE_ACTION, "姿态已更新: poseChanged={}", poseChanged);
+            } else {
+                ModuleLogger.warn(LOG_MODULE_ACTION, "动作姿态为null: 动作={}, actionTick={}", currentAction.getName(), actionTick);
+            }
+            
+            // 根据动作模式处理动作结束后的行为
+            if (actionTick >= currentAction.getDuration()) {
+                ActionMode mode = currentAction.getMode();
+                ModuleLogger.debug(LOG_MODULE_ACTION, "动作结束: 动作={}, actionTick={}, duration={}, mode={}", 
+                    currentAction.getName(), actionTick, currentAction.getDuration(), mode);
+                
+                if (mode == ActionMode.LOOP) {
+                    // 循环模式：重置tick，继续播放
+                    // 保存当前姿态作为新的起始姿态（用于下一次循环的第一个关键帧插值）
+                    actionStartPose = currentPose;
+                    actionTick = 0;
+                    ModuleLogger.debug(LOG_MODULE_ACTION, "动作循环: 重置actionTick=0");
+                } else if (mode == ActionMode.HOLD) {
+                    // 保持模式：停止动作，但保持最后一个关键帧的姿态
+                    DollPose lastPose = currentAction.getPoseAt(currentAction.getDuration() - 1);
+                    if (lastPose != null) {
+                        currentPose = lastPose;
+                    }
+                    currentAction = null;
+                    actionTick = 0;
+                    // 同步清空动作名称到客户端（仅在服务端）
+                    if (!this.getWorld().isClient) {
+                        this.dataTracker.set(DATA_ACTION_NAME, ""); // 空字符串表示无动作
+                    }
+                    updateBoundingBox();
+                    ModuleLogger.debug(LOG_MODULE_ACTION, "动作保持模式结束: currentAction=null");
+                } else { // ActionMode.ONCE
+                    // 一次性模式：停止动作，恢复standing姿态
+                    currentAction = null;
+                    actionTick = 0;
+                    // 同步清空动作名称到客户端（仅在服务端）
+                    if (!this.getWorld().isClient) {
+                        this.dataTracker.set(DATA_ACTION_NAME, ""); // 空字符串表示无动作
+                    }
+                    DollPose standingPose = PoseActionManager.getPose("standing");
+                    currentPose = standingPose != null ? standingPose : SimpleDollPose.createDefaultStandingPose();
+                    updateBoundingBox();
+                    ModuleLogger.debug(LOG_MODULE_ACTION, "动作一次性模式结束: currentAction=null");
+                }
+            }
+        }
+        
+        // 在客户端，根据同步的动作名称更新动作
         if (this.getWorld().isClient) {
+            String newSyncedActionName = this.dataTracker.get(DATA_ACTION_NAME);
+            
+            // 如果同步的动作名称发生变化，更新客户端的动作
+            if (!java.util.Objects.equals(newSyncedActionName, this.syncedActionName)) {
+                this.syncedActionName = newSyncedActionName;
+                
+                if (newSyncedActionName != null && !newSyncedActionName.isEmpty()) {
+                    // 从名称加载动作
+                    DollAction syncedAction = PoseActionManager.getAction(newSyncedActionName);
+                    if (syncedAction != null) {
+                        // 使用内部方法设置动作（不触发网络同步，避免循环）
+                        String oldActionName = this.currentAction != null ? this.currentAction.getName() : "null";
+                        this.currentAction = syncedAction;
+                        this.actionTick = 0;
+                        this.actionStartPose = this.currentPose;
+                        this.lastActionName = syncedAction.getName();
+                        ModuleLogger.debug(LOG_MODULE_ACTION, "客户端同步动作: {} -> {}", oldActionName, newSyncedActionName);
+                    } else {
+                        ModuleLogger.warn(LOG_MODULE_ACTION, "客户端无法加载同步的动作: {}", newSyncedActionName);
+                    }
+                } else {
+                    // 动作被清空（空字符串表示无动作）
+                    if (this.currentAction != null) {
+                        ModuleLogger.debug(LOG_MODULE_ACTION, "客户端同步清空动作: {}", this.currentAction.getName());
+                    }
+                    this.currentAction = null;
+                    this.actionTick = 0;
+                }
+            }
+        }
+        
+        // 在客户端，根据同步的索引更新姿态（仅在无动作时执行，因为动作会覆盖姿态）
+        if (this.getWorld().isClient && currentAction == null) {
             byte syncedIndex = this.dataTracker.get(DATA_POSE_INDEX);
             if (syncedIndex != 255) {
                 int index = syncedIndex & 0xFF; // 转换为无符号整数
@@ -269,49 +404,6 @@ public abstract class BaseDollEntity extends Entity {
                 currentPose = standingPose != null ? standingPose : SimpleDollPose.createDefaultStandingPose();
                 // 姿态改变时更新碰撞箱
                 updateBoundingBox();
-            }
-        }
-        
-        // 更新动作
-        if (currentAction != null) {
-            actionTick++;
-            
-            // 获取当前tick对应的姿态
-            DollPose actionPose = currentAction.getPoseAt(actionTick);
-            if (actionPose != null) {
-                // 检查姿态是否改变（包括scale的变化）
-                boolean poseChanged = currentPose != actionPose;
-                currentPose = actionPose;
-                // 如果姿态改变，更新碰撞箱
-                if (poseChanged) {
-                    updateBoundingBox();
-                }
-            }
-            
-            // 根据动作模式处理动作结束后的行为
-            if (actionTick >= currentAction.getDuration()) {
-                ActionMode mode = currentAction.getMode();
-                
-                if (mode == ActionMode.LOOP) {
-                    // 循环模式：重置tick，继续播放
-                    actionTick = 0;
-                } else if (mode == ActionMode.HOLD) {
-                    // 保持模式：停止动作，但保持最后一个关键帧的姿态
-                    DollPose lastPose = currentAction.getPoseAt(currentAction.getDuration() - 1);
-                    if (lastPose != null) {
-                        currentPose = lastPose;
-                    }
-                    currentAction = null;
-                    actionTick = 0;
-                    updateBoundingBox();
-                } else { // ActionMode.ONCE
-                    // 一次性模式：停止动作，恢复standing姿态
-                    currentAction = null;
-                    actionTick = 0;
-                    DollPose standingPose = PoseActionManager.getPose("standing");
-                    currentPose = standingPose != null ? standingPose : SimpleDollPose.createDefaultStandingPose();
-                    updateBoundingBox();
-                }
             }
         }
         
@@ -742,6 +834,7 @@ public abstract class BaseDollEntity extends Entity {
             // 设置姿态时停止当前动作
             this.currentAction = null;
             this.actionTick = 0;
+            this.actionStartPose = null;
             // 姿态改变时更新碰撞箱
             updateBoundingBox();
             ModuleLogger.debug(LOG_MODULE_POSE, "设置姿态: {} -> {}", oldPoseName, pose.getName());
@@ -761,15 +854,36 @@ public abstract class BaseDollEntity extends Entity {
      * @param action 要播放的动作
      */
     public void setAction(DollAction action) {
+        // 如果新动作与当前动作相同（对象引用相同），不重置（避免重复设置导致动作重启）
+        if (this.currentAction == action) {
+            return;
+        }
+        // 如果新动作和当前动作的名称相同且当前动作正在播放，也不重置
+        // 这样可以避免频繁右键点击导致动作不断重启
+        if (action != null && this.currentAction != null && action.getName().equals(this.currentAction.getName())) {
+            return;
+        }
+        
         String oldActionName = this.currentAction != null ? this.currentAction.getName() : "null";
         this.currentAction = action;
         this.actionTick = 0;
+        // 保存动作开始时的姿态（用于第一个关键帧的插值）
+        this.actionStartPose = this.currentPose;
         // 记录最后播放的动作名称（即使动作已停止也保留，用于切换逻辑）
         if (action != null) {
             this.lastActionName = action.getName();
         }
-        ModuleLogger.debug(LOG_MODULE_ACTION, "设置动作: {} -> {}", oldActionName, 
-            action != null ? action.getName() : "null");
+        // 同步动作名称到客户端（仅在服务端设置）
+        if (!this.getWorld().isClient) {
+            if (action != null) {
+                this.dataTracker.set(DATA_ACTION_NAME, action.getName());
+            } else {
+                this.dataTracker.set(DATA_ACTION_NAME, ""); // 空字符串表示无动作
+            }
+        }
+        ModuleLogger.debug(LOG_MODULE_ACTION, "设置动作: [{}] {} -> {}", 
+            this.getWorld().isClient ? "客户端" : "服务端",
+            oldActionName, action != null ? action.getName() : "null");
     }
     
     /**
@@ -808,9 +922,97 @@ public abstract class BaseDollEntity extends Entity {
     public void stopAction() {
         this.currentAction = null;
         this.actionTick = 0;
+        this.actionStartPose = null;
         // 恢复standing姿态
         DollPose standingPose = PoseActionManager.getPose("standing");
         this.currentPose = standingPose != null ? standingPose : SimpleDollPose.createDefaultStandingPose();
+    }
+    
+    /**
+     * 在两个姿态之间插值（用于从当前姿态到第一个关键帧的过渡）
+     */
+    private DollPose interpolatePoses(DollPose pose1, DollPose pose2, float t) {
+        return new InterpolatedPose(pose1, pose2, t);
+    }
+    
+    /**
+     * 插值姿态的内部实现
+     */
+    private static class InterpolatedPose implements DollPose {
+        private final DollPose pose1;
+        private final DollPose pose2;
+        private final float t;
+        
+        public InterpolatedPose(DollPose pose1, DollPose pose2, float t) {
+            this.pose1 = pose1;
+            this.pose2 = pose2;
+            this.t = t;
+        }
+        
+        @Override
+        public String getName() {
+            return "interpolated";
+        }
+        
+        @Override
+        public String getDisplayName() {
+            return "interpolated";
+        }
+        
+        private float[] interpolate(float[] arr1, float[] arr2) {
+            return new float[]{
+                MathHelper.lerp(t, arr1[0], arr2[0]),
+                MathHelper.lerp(t, arr1[1], arr2[1]),
+                MathHelper.lerp(t, arr1[2], arr2[2])
+            };
+        }
+        
+        @Override
+        public float[] getHeadRotation() {
+            return interpolate(pose1.getHeadRotation(), pose2.getHeadRotation());
+        }
+        
+        @Override
+        public float[] getHatRotation() {
+            return interpolate(pose1.getHatRotation(), pose2.getHatRotation());
+        }
+        
+        @Override
+        public float[] getBodyRotation() {
+            return interpolate(pose1.getBodyRotation(), pose2.getBodyRotation());
+        }
+        
+        @Override
+        public float[] getRightArmRotation() {
+            return interpolate(pose1.getRightArmRotation(), pose2.getRightArmRotation());
+        }
+        
+        @Override
+        public float[] getLeftArmRotation() {
+            return interpolate(pose1.getLeftArmRotation(), pose2.getLeftArmRotation());
+        }
+        
+        @Override
+        public float[] getRightLegRotation() {
+            return interpolate(pose1.getRightLegRotation(), pose2.getRightLegRotation());
+        }
+        
+        @Override
+        public float[] getLeftLegRotation() {
+            return interpolate(pose1.getLeftLegRotation(), pose2.getLeftLegRotation());
+        }
+        
+        @Override
+        public float[] getScale() {
+            // Scale也需要插值
+            float[] scale1 = pose1.getScale();
+            float[] scale2 = pose2.getScale();
+            return new float[]{
+                MathHelper.lerp(t, scale1[0], scale2[0]),
+                MathHelper.lerp(t, scale1[1], scale2[1]),
+                MathHelper.lerp(t, scale1[2], scale2[2])
+            };
+        }
     }
 }
 

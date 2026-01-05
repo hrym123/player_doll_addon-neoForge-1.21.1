@@ -9,5 +9,6 @@
   "message.player_doll.no_actions": "没有可用的动作",
   "message.player_doll.action_switched": "切换到动作: %s",
   "message.player_doll.action_stopped": "动作已停止",
-  "message.player_doll.no_action_to_stop": "当前没有播放动作"
+  "message.player_doll.no_action_to_stop": "当前没有播放动作",
+  "item.player_doll.action_debug_stick": "动作调试棒"
 }

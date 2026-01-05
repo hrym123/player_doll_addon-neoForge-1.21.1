@@ -1,6 +1,7 @@
 package com.lanye.dolladdon.init;
 
 import com.lanye.dolladdon.PlayerDollAddon;
+import com.lanye.dolladdon.impl.item.ActionDebugStick;
 import com.lanye.dolladdon.impl.item.AlexDollItem;
 import com.lanye.dolladdon.impl.item.CustomTextureDollItem;
 import com.lanye.dolladdon.impl.item.SteveDollItem;
@@ -26,6 +27,9 @@ public class ModItems {
     // 自定义纹理玩偶物品映射表（注册名称 -> 物品）
     private static final Map<String, Item> CUSTOM_TEXTURE_DOLL_ITEMS = new HashMap<>();
     
+    // 动作调试棒
+    public static Item ACTION_DEBUG_STICK;
+    
     /**
      * 注册所有物品
      */
@@ -33,6 +37,9 @@ public class ModItems {
         // 注册固定的玩偶物品
         STEVE_DOLL = registerStandardDollItem("steve_doll", new SteveDollItem());
         ALEX_DOLL = registerStandardDollItem("alex_doll", new AlexDollItem());
+        
+        // 注册动作调试棒
+        ACTION_DEBUG_STICK = registerStandardDollItem("action_debug_stick", new ActionDebugStick());
         
         // 扫描并注册所有 PNG 文件对应的物品
         registerCustomTextureDollItems();

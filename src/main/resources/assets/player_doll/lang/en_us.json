@@ -9,6 +9,7 @@
   "message.player_doll.no_actions": "No actions available",
   "message.player_doll.action_switched": "Switched to action: %s",
   "message.player_doll.action_stopped": "Action stopped",
-  "message.player_doll.no_action_to_stop": "No action is currently playing"
+  "message.player_doll.no_action_to_stop": "No action is currently playing",
+  "item.player_doll.action_debug_stick": "Action Debug Stick"
 }
 

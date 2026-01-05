@@ -22,7 +22,9 @@
       "com.lanye.dolladdon.PlayerDollAddonClient"
     ]
   },
-  "mixins": [],
+  "mixins": [
+    "player_doll.mixins.json"
+  ],
   "depends": {
     "fabricloader": ">=${loader_version}",
     "fabric-api": "*",

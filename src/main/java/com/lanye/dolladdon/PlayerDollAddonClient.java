@@ -256,6 +256,9 @@ public class PlayerDollAddonClient implements ClientModInitializer {
     private void registerKeyBindings() {
         com.lanye.dolladdon.client.DollActionKeyHandler.initialize();
         com.lanye.dolladdon.client.DollActionKeyHandler.registerTickEvent();
+        
+        // 初始化动作调试棒处理器
+        com.lanye.dolladdon.client.ActionDebugStickHandler.initialize();
     }
     
 }

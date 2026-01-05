@@ -1,0 +1,14 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.lanye.dolladdon.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "mixins": [
+    "MouseMixin"
+  ],
+  "client": [
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

@@ -12,8 +12,10 @@ public class SimpleDollAction implements DollAction {
     private final String displayName;
     private final boolean looping; // 向后兼容字段
     private final ActionMode mode;
-    private final ActionKeyframe[] keyframes;
+    private final ActionKeyframe[] keyframes; // 原始关键帧（相对tick）
+    private final ProcessedKeyframe[] processedKeyframes; // 处理后的关键帧（绝对tick）
     private final int duration;
+    private final int firstKeyframeDuration; // 第一个关键帧的持续时间（用于从当前姿态插值）
     
     public SimpleDollAction(String name, boolean looping, ActionKeyframe[] keyframes) {
         this(name, null, looping, keyframes);
@@ -30,14 +32,57 @@ public class SimpleDollAction implements DollAction {
         this.looping = (mode == ActionMode.LOOP); // 向后兼容
         this.keyframes = keyframes;
         
-        // 计算总时长（最后一个关键帧的tick + 1）
-        int maxTick = 0;
-        for (ActionKeyframe keyframe : keyframes) {
-            if (keyframe.getTick() > maxTick) {
-                maxTick = keyframe.getTick();
+        // 将相对tick转换为绝对tick（累加）
+        // tick的含义：从前一个关键帧到这个关键帧需要的时间
+        if (keyframes.length == 0) {
+            this.processedKeyframes = new ProcessedKeyframe[0];
+            this.duration = 0;
+            this.firstKeyframeDuration = 0;
+        } else {
+            this.processedKeyframes = new ProcessedKeyframe[keyframes.length];
+            int absoluteTick = 0;
+            
+            // 第一个关键帧的tick表示从当前姿态到第一个关键帧姿态需要的时间
+            int firstTick = keyframes[0].getTick();
+            // firstKeyframeDuration需要准确反映原始值（可能是0），用于判断是否需要插值
+            this.firstKeyframeDuration = Math.max(firstTick, 0); // 允许为0（表示立即切换）
+            // 第一个关键帧的绝对tick：如果firstTick为0，则设为0（立即到达）；否则设为firstTick
+            if (firstTick <= 0) {
+                // tick=0或负数，表示立即到达第一个关键帧，绝对tick设为0
+                absoluteTick = 0;
+            } else {
+                // tick>0，需要时间过渡，绝对tick设为firstTick
+                absoluteTick = firstTick;
             }
+            processedKeyframes[0] = new ProcessedKeyframe(absoluteTick, keyframes[0].getPose());
+            
+            // 后续关键帧的tick累加
+            for (int i = 1; i < keyframes.length; i++) {
+                int relativeTick = keyframes[i].getTick();
+                absoluteTick += relativeTick;
+                processedKeyframes[i] = new ProcessedKeyframe(absoluteTick, keyframes[i].getPose());
+            }
+            
+            // 总时长是最后一个关键帧的绝对tick
+            this.duration = absoluteTick;
         }
-        this.duration = maxTick + 1;
+    }
+    
+    /**
+     * 获取第一个关键帧的持续时间（用于从当前姿态插值）
+     */
+    public int getFirstKeyframeDuration() {
+        return firstKeyframeDuration;
+    }
+    
+    /**
+     * 获取第一个关键帧的姿态
+     */
+    public DollPose getFirstKeyframePose() {
+        if (processedKeyframes.length == 0) {
+            return null;
+        }
+        return processedKeyframes[0].pose();
     }
     
     @Override
@@ -67,7 +112,7 @@ public class SimpleDollAction implements DollAction {
     
     @Override
     public DollPose getPoseAt(int tick) {
-        if (keyframes.length == 0) {
+        if (processedKeyframes.length == 0) {
             return null;
         }
         
@@ -80,46 +125,46 @@ public class SimpleDollAction implements DollAction {
         }
         
         // 如果只有一个关键帧，直接返回
-        if (keyframes.length == 1) {
-            return keyframes[0].getPose();
+        if (processedKeyframes.length == 1) {
+            return processedKeyframes[0].pose();
         }
         
-        // 找到当前tick所在的关键帧区间
-        ActionKeyframe prevKeyframe = null;
-        ActionKeyframe nextKeyframe = null;
+        // 找到当前tick所在的关键帧区间（使用绝对tick）
+        ProcessedKeyframe prevKeyframe = null;
+        ProcessedKeyframe nextKeyframe = null;
         
-        for (int i = 0; i < keyframes.length; i++) {
-            if (keyframes[i].getTick() <= actualTick) {
-                prevKeyframe = keyframes[i];
+        for (int i = 0; i < processedKeyframes.length; i++) {
+            if (processedKeyframes[i].absoluteTick() <= actualTick) {
+                prevKeyframe = processedKeyframes[i];
             }
-            if (keyframes[i].getTick() >= actualTick && nextKeyframe == null) {
-                nextKeyframe = keyframes[i];
+            if (processedKeyframes[i].absoluteTick() >= actualTick && nextKeyframe == null) {
+                nextKeyframe = processedKeyframes[i];
                 break;
             }
         }
         
         // 如果没有找到前一个关键帧，使用第一个
         if (prevKeyframe == null) {
-            prevKeyframe = keyframes[0];
+            prevKeyframe = processedKeyframes[0];
         }
         
         // 如果没有找到下一个关键帧，使用最后一个
         if (nextKeyframe == null) {
-            nextKeyframe = keyframes[keyframes.length - 1];
+            nextKeyframe = processedKeyframes[processedKeyframes.length - 1];
         }
         
         // 如果前后关键帧相同，直接返回
         if (prevKeyframe == nextKeyframe) {
-            return prevKeyframe.getPose();
+            return prevKeyframe.pose();
         }
         
-        // 计算插值比例
-        int tickDiff = nextKeyframe.getTick() - prevKeyframe.getTick();
-        float t = tickDiff > 0 ? (float)(actualTick - prevKeyframe.getTick()) / tickDiff : 0.0F;
+        // 计算插值比例（使用绝对tick）
+        int tickDiff = nextKeyframe.absoluteTick() - prevKeyframe.absoluteTick();
+        float t = tickDiff > 0 ? (float)(actualTick - prevKeyframe.absoluteTick()) / tickDiff : 0.0F;
         t = MathHelper.clamp(t, 0.0F, 1.0F);
         
         // 在两个姿态之间插值
-        return interpolatePoses(prevKeyframe.getPose(), nextKeyframe.getPose(), t);
+        return interpolatePoses(prevKeyframe.pose(), nextKeyframe.pose(), t);
     }
     
     @Override
