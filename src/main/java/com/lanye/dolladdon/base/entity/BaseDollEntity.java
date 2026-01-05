@@ -319,8 +319,18 @@ public abstract class BaseDollEntity extends Entity {
                 
                 if (mode == ActionMode.LOOP) {
                     // 循环模式：重置tick，继续播放
-                    // 保存当前姿态作为新的起始姿态（用于下一次循环的第一个关键帧插值）
-                    actionStartPose = currentPose;
+                    // 获取最后一个关键帧的姿态（用于平滑循环）
+                    DollPose lastKeyframePose = currentAction.getPoseAt(currentAction.getDuration() - 1);
+                    if (lastKeyframePose != null) {
+                        // 保存最后一个关键帧的姿态作为新的起始姿态（用于下一次循环的第一个关键帧插值）
+                        actionStartPose = lastKeyframePose;
+                        // 确保当前姿态是最后一个关键帧的姿态（用于平滑过渡）
+                        currentPose = lastKeyframePose;
+                        ModuleLogger.debug(LOG_MODULE_ACTION, "动作循环: 保存最后一个关键帧姿态作为起始姿态");
+                    } else {
+                        // 如果无法获取最后一个关键帧，使用当前姿态
+                        actionStartPose = currentPose;
+                    }
                     actionTick = 0;
                     ModuleLogger.debug(LOG_MODULE_ACTION, "动作循环: 重置actionTick=0");
                 } else if (mode == ActionMode.HOLD) {

@@ -119,7 +119,13 @@ public class SimpleDollAction implements DollAction {
         // 根据模式处理tick
         int actualTick;
         if (mode == ActionMode.LOOP) {
-            actualTick = tick % duration;
+            // 循环模式：当 tick == duration 时，返回最后一个关键帧（用于平滑循环）
+            // 当 tick > duration 时，使用模运算回到开始
+            if (tick >= duration) {
+                actualTick = duration - 1; // 返回最后一个关键帧
+            } else {
+                actualTick = tick;
+            }
         } else {
             actualTick = Math.min(tick, duration - 1);
         }
