@@ -256,6 +256,86 @@ public class SimpleDollAction implements DollAction {
         public float[] getLeftLegRotation() {
             return interpolate(pose1.getLeftLegRotation(), pose2.getLeftLegRotation());
         }
+        
+        @Override
+        public float[] getPosition() {
+            return interpolate(pose1.getPosition(), pose2.getPosition());
+        }
+        
+        @Override
+        public float[] getScale() {
+            return interpolate(pose1.getScale(), pose2.getScale());
+        }
+        
+        @Override
+        public float[] getHeadPosition() {
+            return interpolate(pose1.getHeadPosition(), pose2.getHeadPosition());
+        }
+        
+        @Override
+        public float[] getHeadScale() {
+            return interpolate(pose1.getHeadScale(), pose2.getHeadScale());
+        }
+        
+        @Override
+        public float[] getHatPosition() {
+            return interpolate(pose1.getHatPosition(), pose2.getHatPosition());
+        }
+        
+        @Override
+        public float[] getHatScale() {
+            return interpolate(pose1.getHatScale(), pose2.getHatScale());
+        }
+        
+        @Override
+        public float[] getBodyPosition() {
+            return interpolate(pose1.getBodyPosition(), pose2.getBodyPosition());
+        }
+        
+        @Override
+        public float[] getBodyScale() {
+            return interpolate(pose1.getBodyScale(), pose2.getBodyScale());
+        }
+        
+        @Override
+        public float[] getRightArmPosition() {
+            return interpolate(pose1.getRightArmPosition(), pose2.getRightArmPosition());
+        }
+        
+        @Override
+        public float[] getRightArmScale() {
+            return interpolate(pose1.getRightArmScale(), pose2.getRightArmScale());
+        }
+        
+        @Override
+        public float[] getLeftArmPosition() {
+            return interpolate(pose1.getLeftArmPosition(), pose2.getLeftArmPosition());
+        }
+        
+        @Override
+        public float[] getLeftArmScale() {
+            return interpolate(pose1.getLeftArmScale(), pose2.getLeftArmScale());
+        }
+        
+        @Override
+        public float[] getRightLegPosition() {
+            return interpolate(pose1.getRightLegPosition(), pose2.getRightLegPosition());
+        }
+        
+        @Override
+        public float[] getRightLegScale() {
+            return interpolate(pose1.getRightLegScale(), pose2.getRightLegScale());
+        }
+        
+        @Override
+        public float[] getLeftLegPosition() {
+            return interpolate(pose1.getLeftLegPosition(), pose2.getLeftLegPosition());
+        }
+        
+        @Override
+        public float[] getLeftLegScale() {
+            return interpolate(pose1.getLeftLegScale(), pose2.getLeftLegScale());
+        }
     }
 }
 
