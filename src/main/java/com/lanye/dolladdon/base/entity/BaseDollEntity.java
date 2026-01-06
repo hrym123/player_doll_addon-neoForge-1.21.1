@@ -336,18 +336,72 @@ public abstract class BaseDollEntity extends Entity {
                     ModuleLogger.debug(LOG_MODULE_ACTION, "动作循环: 重置actionTick=0");
                 } else if (mode == ActionMode.HOLD) {
                     // 保持模式：停止动作，但保持最后一个关键帧的姿态
-                    DollPose lastPose = currentAction.getPoseAt(currentAction.getDuration() - 1);
+                    int duration = currentAction.getDuration();
+                    ModuleLogger.debug(LOG_MODULE_ACTION, "动作保持模式：动作结束，duration={}, actionTick={}", duration, actionTick);
+                    
+                    DollPose lastPose = currentAction.getPoseAt(duration - 1);
                     if (lastPose != null) {
+                        String lastPoseName = lastPose.getName();
+                        ModuleLogger.debug(LOG_MODULE_ACTION, "动作保持模式：获取最后一个关键帧姿态: {} (名称={})", lastPoseName, lastPoseName);
                         currentPose = lastPose;
+                        
+                        // 尝试根据姿态名称更新姿态索引并同步到客户端（仅在服务端）
+                        // 这确保客户端在动作清空后能正确应用最后一个关键帧的姿态
+                        if (!this.getWorld().isClient) {
+                            String poseName = lastPose.getName();
+                            ModuleLogger.debug(LOG_MODULE_ACTION, "动作保持模式：尝试查找姿态索引，姿态名称={}", poseName);
+                            
+                            if (poseName != null && !poseName.isEmpty()) {
+                                List<String> poseNames = getAvailablePoseNames();
+                                ModuleLogger.debug(LOG_MODULE_ACTION, "动作保持模式：可用姿态列表: {}", poseNames);
+                                int poseIndex = poseNames.indexOf(poseName);
+                                ModuleLogger.debug(LOG_MODULE_ACTION, "动作保持模式：姿态索引查找结果: {} (名称={})", poseIndex, poseName);
+                                
+                                if (poseIndex >= 0) {
+                                    this.currentPoseIndex = poseIndex;
+                                    // 同步姿态索引到客户端
+                                    byte syncedValue;
+                                    if (currentPoseIndex == 0) {
+                                        syncedValue = (byte) 255;
+                                    } else if (currentPoseIndex < 255) {
+                                        syncedValue = (byte) (currentPoseIndex & 0xFF);
+                                    } else {
+                                        syncedValue = (byte) 255;
+                                    }
+                                    this.dataTracker.set(DATA_POSE_INDEX, syncedValue);
+                                    ModuleLogger.debug(LOG_MODULE_ACTION, "动作保持模式：更新姿态索引={} (姿态名称={})，同步值={}，已同步到客户端", poseIndex, poseName, syncedValue);
+                                } else {
+                                    ModuleLogger.warn(LOG_MODULE_ACTION, "动作保持模式：姿态名称 '{}' 不在可用列表中（可用列表: {}），无法更新索引", poseName, poseNames);
+                                    // 即使找不到索引，也尝试直接使用 setPoseByName 来设置姿态
+                                    // 这样可以确保姿态被正确设置，即使索引不匹配
+                                    try {
+                                        boolean success = setPoseByName(poseName);
+                                        if (success) {
+                                            ModuleLogger.debug(LOG_MODULE_ACTION, "动作保持模式：使用 setPoseByName 成功设置姿态: {}", poseName);
+                                        } else {
+                                            ModuleLogger.warn(LOG_MODULE_ACTION, "动作保持模式：setPoseByName 返回失败: {}", poseName);
+                                        }
+                                    } catch (Exception e) {
+                                        ModuleLogger.warn(LOG_MODULE_ACTION, "动作保持模式：setPoseByName 异常: {}", poseName, e);
+                                    }
+                                }
+                            } else {
+                                ModuleLogger.warn(LOG_MODULE_ACTION, "动作保持模式：最后一个关键帧的姿态名称为空，无法更新索引");
+                            }
+                        }
+                    } else {
+                        ModuleLogger.warn(LOG_MODULE_ACTION, "动作保持模式：无法获取最后一个关键帧的姿态 (duration={})", duration);
                     }
                     currentAction = null;
                     actionTick = 0;
                     // 同步清空动作名称到客户端（仅在服务端）
                     if (!this.getWorld().isClient) {
                         this.dataTracker.set(DATA_ACTION_NAME, ""); // 空字符串表示无动作
+                        ModuleLogger.debug(LOG_MODULE_ACTION, "动作保持模式：已清空动作名称并同步到客户端");
                     }
                     updateBoundingBox();
-                    ModuleLogger.debug(LOG_MODULE_ACTION, "动作保持模式结束: currentAction=null");
+                    ModuleLogger.debug(LOG_MODULE_ACTION, "动作保持模式结束: currentAction=null, currentPose={}, currentPoseIndex={}", 
+                        currentPose != null ? currentPose.getName() : "null", currentPoseIndex);
                 } else { // ActionMode.ONCE
                     // 一次性模式：停止动作，恢复standing姿态
                     currentAction = null;
@@ -395,18 +449,25 @@ public abstract class BaseDollEntity extends Entity {
                     this.actionTick = 0;
                     
                     // 动作被清空后，立即检查并应用同步的姿态索引
-                    // 这确保当使用姿态调试棒时，姿态能立即应用
+                    // 这确保当使用姿态调试棒或HOLD模式动作结束时，姿态能立即应用
                     byte syncedIndex = this.dataTracker.get(DATA_POSE_INDEX);
+                    ModuleLogger.debug(LOG_MODULE_POSE, "客户端动作清空后检查姿态索引: syncedIndex={}, currentPoseIndex={}", syncedIndex, currentPoseIndex);
+                    
+                    // 强制更新 syncedPoseIndex，确保后续的索引检查逻辑能正常工作
+                    this.syncedPoseIndex = syncedIndex;
+                    
                     if (syncedIndex != 255) {
                         int index = syncedIndex & 0xFF; // 转换为无符号整数
+                        ModuleLogger.debug(LOG_MODULE_POSE, "客户端动作清空后：同步索引非255，转换为索引={}", index);
                         // 无论索引是否相同，都重新加载姿态（确保姿态正确应用）
                         currentPoseIndex = index;
                         loadPoseByIndex();
                         // 姿态改变时更新碰撞箱
                         updateBoundingBox();
-                        ModuleLogger.debug(LOG_MODULE_POSE, "客户端动作清空后立即应用姿态: 索引={}", index);
+                        ModuleLogger.debug(LOG_MODULE_POSE, "客户端动作清空后立即应用姿态: 索引={}, 姿态名称={}", index, currentPose != null ? currentPose.getName() : "null");
                     } else {
-                        // 如果同步值为255，使用standing姿态（索引0）
+                        // 如果同步值为255，表示索引0（standing姿态）
+                        ModuleLogger.debug(LOG_MODULE_POSE, "客户端动作清空后：同步索引为255，使用standing姿态（索引0）");
                         if (currentPoseIndex != 0) {
                             currentPoseIndex = 0;
                         }
