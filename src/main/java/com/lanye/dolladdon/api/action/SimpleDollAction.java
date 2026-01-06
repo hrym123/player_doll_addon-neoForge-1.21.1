@@ -85,6 +85,16 @@ public class SimpleDollAction implements DollAction {
         return processedKeyframes[0].pose();
     }
     
+    /**
+     * 获取最后一个关键帧的姿态（不经过插值）
+     */
+    public DollPose getLastKeyframePose() {
+        if (processedKeyframes.length == 0) {
+            return null;
+        }
+        return processedKeyframes[processedKeyframes.length - 1].pose();
+    }
+    
     @Override
     public String getName() {
         return name;

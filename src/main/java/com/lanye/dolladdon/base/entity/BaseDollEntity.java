@@ -321,7 +321,13 @@ public abstract class BaseDollEntity extends Entity {
                 if (mode == ActionMode.LOOP) {
                     // 循环模式：重置tick，继续播放
                     // 获取最后一个关键帧的姿态（用于平滑循环）
-                    DollPose lastKeyframePose = currentAction.getPoseAt(currentAction.getDuration() - 1);
+                    DollPose lastKeyframePose = null;
+                    if (currentAction instanceof SimpleDollAction simpleAction) {
+                        lastKeyframePose = simpleAction.getLastKeyframePose();
+                    } else {
+                        // 如果不是SimpleDollAction，使用getPoseAt作为后备方案
+                        lastKeyframePose = currentAction.getPoseAt(currentAction.getDuration() - 1);
+                    }
                     if (lastKeyframePose != null) {
                         // 保存最后一个关键帧的姿态作为新的起始姿态（用于下一次循环的第一个关键帧插值）
                         actionStartPose = lastKeyframePose;
@@ -339,7 +345,15 @@ public abstract class BaseDollEntity extends Entity {
                     int duration = currentAction.getDuration();
                     ModuleLogger.debug(LOG_MODULE_ACTION, "动作保持模式：动作结束，duration={}, actionTick={}", duration, actionTick);
                     
-                    DollPose lastPose = currentAction.getPoseAt(duration - 1);
+                    // 直接获取最后一个关键帧的实际姿态（不经过插值）
+                    DollPose lastPose = null;
+                    if (currentAction instanceof SimpleDollAction simpleAction) {
+                        lastPose = simpleAction.getLastKeyframePose();
+                    } else {
+                        // 如果不是SimpleDollAction，使用getPoseAt作为后备方案
+                        lastPose = currentAction.getPoseAt(duration - 1);
+                    }
+                    
                     if (lastPose != null) {
                         String lastPoseName = lastPose.getName();
                         ModuleLogger.debug(LOG_MODULE_ACTION, "动作保持模式：获取最后一个关键帧姿态: {} (名称={})", lastPoseName, lastPoseName);
