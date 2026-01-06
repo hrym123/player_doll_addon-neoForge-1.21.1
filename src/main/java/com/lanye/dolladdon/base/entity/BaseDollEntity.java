@@ -71,6 +71,7 @@ public abstract class BaseDollEntity extends Entity {
     private int actionTick = 0;
     private String lastActionName = null; // 记录最后播放的动作名称（即使动作已停止也保留）
     private DollPose actionStartPose = null; // 动作开始时的姿态（用于第一个关键帧插值）
+    private boolean isLoopingBack = false; // 标记是否在循环后的第一次tick（用于平滑过渡）
     private String syncedActionName = null; // 同步的动作名称（用于客户端检测变化）
     private Byte syncedPoseIndex = null; // 同步的姿态索引（用于客户端检测变化）
     
@@ -273,15 +274,27 @@ public abstract class BaseDollEntity extends Entity {
                 int firstDuration = simpleAction.getFirstKeyframeDuration();
                 DollPose firstKeyframePose = simpleAction.getFirstKeyframePose();
                 
-                ModuleLogger.debug(LOG_MODULE_ACTION, "第一个关键帧处理: firstDuration={}, firstKeyframePose={}", 
-                    firstDuration, firstKeyframePose != null ? "非空" : "空");
+                ModuleLogger.debug(LOG_MODULE_ACTION, "第一个关键帧处理: firstDuration={}, firstKeyframePose={}, isLoopingBack={}", 
+                    firstDuration, firstKeyframePose != null ? "非空" : "空", isLoopingBack);
                 
                 if (firstKeyframePose != null) {
                     // Case 1: firstDuration == 0，表示立即切换到第一个关键帧姿态
-                    // 仅在第一个tick时（actionTick == 1）使用第一个关键帧，之后使用getPoseAt
+                    // 但是如果是循环后的第一次tick（isLoopingBack == true），则进行插值以平滑过渡
                     if (firstDuration == 0 && actionTick == 1) {
-                        actionPose = firstKeyframePose;
-                        ModuleLogger.debug(LOG_MODULE_ACTION, "使用第一个关键帧（立即切换）: actionPose={}", actionPose != null ? "非空" : "空");
+                        if (isLoopingBack) {
+                            // 循环后的第一次tick，使用一个合理的过渡时间进行插值
+                            // 使用动作总时长的10%作为过渡时间，但至少3 tick，最多10 tick
+                            int totalDuration = currentAction.getDuration();
+                            int loopTransitionDuration = Math.max(3, Math.min(10, totalDuration / 10));
+                            float t = Math.min(1.0F, (float) actionTick / loopTransitionDuration);
+                            actionPose = interpolatePoses(actionStartPose, firstKeyframePose, t);
+                            ModuleLogger.debug(LOG_MODULE_ACTION, "循环过渡插值: t={}, transitionDuration={}, actionPose={}", 
+                                t, loopTransitionDuration, actionPose != null ? "非空" : "空");
+                        } else {
+                            // 非循环情况，立即切换到第一个关键帧
+                            actionPose = firstKeyframePose;
+                            ModuleLogger.debug(LOG_MODULE_ACTION, "使用第一个关键帧（立即切换）: actionPose={}", actionPose != null ? "非空" : "空");
+                        }
                     }
                     // Case 2: firstDuration > 0 且 actionTick <= firstDuration，进行插值
                     else if (firstDuration > 0 && actionTick <= firstDuration) {
@@ -289,6 +302,36 @@ public abstract class BaseDollEntity extends Entity {
                         t = MathHelper.clamp(t, 0.0F, 1.0F);
                         actionPose = interpolatePoses(actionStartPose, firstKeyframePose, t);
                         ModuleLogger.debug(LOG_MODULE_ACTION, "第一个关键帧插值: t={}, actionPose={}", t, actionPose != null ? "非空" : "空");
+                    }
+                    // Case 3: 循环后的后续tick（actionTick > 1），如果firstDuration == 0，继续使用插值直到过渡完成
+                    else if (isLoopingBack && firstDuration == 0 && actionTick > 1) {
+                        int totalDuration = currentAction.getDuration();
+                        int loopTransitionDuration = Math.max(3, Math.min(10, totalDuration / 10));
+                        if (actionTick <= loopTransitionDuration) {
+                            float t = (float) actionTick / loopTransitionDuration;
+                            t = MathHelper.clamp(t, 0.0F, 1.0F);
+                            actionPose = interpolatePoses(actionStartPose, firstKeyframePose, t);
+                            ModuleLogger.debug(LOG_MODULE_ACTION, "循环过渡插值（后续tick）: t={}, actionTick={}, actionPose={}", 
+                                t, actionTick, actionPose != null ? "非空" : "空");
+                        }
+                    }
+                }
+            }
+            
+            // 清除循环标志（在过渡完成后）
+            if (isLoopingBack) {
+                if (currentAction instanceof SimpleDollAction simpleAction) {
+                    int firstDuration = simpleAction.getFirstKeyframeDuration();
+                    int totalDuration = currentAction.getDuration();
+                    int loopTransitionDuration = firstDuration > 0 ? firstDuration : Math.max(3, Math.min(10, totalDuration / 10));
+                    if (actionTick > loopTransitionDuration) {
+                        isLoopingBack = false;
+                        ModuleLogger.debug(LOG_MODULE_ACTION, "循环过渡完成，清除isLoopingBack标志");
+                    }
+                } else {
+                    // 如果不是SimpleDollAction，在actionTick > 1时清除
+                    if (actionTick > 1) {
+                        isLoopingBack = false;
                     }
                 }
             }
@@ -333,10 +376,13 @@ public abstract class BaseDollEntity extends Entity {
                         actionStartPose = lastKeyframePose;
                         // 确保当前姿态是最后一个关键帧的姿态（用于平滑过渡）
                         currentPose = lastKeyframePose;
-                        ModuleLogger.debug(LOG_MODULE_ACTION, "动作循环: 保存最后一个关键帧姿态作为起始姿态");
+                        // 标记为循环后的第一次tick，以便在第一个关键帧时进行平滑过渡
+                        isLoopingBack = true;
+                        ModuleLogger.debug(LOG_MODULE_ACTION, "动作循环: 保存最后一个关键帧姿态作为起始姿态，设置isLoopingBack=true");
                     } else {
                         // 如果无法获取最后一个关键帧，使用当前姿态
                         actionStartPose = currentPose;
+                        isLoopingBack = true;
                     }
                     actionTick = 0;
                     ModuleLogger.debug(LOG_MODULE_ACTION, "动作循环: 重置actionTick=0");
