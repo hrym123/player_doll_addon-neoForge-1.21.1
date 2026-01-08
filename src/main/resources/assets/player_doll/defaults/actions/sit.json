@@ -1,22 +1,16 @@
 {
   "name": "sit",
+  "displayName": "坐下",
+  "mode": "HOLD",
   "looping": false,
   "keyframes": [
     {
-      "tick": 0,
+      "tick": 10,
       "pose": "standing"
     },
     {
-      "tick": 5,
-      "pose": {
-        "name": "sitting",
-        "head": [0, 0, 0],
-        "body": [0, 0, 0],
-        "rightArm": [-40, 0, 0],
-        "leftArm": [40, 0, 0],
-        "rightLeg": [90, 0, 0],
-        "leftLeg": [90, 0, 0]
-      }
+      "tick": 20,
+      "pose": "sitting"
     }
   ]
 }
