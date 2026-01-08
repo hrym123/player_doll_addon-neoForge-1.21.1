@@ -6,7 +6,6 @@ import com.lanye.dolladdon.util.logging.ModuleLogger;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -30,8 +29,8 @@ public class DefaultFileInitializer {
             Files.createDirectories(posesDir);
             Files.createDirectories(actionsDir);
             
-            // 生成 README.md 文档
-            generateReadme(playerDollDir);
+            // 从资源包复制 README.md 文档
+            copyIfNotExists(playerDollDir.resolve("README.md"), "assets/player_doll/defaults/README.md");
             
             // 从资源包复制姿态文件
             copyIfNotExists(posesDir.resolve("standing.json"), "assets/player_doll/defaults/poses/standing.json");
@@ -44,45 +43,6 @@ public class DefaultFileInitializer {
         } catch (Exception e) {
             ModuleLogger.error(LogModuleConfig.MODULE_RESOURCE, "初始化默认文件失败", e);
         }
-    }
-    
-    /**
-     * 生成 README.md 文档
-     * @param playerDollDir player_doll 目录路径
-     */
-    private static void generateReadme(Path playerDollDir) {
-        try {
-            Path readmePath = playerDollDir.resolve("README.md");
-            
-            // 如果 README.md 已存在，跳过
-            if (Files.exists(readmePath)) {
-                return;
-            }
-            
-            String readmeContent = generateReadmeContent();
-            Files.writeString(readmePath, readmeContent, StandardCharsets.UTF_8);
-        } catch (IOException e) {
-            ModuleLogger.error(LogModuleConfig.MODULE_RESOURCE, "生成 README.md 失败", e);
-        }
-    }
-    
-    /**
-     * 生成 README.md 内容
-     * @return README.md 文件内容
-     */
-    private static String generateReadmeContent() {
-        return "# Player Doll Addon 配置指南\n\n" +
-               "欢迎使用 Player Doll Addon！本目录用于存放玩偶相关的配置文件。\n\n" +
-               "## 目录结构\n\n" +
-               "```\n" +
-               "player_doll/\n" +
-               "├── poses/            # 姿态配置文件目录\n" +
-               "├── actions/          # 动作配置文件目录\n" +
-               "└── README.md         # 本说明文档\n" +
-               "```\n\n" +
-               "## 配置姿态和动作\n\n" +
-               "请参考模组文档了解如何配置姿态和动作文件。\n\n" +
-               "*本文档由 Player Doll Addon 模组自动生成*\n";
     }
     
     /**
