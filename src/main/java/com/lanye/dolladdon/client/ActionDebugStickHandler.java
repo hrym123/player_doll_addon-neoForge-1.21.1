@@ -39,7 +39,7 @@ public class ActionDebugStickHandler {
         
         if (actionList.isEmpty()) {
             if (client.player != null) {
-                client.player.sendMessage(Text.literal("没有可用的动作"), false);
+                client.player.sendMessage(Text.literal("没有可用的动作"), true);
             }
             return;
         }

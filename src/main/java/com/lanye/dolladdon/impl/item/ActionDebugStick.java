@@ -17,6 +17,8 @@ import net.minecraft.util.Hand;
 import net.minecraft.util.TypedActionResult;
 import net.minecraft.world.World;
 
+import java.util.List;
+
 /**
  * 动作调试棒
  * 潜行时滑动滚轮切换动作，右键玩偶应用当前动作
@@ -123,20 +125,20 @@ public class ActionDebugStick extends Item {
             stack.getNbt(), selectedActionName);
         
         if (selectedActionName == null || selectedActionName.isEmpty()) {
-            user.sendMessage(Text.literal("请先选择一个动作（潜行时滑动滚轮）"), false);
+            user.sendMessage(Text.literal("请先选择一个动作（潜行时滑动滚轮）"), true);
             return ActionResult.FAIL;
         }
         
         var action = PoseActionManager.getAction(selectedActionName);
         if (action == null) {
-            user.sendMessage(Text.literal("动作不存在: " + selectedActionName), false);
+            user.sendMessage(Text.literal("动作不存在: " + selectedActionName), true);
             ModuleLogger.warn(LOG_MODULE, "动作调试棒: 动作不存在: {}", selectedActionName);
             return ActionResult.FAIL;
         }
         
         dollEntity.setAction(action);
         String displayName = action.getDisplayName();
-        user.sendMessage(Text.literal("已应用动作: " + displayName), false);
+        user.sendMessage(Text.literal("已应用动作: " + displayName), true);
         world.playSound(null, dollEntity.getX(), dollEntity.getY(), dollEntity.getZ(),
                 SoundEvents.ENTITY_EXPERIENCE_ORB_PICKUP, SoundCategory.PLAYERS, 0.5F, 1.2F);
         ModuleLogger.debug(LOG_MODULE, "动作调试棒: 玩家 {} 对玩偶 {} 应用动作 {}", user.getName().getString(), dollEntity.getId(), selectedActionName);
@@ -154,12 +156,12 @@ public class ActionDebugStick extends Item {
             var action = PoseActionManager.getAction(selectedActionName);
             if (action != null) {
                 String displayName = action.getDisplayName();
-                user.sendMessage(Text.literal("当前动作: " + displayName), false);
+                user.sendMessage(Text.literal("当前动作: " + displayName), true);
             } else {
-                user.sendMessage(Text.literal("当前动作: " + selectedActionName + " (不存在)"), false);
+                user.sendMessage(Text.literal("当前动作: " + selectedActionName + " (不存在)"), true);
             }
         } else {
-            user.sendMessage(Text.literal("未选择动作（潜行时滑动滚轮切换）"), false);
+            user.sendMessage(Text.literal("未选择动作（潜行时滑动滚轮切换）"), true);
         }
         
         return TypedActionResult.success(stack);
@@ -176,4 +178,5 @@ public class ActionDebugStick extends Item {
         }
         return false;
     }
+    
 }

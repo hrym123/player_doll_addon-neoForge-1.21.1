@@ -17,6 +17,8 @@ import net.minecraft.util.Hand;
 import net.minecraft.util.TypedActionResult;
 import net.minecraft.world.World;
 
+import java.util.List;
+
 /**
  * 姿态调试棒
  * 潜行时滑动滚轮切换姿态，右键玩偶应用当前姿态
@@ -122,14 +124,14 @@ public class PoseDebugStick extends Item {
             stack.getNbt(), selectedPoseName);
         
         if (selectedPoseName == null || selectedPoseName.isEmpty()) {
-            user.sendMessage(Text.literal("请先选择一个姿态（潜行时滑动滚轮）"), false);
+            user.sendMessage(Text.literal("请先选择一个姿态（潜行时滑动滚轮）"), true);
             return ActionResult.FAIL;
         }
         
         // 使用 setPoseByName 方法设置姿态并更新索引
         boolean success = dollEntity.setPoseByName(selectedPoseName);
         if (!success) {
-            user.sendMessage(Text.literal("姿态不存在或设置失败: " + selectedPoseName), false);
+            user.sendMessage(Text.literal("姿态不存在或设置失败: " + selectedPoseName), true);
             ModuleLogger.warn(LOG_MODULE, "姿态调试棒: 姿态不存在或设置失败: {}", selectedPoseName);
             return ActionResult.FAIL;
         }
@@ -138,7 +140,7 @@ public class PoseDebugStick extends Item {
         var pose = PoseActionManager.getPose(selectedPoseName);
         String displayName = pose != null && pose.getDisplayName() != null ? pose.getDisplayName() : selectedPoseName;
         
-        user.sendMessage(Text.literal("已应用姿态: " + displayName), false);
+        user.sendMessage(Text.literal("已应用姿态: " + displayName), true);
         world.playSound(null, dollEntity.getX(), dollEntity.getY(), dollEntity.getZ(),
                 SoundEvents.ENTITY_EXPERIENCE_ORB_PICKUP, SoundCategory.PLAYERS, 0.5F, 1.2F);
         ModuleLogger.debug(LOG_MODULE, "姿态调试棒: 玩家 {} 对玩偶 {} 应用姿态 {}", 
@@ -157,12 +159,12 @@ public class PoseDebugStick extends Item {
             var pose = PoseActionManager.getPose(selectedPoseName);
             if (pose != null) {
                 String displayName = pose.getDisplayName();
-                user.sendMessage(Text.literal("当前姿态: " + displayName), false);
+                user.sendMessage(Text.literal("当前姿态: " + displayName), true);
             } else {
-                user.sendMessage(Text.literal("当前姿态: " + selectedPoseName + " (不存在)"), false);
+                user.sendMessage(Text.literal("当前姿态: " + selectedPoseName + " (不存在)"), true);
             }
         } else {
-            user.sendMessage(Text.literal("未选择姿态（潜行时滑动滚轮切换）"), false);
+            user.sendMessage(Text.literal("未选择姿态（潜行时滑动滚轮切换）"), true);
         }
         
         return TypedActionResult.success(stack);
@@ -179,4 +181,5 @@ public class PoseDebugStick extends Item {
         }
         return false;
     }
+    
 }

@@ -39,7 +39,7 @@ public class PoseDebugStickHandler {
         
         if (poseList.isEmpty()) {
             if (client.player != null) {
-                client.player.sendMessage(Text.literal("没有可用的姿态"), false);
+                client.player.sendMessage(Text.literal("没有可用的姿态"), true);
             }
             return;
         }

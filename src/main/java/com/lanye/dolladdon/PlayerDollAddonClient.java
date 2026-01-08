@@ -288,6 +288,9 @@ public class PlayerDollAddonClient implements ClientModInitializer {
         
         // 初始化姿态调试棒处理器
         com.lanye.dolladdon.client.PoseDebugStickHandler.initialize();
+        
+        // 初始化调试棒 Tooltip 处理器
+        com.lanye.dolladdon.client.DebugStickTooltipHandler.initialize();
     }
     
 }
