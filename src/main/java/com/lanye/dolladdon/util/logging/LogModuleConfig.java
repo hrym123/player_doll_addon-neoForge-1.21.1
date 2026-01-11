@@ -98,8 +98,8 @@ public class LogModuleConfig {
         
         // 实体相关模块
         modules.put(MODULE_ENTITY, new ModuleInfo(MODULE_ENTITY, LogLevel.WARN, "[实体] {}"));
-        modules.put(MODULE_ENTITY_POSE, new ModuleInfo(MODULE_ENTITY_POSE, LogLevel.DEBUG, "[实体-姿态] {}"));
-        modules.put(MODULE_ENTITY_ACTION, new ModuleInfo(MODULE_ENTITY_ACTION, LogLevel.DEBUG, "[实体-动作] {}"));
+        modules.put(MODULE_ENTITY_POSE, new ModuleInfo(MODULE_ENTITY_POSE, LogLevel.WARN, "[实体-姿态] {}"));
+        modules.put(MODULE_ENTITY_ACTION, new ModuleInfo(MODULE_ENTITY_ACTION, LogLevel.WARN, "[实体-动作] {}"));
         modules.put(MODULE_ENTITY_INTERACT, new ModuleInfo(MODULE_ENTITY_INTERACT, LogLevel.WARN, "[实体-交互] {}"));
         modules.put(MODULE_ENTITY_NBT, new ModuleInfo(MODULE_ENTITY_NBT, LogLevel.WARN, "[实体-NBT] {}"));
         
@@ -115,7 +115,7 @@ public class LogModuleConfig {
         
         // 加载器模块
         modules.put(MODULE_POSE_LOADER, new ModuleInfo(MODULE_POSE_LOADER, LogLevel.WARN, "[姿态加载] {}"));
-        modules.put(MODULE_ACTION_LOADER, new ModuleInfo(MODULE_ACTION_LOADER, LogLevel.DEBUG, "[动作加载] {}"));
+        modules.put(MODULE_ACTION_LOADER, new ModuleInfo(MODULE_ACTION_LOADER, LogLevel.WARN, "[动作加载] {}"));
         
         MODULES = Collections.unmodifiableMap(modules);
     }

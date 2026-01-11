@@ -2,6 +2,11 @@ package com.lanye.dolladdon.base.render;
 
 import com.lanye.dolladdon.PlayerDollAddonClient;
 import com.lanye.dolladdon.base.entity.BaseDollEntity;
+import com.lanye.dolladdon.info.BodyPartsTransformInfo;
+import com.lanye.dolladdon.info.MeshRenderInfo;
+import com.lanye.dolladdon.info.MeshRenderPartsInfo;
+import com.lanye.dolladdon.info.PartTransformInfo;
+import com.lanye.dolladdon.info.RenderContextInfo;
 import com.lanye.dolladdon.util.logging.LogModuleConfig;
 import com.lanye.dolladdon.util.logging.ModuleLogger;
 import com.lanye.dolladdon.util.skinlayers3d.Doll3DSkinData;
@@ -186,43 +191,20 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
         
         // 第一步：渲染基础层（base layer）
         var baseVertexConsumer = vertexConsumerProvider.getBuffer(cutoutRenderType);
+        RenderContextInfo baseContextInfo = new RenderContextInfo(light, overlay, baseVertexConsumer);
+        BodyPartsTransformInfo baseTransforms = BodyPartsTransformInfo.of(
+            headPosition, headScale,
+            bodyPosition, bodyScale,
+            leftArmPosition, leftArmScale,
+            rightArmPosition, rightArmScale,
+            leftLegPosition, leftLegScale,
+            rightLegPosition, rightLegScale
+        );
         
         // 如果有身体旋转，使用 MatrixStack 在身体旋转中心应用旋转，然后渲染身体、头部、手臂和腿部
-        if (bodyRotX != 0 || bodyRotY != 0 || bodyRotZ != 0) {
-            matrixStack.push();
-            
-            // 移动到身体的旋转中心（身体和头连接处，Y坐标约为0.375）
-            float rotationCenterY = 0.375f;
-            matrixStack.translate(0.0, rotationCenterY, 0.0);
-            
-            // 应用身体旋转（只在这里应用，不在 setRotation 中设置）
-            matrixStack.multiply(new Quaternionf().rotateX(bodyRotX));
-            matrixStack.multiply(new Quaternionf().rotateY(bodyRotY));
-            matrixStack.multiply(new Quaternionf().rotateZ(bodyRotZ));
-            
-            // 移回旋转中心
-            matrixStack.translate(0.0, -rotationCenterY, 0.0);
-            // 在旋转后的坐标系中渲染身体、头部、手臂和腿部
-            // 注意：头部和手臂的旋转值已经是相对于身体的，所以保持它们的旋转值
-            playerModel.body.setAngles(0, 0, 0); // 确保身体不额外旋转（旋转已通过 MatrixStack 应用）
-            // 头部和手臂保持它们自己的相对旋转值（headRotX等已经在上面设置）
-            renderPartWithTransform(matrixStack, playerModel.body, baseVertexConsumer, light, overlay, bodyPosition, bodyScale);
-            renderPartWithTransform(matrixStack, playerModel.head, baseVertexConsumer, light, overlay, headPosition, headScale);
-            renderPartWithTransform(matrixStack, playerModel.rightArm, baseVertexConsumer, light, overlay, rightArmPosition, rightArmScale);
-            renderPartWithTransform(matrixStack, playerModel.leftArm, baseVertexConsumer, light, overlay, leftArmPosition, leftArmScale);
-            renderPartWithTransform(matrixStack, playerModel.rightLeg, baseVertexConsumer, light, overlay, rightLegPosition, rightLegScale);
-            renderPartWithTransform(matrixStack, playerModel.leftLeg, baseVertexConsumer, light, overlay, leftLegPosition, leftLegScale);
-            matrixStack.pop();
-        } else {
-            // 没有身体旋转时，正常渲染
-            playerModel.body.setAngles(0, 0, 0);
-            renderPartWithTransform(matrixStack, playerModel.body, baseVertexConsumer, light, overlay, bodyPosition, bodyScale);
-            renderPartWithTransform(matrixStack, playerModel.head, baseVertexConsumer, light, overlay, headPosition, headScale);
-            renderPartWithTransform(matrixStack, playerModel.rightArm, baseVertexConsumer, light, overlay, rightArmPosition, rightArmScale);
-            renderPartWithTransform(matrixStack, playerModel.leftArm, baseVertexConsumer, light, overlay, leftArmPosition, leftArmScale);
-            renderPartWithTransform(matrixStack, playerModel.rightLeg, baseVertexConsumer, light, overlay, rightLegPosition, rightLegScale);
-            renderPartWithTransform(matrixStack, playerModel.leftLeg, baseVertexConsumer, light, overlay, leftLegPosition, leftLegScale);
-        }
+        DollRenderHelper.applyBodyRotation(matrixStack, bodyRotX, bodyRotY, bodyRotZ, () -> {
+            DollRenderHelper.renderBaseLayerParts(playerModel, matrixStack, baseContextInfo, baseTransforms);
+        });
         
         // 第二步：渲染外层（overlay layer）- 使用半透明渲染以正确显示多层皮肤
         var overlayVertexConsumer = vertexConsumerProvider.getBuffer(translucentRenderType);
@@ -272,38 +254,18 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
             ModuleLogger.debug(LOG_MODULE, "开始2D外层渲染，皮肤: {}", skinLocation);
             // 使用默认2D渲染
             // 如果有身体旋转，使用 MatrixStack 在身体旋转中心应用旋转，然后渲染所有外层部分
-            if (bodyRotX != 0 || bodyRotY != 0 || bodyRotZ != 0) {
-                matrixStack.push();
-                
-                // 移动到身体的旋转中心（身体和头连接处，Y坐标约为0.375）
-                float rotationCenterY = 0.375f;
-                matrixStack.translate(0.0, rotationCenterY, 0.0);
-                
-                // 应用身体旋转（只在这里应用，不在 setRotation 中设置）
-                matrixStack.multiply(new Quaternionf().rotateX(bodyRotX));
-                matrixStack.multiply(new Quaternionf().rotateY(bodyRotY));
-                matrixStack.multiply(new Quaternionf().rotateZ(bodyRotZ));
-                
-                // 移回旋转中心
-                matrixStack.translate(0.0, -rotationCenterY, 0.0);
-                // 在旋转后的坐标系中 渲染所有外层部分
-                // hat层（头发外层），使用 headScale 和 hatScale 的组合
-                ModuleLogger.debug(LOG_MODULE, "✓ 渲染帽子外层（旋转模式）");
-                renderPartWithTransform(matrixStack, playerModel.hat, overlayVertexConsumer, light, overlay, hatPosition, hatCombinedScale);
-                // 手臂外层（保持它们自己的旋转值）
-                renderArmOverlayParts(matrixStack, overlayVertexConsumer, light, overlay, rightArmPosition, rightArmScale, leftArmPosition, leftArmScale);
-                // 身体和腿部外层（jacket 的旋转设为0）
-                setBodyOverlayRotation(0, 0, 0); // 确保身体外层不额外旋转
-                renderBodyLegOverlayParts(matrixStack, overlayVertexConsumer, light, overlay, bodyPosition, bodyScale, rightLegPosition, rightLegScale, leftLegPosition, leftLegScale);
-                matrixStack.pop();
-            } else {
-                // 没有身体旋转时，正常渲染
-                ModuleLogger.debug(LOG_MODULE, "✓ 渲染帽子外层（正常模式）");
-                renderPartWithTransform(matrixStack, playerModel.hat, overlayVertexConsumer, light, overlay, hatPosition, hatCombinedScale);
-                renderArmOverlayParts(matrixStack, overlayVertexConsumer, light, overlay, rightArmPosition, rightArmScale, leftArmPosition, leftArmScale);
+            RenderContextInfo overlayContextInfo = new RenderContextInfo(light, overlay, overlayVertexConsumer);
+            DollRenderHelper.applyBodyRotation(matrixStack, bodyRotX, bodyRotY, bodyRotZ, () -> {
+                if (bodyRotX != 0 || bodyRotY != 0 || bodyRotZ != 0) {
+                    ModuleLogger.debug(LOG_MODULE, "✓ 渲染帽子外层（旋转模式）");
+                } else {
+                    ModuleLogger.debug(LOG_MODULE, "✓ 渲染帽子外层（正常模式）");
+                }
+                renderPartWithTransform(matrixStack, playerModel.hat, overlayContextInfo, PartTransformInfo.of(hatPosition, hatCombinedScale));
+                renderArmOverlayParts(matrixStack, overlayContextInfo, PartTransformInfo.of(leftArmPosition, leftArmScale), PartTransformInfo.of(rightArmPosition, rightArmScale));
                 setBodyOverlayRotation(0, 0, 0);
-                renderBodyLegOverlayParts(matrixStack, overlayVertexConsumer, light, overlay, bodyPosition, bodyScale, rightLegPosition, rightLegScale, leftLegPosition, leftLegScale);
-            }
+                renderBodyLegOverlayParts(matrixStack, overlayContextInfo, PartTransformInfo.of(bodyPosition, bodyScale), PartTransformInfo.of(leftLegPosition, leftLegScale), PartTransformInfo.of(rightLegPosition, rightLegScale));
+            });
         }
 
         matrixStack.pop();
@@ -319,14 +281,18 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
                 matrixStack.push();
                 applyBaseDollTransforms(matrixStack, entity, partialTick);
 
-                renderOverlayWith3DSkinLayers(matrixStack, overlayVertexConsumer, light, overlay,
-                    skinLocation, bodyRotX, bodyRotY, bodyRotZ,
+                // 使用新的方法签名，封装参数为 info 类
+                RenderContextInfo overlayContextInfo = new RenderContextInfo(light, overlay, overlayVertexConsumer);
+                MeshRenderPartsInfo partsInfo = MeshRenderPartsInfo.of(
                     hatPosition, hatCombinedScale, hatRot,
                     rightArmPosition, rightArmScale, rightArmRot,
                     leftArmPosition, leftArmScale, leftArmRot,
                     bodyPosition, bodyScale, bodyRot,
                     rightLegPosition, rightLegScale, rightLegRot,
-                    leftLegPosition, leftLegScale, leftLegRot);
+                    leftLegPosition, leftLegScale, leftLegRot
+                );
+                renderOverlayWith3DSkinLayers(matrixStack, overlayContextInfo, skinLocation,
+                    bodyRotX, bodyRotY, bodyRotZ, partsInfo);
 
                 matrixStack.pop();
                 // 只在第一次渲染时记录日志
@@ -390,22 +356,19 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
 
     /**
      * 渲染单个部件，应用位置和缩放
-     * @param poseStack 变换矩阵栈
+     * @param matrixStack 变换矩阵栈
      * @param part 要渲染的部件
-     * @param vertexConsumer 顶点消费者
-     * @param packedLight 光照信息
-     * @param overlay 覆盖纹理
-     * @param position 位置偏移 [x, y, z]
-     * @param scale 缩放 [x, y, z]
+     * @param contextInfo 渲染上下文信息（包含光照、覆盖纹理、顶点消费者）
+     * @param transformInfo 部件变换信息（包含位置和缩放）
      */
     private void renderPartWithTransform(MatrixStack matrixStack,
                                          net.minecraft.client.model.ModelPart part,
-                                         net.minecraft.client.render.VertexConsumer vertexConsumer,
-                                         int light,
-                                         int overlay,
-                                         float[] position,
-                                         float[] scale) {
+                                         RenderContextInfo contextInfo,
+                                         PartTransformInfo transformInfo) {
         matrixStack.push();
+        
+        float[] position = transformInfo.getPositionInternal();
+        float[] scale = transformInfo.getScaleInternal();
         
         // 应用位置偏移（Y轴取反，正数向上）
         if (position[0] != 0.0f || position[1] != 0.0f || position[2] != 0.0f) {
@@ -418,7 +381,7 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
         }
         
         // 渲染部件
-        part.render(matrixStack, vertexConsumer, light, overlay);
+        part.render(matrixStack, contextInfo.getVertexConsumer(), contextInfo.getLight(), contextInfo.getOverlay());
         
         matrixStack.pop();
     }
@@ -470,30 +433,22 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
     /**
      * 渲染手臂外层部分（overlay layer）以支持多层皮肤
      * 
-     * @param poseStack 变换矩阵栈
-     * @param overlayVertexConsumer 外层顶点消费者
-     * @param packedLight 光照信息
-     * @param overlay 覆盖纹理
-     * @param rightArmPosition 右臂位置偏移
-     * @param rightArmScale 右臂缩放
-     * @param leftArmPosition 左臂位置偏移
-     * @param leftArmScale 左臂缩放
+     * @param matrixStack 变换矩阵栈
+     * @param contextInfo 渲染上下文信息
+     * @param leftArmTransform 左臂变换信息
+     * @param rightArmTransform 右臂变换信息
      */
     private void renderArmOverlayParts(MatrixStack matrixStack,
-                                      net.minecraft.client.render.VertexConsumer overlayVertexConsumer,
-                                      int light,
-                                      int overlay,
-                                      float[] rightArmPosition,
-                                      float[] rightArmScale,
-                                      float[] leftArmPosition,
-                                      float[] leftArmScale) {
+                                      RenderContextInfo contextInfo,
+                                      PartTransformInfo leftArmTransform,
+                                      PartTransformInfo rightArmTransform) {
         ModuleLogger.debug(LOG_MODULE, "渲染手臂外层部件");
         
         // 使用模型封装类访问外层部件
         net.minecraft.client.model.ModelPart leftSleeve = modelWrapper.getLeftSleeve();
         if (leftSleeve != null) {
             ModuleLogger.debug(LOG_MODULE, "✓ 渲染左袖子外层");
-            renderPartWithTransform(matrixStack, leftSleeve, overlayVertexConsumer, light, overlay, leftArmPosition, leftArmScale);
+            renderPartWithTransform(matrixStack, leftSleeve, contextInfo, leftArmTransform);
         } else {
             ModuleLogger.debug(LOG_MODULE, "✗ 左袖子外层不存在");
         }
@@ -501,7 +456,7 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
         net.minecraft.client.model.ModelPart rightSleeve = modelWrapper.getRightSleeve();
         if (rightSleeve != null) {
             ModuleLogger.debug(LOG_MODULE, "✓ 渲染右袖子外层");
-            renderPartWithTransform(matrixStack, rightSleeve, overlayVertexConsumer, light, overlay, rightArmPosition, rightArmScale);
+            renderPartWithTransform(matrixStack, rightSleeve, contextInfo, rightArmTransform);
         } else {
             ModuleLogger.debug(LOG_MODULE, "✗ 右袖子外层不存在");
         }
@@ -510,34 +465,24 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
     /**
      * 渲染身体和腿部外层部分（overlay layer）以支持多层皮肤
      * 
-     * @param poseStack 变换矩阵栈
-     * @param overlayVertexConsumer 外层顶点消费者
-     * @param packedLight 光照信息
-     * @param overlay 覆盖纹理
-     * @param bodyPosition 身体位置偏移
-     * @param bodyScale 身体缩放
-     * @param rightLegPosition 右腿位置偏移
-     * @param rightLegScale 右腿缩放
-     * @param leftLegPosition 左腿位置偏移
-     * @param leftLegScale 左腿缩放
+     * @param matrixStack 变换矩阵栈
+     * @param contextInfo 渲染上下文信息
+     * @param bodyTransform 身体变换信息
+     * @param leftLegTransform 左腿变换信息
+     * @param rightLegTransform 右腿变换信息
      */
     private void renderBodyLegOverlayParts(MatrixStack matrixStack,
-                                          net.minecraft.client.render.VertexConsumer overlayVertexConsumer,
-                                          int light,
-                                          int overlay,
-                                          float[] bodyPosition,
-                                          float[] bodyScale,
-                                          float[] rightLegPosition,
-                                          float[] rightLegScale,
-                                          float[] leftLegPosition,
-                                          float[] leftLegScale) {
+                                          RenderContextInfo contextInfo,
+                                          PartTransformInfo bodyTransform,
+                                          PartTransformInfo leftLegTransform,
+                                          PartTransformInfo rightLegTransform) {
         ModuleLogger.debug(LOG_MODULE, "渲染身体和腿部外层部件");
         
         // 使用模型封装类访问外层部件
         net.minecraft.client.model.ModelPart jacket = modelWrapper.getJacket();
         if (jacket != null) {
             ModuleLogger.debug(LOG_MODULE, "✓ 渲染夹克外层");
-            renderPartWithTransform(matrixStack, jacket, overlayVertexConsumer, light, overlay, bodyPosition, bodyScale);
+            renderPartWithTransform(matrixStack, jacket, contextInfo, bodyTransform);
         } else {
             ModuleLogger.debug(LOG_MODULE, "✗ 夹克外层不存在");
         }
@@ -545,7 +490,7 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
         net.minecraft.client.model.ModelPart leftPants = modelWrapper.getLeftPants();
         if (leftPants != null) {
             ModuleLogger.debug(LOG_MODULE, "✓ 渲染左腿外层");
-            renderPartWithTransform(matrixStack, leftPants, overlayVertexConsumer, light, overlay, leftLegPosition, leftLegScale);
+            renderPartWithTransform(matrixStack, leftPants, contextInfo, leftLegTransform);
         } else {
             ModuleLogger.debug(LOG_MODULE, "✗ 左腿外层不存在");
         }
@@ -553,7 +498,7 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
         net.minecraft.client.model.ModelPart rightPants = modelWrapper.getRightPants();
         if (rightPants != null) {
             ModuleLogger.debug(LOG_MODULE, "✓ 渲染右腿外层");
-            renderPartWithTransform(matrixStack, rightPants, overlayVertexConsumer, light, overlay, rightLegPosition, rightLegScale);
+            renderPartWithTransform(matrixStack, rightPants, contextInfo, rightLegTransform);
         } else {
             ModuleLogger.debug(LOG_MODULE, "✗ 右腿外层不存在");
         }
@@ -624,8 +569,23 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
     }
     
     /**
-     * 使用3D皮肤层渲染外层
+     * 使用3D皮肤层渲染外层（新方法签名，使用 MeshRenderPartsInfo）
      */
+    private void renderOverlayWith3DSkinLayers(MatrixStack matrixStack,
+                                               RenderContextInfo contextInfo,
+                                               Identifier skinLocation,
+                                               float bodyRotX, float bodyRotY, float bodyRotZ,
+                                               MeshRenderPartsInfo partsInfo) {
+        renderOverlayWith3DSkinLayersInternal(matrixStack, contextInfo, skinLocation, 
+            bodyRotX, bodyRotY, bodyRotZ, partsInfo);
+    }
+    
+    /**
+     * 使用3D皮肤层渲染外层（旧方法签名，已弃用）
+     * 
+     * @deprecated 使用 {@link #renderOverlayWith3DSkinLayers(MatrixStack, RenderContextInfo, Identifier, float, float, float, MeshRenderPartsInfo)} 代替
+     */
+    @Deprecated
     private void renderOverlayWith3DSkinLayers(MatrixStack matrixStack,
                                                net.minecraft.client.render.VertexConsumer vertexConsumer,
                                                int light, int overlay,
@@ -637,6 +597,27 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
                                                float[] bodyPosition, float[] bodyScale, float[] bodyRot,
                                                float[] rightLegPosition, float[] rightLegScale, float[] rightLegRot,
                                                float[] leftLegPosition, float[] leftLegScale, float[] leftLegRot) {
+        RenderContextInfo contextInfo = new RenderContextInfo(light, overlay, vertexConsumer);
+        MeshRenderPartsInfo partsInfo = MeshRenderPartsInfo.of(
+            hatPosition, hatScale, hatRot,
+            rightArmPosition, rightArmScale, rightArmRot,
+            leftArmPosition, leftArmScale, leftArmRot,
+            bodyPosition, bodyScale, bodyRot,
+            rightLegPosition, rightLegScale, rightLegRot,
+            leftLegPosition, leftLegScale, leftLegRot
+        );
+        renderOverlayWith3DSkinLayersInternal(matrixStack, contextInfo, skinLocation, 
+            bodyRotX, bodyRotY, bodyRotZ, partsInfo);
+    }
+    
+    /**
+     * 使用3D皮肤层渲染外层（内部实现）
+     */
+    private void renderOverlayWith3DSkinLayersInternal(MatrixStack matrixStack,
+                                                       RenderContextInfo contextInfo,
+                                                       Identifier skinLocation,
+                                                       float bodyRotX, float bodyRotY, float bodyRotZ,
+                                                       MeshRenderPartsInfo partsInfo) {
         if (!hasLogged3DRenderStart) {
             ModuleLogger.debug(LOG_MODULE, "开始3D渲染，皮肤: {}, thinArms: {}", skinLocation, thinArms);
             hasLogged3DRenderStart = true;
@@ -690,61 +671,11 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
         }
         
         try {
-        // 处理身体旋转
-        if (bodyRotX != 0 || bodyRotY != 0 || bodyRotZ != 0) {
-            matrixStack.push();
-            
-            float rotationCenterY = 0.375f;
-            matrixStack.translate(0.0, rotationCenterY, 0.0);
-            matrixStack.multiply(new Quaternionf().rotateX(bodyRotX));
-            matrixStack.multiply(new Quaternionf().rotateY(bodyRotY));
-            matrixStack.multiply(new Quaternionf().rotateZ(bodyRotZ));
-            matrixStack.translate(0.0, -rotationCenterY, 0.0);
-            
-                // 渲染各个部位的3D网格（已批量初始化，这里只负责变换和渲染）
-                render3DMeshPartFast(matrixStack, playerModel.hat, skinData.getHeadMesh(),
-                    "HEAD", vertexConsumer, light, overlay, hatPosition, hatScale, hatRot);
-            
-                render3DMeshPartFast(matrixStack, playerModel.leftArm, skinData.getLeftArmMesh(),
-                    thinArms ? "LEFT_ARM_SLIM" : "LEFT_ARM", vertexConsumer, light, overlay,
-                    leftArmPosition, leftArmScale, leftArmRot);
-            
-                render3DMeshPartFast(matrixStack, playerModel.rightArm, skinData.getRightArmMesh(),
-                    thinArms ? "RIGHT_ARM_SLIM" : "RIGHT_ARM", vertexConsumer, light, overlay,
-                    rightArmPosition, rightArmScale, rightArmRot);
-            
-                render3DMeshPartFast(matrixStack, playerModel.body, skinData.getTorsoMesh(),
-                    "BODY", vertexConsumer, light, overlay, bodyPosition, bodyScale, bodyRot);
-            
-                render3DMeshPartFast(matrixStack, playerModel.leftLeg, skinData.getLeftLegMesh(),
-                    "LEFT_LEG", vertexConsumer, light, overlay, leftLegPosition, leftLegScale, leftLegRot);
-            
-                render3DMeshPartFast(matrixStack, playerModel.rightLeg, skinData.getRightLegMesh(),
-                    "RIGHT_LEG", vertexConsumer, light, overlay, rightLegPosition, rightLegScale, rightLegRot);
-            
-            matrixStack.pop();
-        } else {
-            // 没有身体旋转时，正常渲染
-                render3DMeshPartFast(matrixStack, playerModel.hat, skinData.getHeadMesh(),
-                    "HEAD", vertexConsumer, light, overlay, hatPosition, hatScale, hatRot);
-            
-                render3DMeshPartFast(matrixStack, playerModel.leftArm, skinData.getLeftArmMesh(),
-                    thinArms ? "LEFT_ARM_SLIM" : "LEFT_ARM", vertexConsumer, light, overlay,
-                    leftArmPosition, leftArmScale, leftArmRot);
-            
-                render3DMeshPartFast(matrixStack, playerModel.rightArm, skinData.getRightArmMesh(),
-                    thinArms ? "RIGHT_ARM_SLIM" : "RIGHT_ARM", vertexConsumer, light, overlay,
-                    rightArmPosition, rightArmScale, rightArmRot);
-            
-                render3DMeshPartFast(matrixStack, playerModel.body, skinData.getTorsoMesh(),
-                    "BODY", vertexConsumer, light, overlay, bodyPosition, bodyScale, bodyRot);
-            
-                render3DMeshPartFast(matrixStack, playerModel.leftLeg, skinData.getLeftLegMesh(),
-                    "LEFT_LEG", vertexConsumer, light, overlay, leftLegPosition, leftLegScale, leftLegRot);
-            
-                render3DMeshPartFast(matrixStack, playerModel.rightLeg, skinData.getRightLegMesh(),
-                    "RIGHT_LEG", vertexConsumer, light, overlay, rightLegPosition, rightLegScale, rightLegRot);
-            }
+        // 处理身体旋转 - 使用辅助方法（它会自动处理有无旋转的情况）
+        DollRenderHelper.applyBodyRotation(matrixStack, bodyRotX, bodyRotY, bodyRotZ, () -> {
+            // 批量渲染所有部位的3D网格
+            renderAll3DMeshParts(matrixStack, skinData, contextInfo, partsInfo);
+        });
         } finally {
             // 重要：在所有3D部件渲染后统一恢复深度测试
             try {
@@ -756,6 +687,70 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
                 }
             }
         }
+    }
+    
+    /**
+     * 批量渲染所有部位的3D网格
+     * 
+     * @param matrixStack 变换矩阵栈
+     * @param skinData 3D皮肤数据
+     * @param contextInfo 渲染上下文信息
+     * @param partsInfo 身体各部位渲染信息
+     */
+    private void renderAll3DMeshParts(MatrixStack matrixStack,
+                                     Doll3DSkinData skinData,
+                                     RenderContextInfo contextInfo,
+                                     MeshRenderPartsInfo partsInfo) {
+        // 使用批量方法渲染各个部位
+        render3DMeshPartFast(matrixStack, MeshRenderInfo.of(
+            playerModel.hat, skinData.getHeadMesh(), "HEAD",
+            contextInfo.getLight(), contextInfo.getOverlay(), contextInfo.getVertexConsumer(),
+            partsInfo.getHat().getPositionInternal(),
+            partsInfo.getHat().getScaleInternal(),
+            partsInfo.getHat().getRotationInternal()
+        ));
+        
+        render3DMeshPartFast(matrixStack, MeshRenderInfo.of(
+            playerModel.leftArm, skinData.getLeftArmMesh(),
+            thinArms ? "LEFT_ARM_SLIM" : "LEFT_ARM",
+            contextInfo.getLight(), contextInfo.getOverlay(), contextInfo.getVertexConsumer(),
+            partsInfo.getLeftArm().getPositionInternal(),
+            partsInfo.getLeftArm().getScaleInternal(),
+            partsInfo.getLeftArm().getRotationInternal()
+        ));
+        
+        render3DMeshPartFast(matrixStack, MeshRenderInfo.of(
+            playerModel.rightArm, skinData.getRightArmMesh(),
+            thinArms ? "RIGHT_ARM_SLIM" : "RIGHT_ARM",
+            contextInfo.getLight(), contextInfo.getOverlay(), contextInfo.getVertexConsumer(),
+            partsInfo.getRightArm().getPositionInternal(),
+            partsInfo.getRightArm().getScaleInternal(),
+            partsInfo.getRightArm().getRotationInternal()
+        ));
+        
+        render3DMeshPartFast(matrixStack, MeshRenderInfo.of(
+            playerModel.body, skinData.getTorsoMesh(), "BODY",
+            contextInfo.getLight(), contextInfo.getOverlay(), contextInfo.getVertexConsumer(),
+            partsInfo.getBody().getPositionInternal(),
+            partsInfo.getBody().getScaleInternal(),
+            partsInfo.getBody().getRotationInternal()
+        ));
+        
+        render3DMeshPartFast(matrixStack, MeshRenderInfo.of(
+            playerModel.leftLeg, skinData.getLeftLegMesh(), "LEFT_LEG",
+            contextInfo.getLight(), contextInfo.getOverlay(), contextInfo.getVertexConsumer(),
+            partsInfo.getLeftLeg().getPositionInternal(),
+            partsInfo.getLeftLeg().getScaleInternal(),
+            partsInfo.getLeftLeg().getRotationInternal()
+        ));
+        
+        render3DMeshPartFast(matrixStack, MeshRenderInfo.of(
+            playerModel.rightLeg, skinData.getRightLegMesh(), "RIGHT_LEG",
+            contextInfo.getLight(), contextInfo.getOverlay(), contextInfo.getVertexConsumer(),
+            partsInfo.getRightLeg().getPositionInternal(),
+            partsInfo.getRightLeg().getScaleInternal(),
+            partsInfo.getRightLeg().getRotationInternal()
+        ));
     }
     
     /**
@@ -935,18 +930,30 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
      * 快速渲染单个3D网格部件（已批量初始化，只负责变换和渲染）
      * 优化版本：移除了所有初始化逻辑，只保留变换和渲染
      */
-    private void render3DMeshPartFast(MatrixStack matrixStack,
-                                      net.minecraft.client.model.ModelPart modelPart,
-                                      Object mesh,
-                                      String offsetProviderName,
-                                      net.minecraft.client.render.VertexConsumer vertexConsumer,
-                                      int light, int overlay,
-                                      float[] position, float[] scale,
-                                      float[] rotation) {
-        if (mesh == null) {
+    /**
+     * 快速渲染3D网格部件（使用 MeshRenderInfo）
+     * 
+     * @param matrixStack 变换矩阵栈
+     * @param renderInfo 3D网格渲染信息
+     */
+    private void render3DMeshPartFast(MatrixStack matrixStack, MeshRenderInfo renderInfo) {
+        if (renderInfo == null || renderInfo.getMesh() == null) {
             return;
         }
-
+        
+        net.minecraft.client.model.ModelPart modelPart = renderInfo.getModelPart();
+        Object mesh = renderInfo.getMesh();
+        String offsetProviderName = renderInfo.getOffsetProviderName();
+        RenderContextInfo contextInfo = renderInfo.getContextInfo();
+        PartTransformInfo transformInfo = renderInfo.getTransformInfo();
+        
+        float[] position = transformInfo.getPositionInternal();
+        float[] scale = transformInfo.getScaleInternal();
+        float[] rotation = transformInfo.getRotationInternal();
+        if (rotation == null) {
+            rotation = new float[]{0, 0, 0};
+        }
+        
         // 获取并记录ModelPart的轴信息
         float[] axisInfo = getModelPartAxisInfo(modelPart);
         if (axisInfo != null) {
@@ -1030,6 +1037,10 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
             matrixStack.scale(sizeMultiplier, sizeMultiplier, sizeMultiplier);
             
             // 使用缓存的render方法直接渲染
+            net.minecraft.client.render.VertexConsumer vertexConsumer = contextInfo.getVertexConsumer();
+            int light = contextInfo.getLight();
+            int overlay = contextInfo.getOverlay();
+            
             if (cachedRenderMethod != null) {
                 try {
                     int paramCount = cachedRenderMethod.getParameterCount();
@@ -1049,7 +1060,28 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
             
         } catch (Exception e) {
             // 静默失败，避免每帧都输出错误
-                }
+        }
+    }
+    
+    /**
+     * 快速渲染3D网格部件（旧方法签名，已弃用）
+     * 
+     * @deprecated 使用 {@link #render3DMeshPartFast(MatrixStack, MeshRenderInfo)} 代替
+     */
+    @Deprecated
+    private void render3DMeshPartFast(MatrixStack matrixStack,
+                                      net.minecraft.client.model.ModelPart modelPart,
+                                      Object mesh,
+                                      String offsetProviderName,
+                                      net.minecraft.client.render.VertexConsumer vertexConsumer,
+                                      int light, int overlay,
+                                      float[] position, float[] scale,
+                                      float[] rotation) {
+        MeshRenderInfo renderInfo = MeshRenderInfo.of(
+            modelPart, mesh, offsetProviderName, light, overlay, vertexConsumer,
+            position, scale, rotation
+        );
+        render3DMeshPartFast(matrixStack, renderInfo);
     }
 
     /**
@@ -1188,38 +1220,13 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
 
         try {
             // 使用与原始2D渲染完全相同的逻辑
-            if (bodyRotX != 0 || bodyRotY != 0 || bodyRotZ != 0) {
-                matrixStack.push();
-
-                // 移动到身体的旋转中心（身体和头连接处，Y坐标约为0.375）
-                float rotationCenterY = 0.375f;
-                matrixStack.translate(0.0, rotationCenterY, 0.0);
-
-                // 应用身体旋转
-                matrixStack.multiply(new Quaternionf().rotateX(bodyRotX));
-                matrixStack.multiply(new Quaternionf().rotateY(bodyRotY));
-                matrixStack.multiply(new Quaternionf().rotateZ(bodyRotZ));
-
-                // 移回旋转中心
-                matrixStack.translate(0.0, -rotationCenterY, 0.0);
-
-                // 在旋转后的坐标系中渲染所有外层部分
-                // hat层（头发外层），使用 headScale 和 hatScale 的组合
-                renderPartWithTransform(matrixStack, playerModel.hat, vertexConsumer, light, overlay, hatPosition, hatCombinedScale);
-                // 手臂外层（保持它们自己的旋转值）
-                renderArmOverlayParts(matrixStack, vertexConsumer, light, overlay, rightArmPosition, rightArmScale, leftArmPosition, leftArmScale);
-                // 身体和腿部外层（jacket 的旋转设为0）
-                setBodyOverlayRotation(0, 0, 0); // 确保身体外层不额外旋转
-                renderBodyLegOverlayParts(matrixStack, vertexConsumer, light, overlay, bodyPosition, bodyScale, rightLegPosition, rightLegScale, leftLegPosition, leftLegScale);
-
-                matrixStack.pop();
-            } else {
-                // 没有身体旋转时，正常渲染
-                renderPartWithTransform(matrixStack, playerModel.hat, vertexConsumer, light, overlay, hatPosition, hatCombinedScale);
-                renderArmOverlayParts(matrixStack, vertexConsumer, light, overlay, rightArmPosition, rightArmScale, leftArmPosition, leftArmScale);
+            RenderContextInfo fallbackContextInfo = new RenderContextInfo(light, overlay, vertexConsumer);
+            DollRenderHelper.applyBodyRotation(matrixStack, bodyRotX, bodyRotY, bodyRotZ, () -> {
+                renderPartWithTransform(matrixStack, playerModel.hat, fallbackContextInfo, PartTransformInfo.of(hatPosition, hatCombinedScale));
+                renderArmOverlayParts(matrixStack, fallbackContextInfo, PartTransformInfo.of(leftArmPosition, leftArmScale), PartTransformInfo.of(rightArmPosition, rightArmScale));
                 setBodyOverlayRotation(0, 0, 0);
-                renderBodyLegOverlayParts(matrixStack, vertexConsumer, light, overlay, bodyPosition, bodyScale, rightLegPosition, rightLegScale, leftLegPosition, leftLegScale);
-            }
+                renderBodyLegOverlayParts(matrixStack, fallbackContextInfo, PartTransformInfo.of(bodyPosition, bodyScale), PartTransformInfo.of(leftLegPosition, leftLegScale), PartTransformInfo.of(rightLegPosition, rightLegScale));
+            });
 
             ModuleLogger.info(LOG_MODULE, "✅ 2D渲染降级成功完成");
         } catch (Exception fallbackEx) {
