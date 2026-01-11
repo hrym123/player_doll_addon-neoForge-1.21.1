@@ -1,4 +1,4 @@
-package com.lanye.dolladdon.info;
+package com.lanye.dolladdon.model;
 
 /**
  * 身体各部位变换信息类

@@ -1,4 +1,4 @@
-package com.lanye.dolladdon.info;
+package com.lanye.dolladdon.model;
 
 import net.minecraft.client.render.VertexConsumer;
 

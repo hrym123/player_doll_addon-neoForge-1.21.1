@@ -1,4 +1,4 @@
-package com.lanye.dolladdon.base;
+package com.lanye.dolladdon.util.factory;
 
 import com.lanye.dolladdon.base.entity.BaseDollEntity;
 import net.minecraft.entity.EntityType;

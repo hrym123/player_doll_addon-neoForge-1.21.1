@@ -6,7 +6,7 @@ import net.minecraft.registry.Registry;
 import net.minecraft.util.Identifier;
 
 import com.lanye.dolladdon.PlayerDollAddon;
-import com.lanye.dolladdon.base.DollEntityFactory;
+import com.lanye.dolladdon.util.factory.DollEntityFactory;
 import com.lanye.dolladdon.base.entity.BaseDollEntity;
 import com.lanye.dolladdon.impl.entity.AlexDollEntity;
 import com.lanye.dolladdon.impl.entity.CustomTextureDollEntity;

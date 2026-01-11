@@ -5,7 +5,7 @@ import com.lanye.dolladdon.api.action.DollAction;
 import com.lanye.dolladdon.api.action.SimpleDollAction;
 import com.lanye.dolladdon.api.pose.DollPose;
 import com.lanye.dolladdon.api.pose.SimpleDollPose;
-import com.lanye.dolladdon.base.DollEntityFactory;
+import com.lanye.dolladdon.util.factory.DollEntityFactory;
 import com.lanye.dolladdon.util.logging.LogModuleConfig;
 import com.lanye.dolladdon.util.logging.ModuleLogger;
 import com.lanye.dolladdon.util.pose.PoseActionManager;

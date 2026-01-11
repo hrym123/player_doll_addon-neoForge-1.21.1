@@ -1,4 +1,4 @@
-package com.lanye.dolladdon.info;
+package com.lanye.dolladdon.model;
 
 /**
  * 3D网格身体各部位渲染信息类

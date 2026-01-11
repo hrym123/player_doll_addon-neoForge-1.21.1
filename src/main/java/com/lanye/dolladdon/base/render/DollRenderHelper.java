@@ -1,9 +1,9 @@
 package com.lanye.dolladdon.base.render;
 
-import com.lanye.dolladdon.info.BodyPartsTransformInfo;
-import com.lanye.dolladdon.info.OverlayPartsRotationInfo;
-import com.lanye.dolladdon.info.PartTransformInfo;
-import com.lanye.dolladdon.info.RenderContextInfo;
+import com.lanye.dolladdon.model.BodyPartsTransformInfo;
+import com.lanye.dolladdon.model.OverlayPartsRotationInfo;
+import com.lanye.dolladdon.model.PartTransformInfo;
+import com.lanye.dolladdon.model.RenderContextInfo;
 import net.minecraft.client.model.ModelPart;
 import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.render.VertexConsumerProvider;

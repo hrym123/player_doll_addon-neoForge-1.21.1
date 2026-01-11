@@ -5,7 +5,7 @@ import com.lanye.dolladdon.impl.item.ActionDebugStick;
 import com.lanye.dolladdon.impl.item.PoseDebugStick;
 import com.lanye.dolladdon.init.ModEntities;
 import com.lanye.dolladdon.init.ModItems;
-import com.lanye.dolladdon.util.init.DefaultFileInitializer;
+import com.lanye.dolladdon.init.DefaultFileInitializer;
 import com.lanye.dolladdon.util.logging.LogConfigManager;
 import com.lanye.dolladdon.util.logging.LogModuleConfig;
 import com.lanye.dolladdon.util.logging.ModuleLogger;

@@ -1,11 +1,11 @@
 package com.lanye.dolladdon.base.render;
 
 import com.lanye.dolladdon.base.entity.BaseDollEntity;
-import com.lanye.dolladdon.info.BodyPartsTransformInfo;
-import com.lanye.dolladdon.info.MeshRenderInfo;
-import com.lanye.dolladdon.info.MeshRenderPartsInfo;
-import com.lanye.dolladdon.info.PartTransformInfo;
-import com.lanye.dolladdon.info.RenderContextInfo;
+import com.lanye.dolladdon.model.BodyPartsTransformInfo;
+import com.lanye.dolladdon.model.MeshRenderInfo;
+import com.lanye.dolladdon.model.MeshRenderPartsInfo;
+import com.lanye.dolladdon.model.PartTransformInfo;
+import com.lanye.dolladdon.model.RenderContextInfo;
 import com.lanye.dolladdon.util.logging.LogModuleConfig;
 import com.lanye.dolladdon.util.logging.ModuleLogger;
 import com.lanye.dolladdon.compat.skinlayers3d.Doll3DSkinData;

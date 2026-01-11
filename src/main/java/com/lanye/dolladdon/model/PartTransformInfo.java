@@ -1,4 +1,4 @@
-package com.lanye.dolladdon.info;
+package com.lanye.dolladdon.model;
 
 /**
  * 部件变换信息类

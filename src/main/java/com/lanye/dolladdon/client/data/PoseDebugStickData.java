@@ -1,4 +1,4 @@
-package com.lanye.dolladdon.util.data;
+package com.lanye.dolladdon.client.data;
 
 import net.minecraft.entity.player.PlayerEntity;
 

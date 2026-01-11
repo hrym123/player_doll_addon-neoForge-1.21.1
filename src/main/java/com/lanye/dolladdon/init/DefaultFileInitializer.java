@@ -1,4 +1,4 @@
-package com.lanye.dolladdon.util.init;
+package com.lanye.dolladdon.init;
 
 import com.lanye.dolladdon.PlayerDollAddon;
 import com.lanye.dolladdon.util.logging.LogModuleConfig;
