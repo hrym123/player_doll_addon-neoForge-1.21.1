@@ -1,6 +1,5 @@
 package com.lanye.dolladdon.base.render;
 
-import com.lanye.dolladdon.PlayerDollAddonClient;
 import com.lanye.dolladdon.base.entity.BaseDollEntity;
 import com.lanye.dolladdon.info.BodyPartsTransformInfo;
 import com.lanye.dolladdon.info.MeshRenderInfo;
@@ -9,8 +8,8 @@ import com.lanye.dolladdon.info.PartTransformInfo;
 import com.lanye.dolladdon.info.RenderContextInfo;
 import com.lanye.dolladdon.util.logging.LogModuleConfig;
 import com.lanye.dolladdon.util.logging.ModuleLogger;
-import com.lanye.dolladdon.util.skinlayers3d.Doll3DSkinData;
-import com.lanye.dolladdon.util.skinlayers3d.Doll3DSkinUtil;
+import com.lanye.dolladdon.compat.skinlayers3d.Doll3DSkinData;
+import com.lanye.dolladdon.compat.skinlayers3d.Doll3DSkinUtil;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.entity.EntityRenderer;
@@ -22,7 +21,6 @@ import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.MathHelper;
 import org.joml.Quaternionf;
-import org.joml.Vector3f;
 
 import java.lang.reflect.Method;
 /**
@@ -210,7 +208,7 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
         var overlayVertexConsumer = vertexConsumerProvider.getBuffer(translucentRenderType);
 
         // 检查是否使用3D皮肤层渲染
-        boolean modLoaded = com.lanye.dolladdon.util.skinlayers3d.SkinLayersDetector.IS_3D_SKIN_LAYERS_LOADED;
+        boolean modLoaded = com.lanye.dolladdon.compat.skinlayers3d.SkinLayersDetector.IS_3D_SKIN_LAYERS_LOADED;
         boolean apiAvailable = Doll3DSkinUtil.isAvailable();
         boolean inRange = shouldUse3DSkinLayers(entity);
         boolean use3DSkinLayers = modLoaded && apiAvailable && inRange;

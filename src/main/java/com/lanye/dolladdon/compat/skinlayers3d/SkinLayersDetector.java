@@ -1,4 +1,4 @@
-package com.lanye.dolladdon.util.skinlayers3d;
+package com.lanye.dolladdon.compat.skinlayers3d;
 
 import net.fabricmc.loader.api.FabricLoader;
 

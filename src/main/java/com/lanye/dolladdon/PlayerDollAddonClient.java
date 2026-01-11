@@ -10,20 +10,17 @@ import com.lanye.dolladdon.init.ModItems;
 import com.lanye.dolladdon.util.logging.LogModuleConfig;
 import com.lanye.dolladdon.util.logging.ModuleLogger;
 import com.lanye.dolladdon.util.resource.ExternalTextureLoader;
-import com.lanye.dolladdon.util.resource.PngTextureScanner;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.rendering.v1.BuiltinItemRendererRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry;
 import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
 import net.fabricmc.fabric.api.resource.SimpleSynchronousResourceReloadListener;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
-import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.resource.ResourceManager;
 import net.minecraft.resource.ResourceType;
 import net.minecraft.util.Identifier;
 
-import java.nio.file.Path;
 import java.util.Map;
 
 public class PlayerDollAddonClient implements ClientModInitializer {
@@ -32,11 +29,11 @@ public class PlayerDollAddonClient implements ClientModInitializer {
 
     /**
      * 检测3D皮肤层mod是否已加载
-     * @deprecated 请使用 {@link com.lanye.dolladdon.util.skinlayers3d.SkinLayersDetector#IS_3D_SKIN_LAYERS_LOADED} 代替
+     * @deprecated 请使用 {@link com.lanye.dolladdon.compat.skinlayers3d.SkinLayersDetector#IS_3D_SKIN_LAYERS_LOADED} 代替
      */
     @Deprecated
     public static final boolean IS_3D_SKIN_LAYERS_LOADED = 
-            com.lanye.dolladdon.util.skinlayers3d.SkinLayersDetector.IS_3D_SKIN_LAYERS_LOADED;
+            com.lanye.dolladdon.compat.skinlayers3d.SkinLayersDetector.IS_3D_SKIN_LAYERS_LOADED;
     
     @Override
     public void onInitializeClient() {
@@ -44,17 +41,17 @@ public class PlayerDollAddonClient implements ClientModInitializer {
         // 使用ModuleLogger统一管理日志级别
         com.lanye.dolladdon.util.logging.ModuleLogger.configureLogLevelsForDebugModules(
                 "player_doll.3d_skin_layers",
-                "com.lanye.dolladdon.util.skinlayers3d.Doll3DSkinUtil",
-                "com.lanye.dolladdon.util.skinlayers3d.Doll3DSkinData"
+                "com.lanye.dolladdon.compat.skinlayers3d.Doll3DSkinUtil",
+                "com.lanye.dolladdon.compat.skinlayers3d.Doll3DSkinData"
         );
         
         // 输出3D皮肤层mod检测结果
         ModuleLogger.info(LOG_MODULE, "========== 3D皮肤层兼容性检测 ==========");
-        if (com.lanye.dolladdon.util.skinlayers3d.SkinLayersDetector.IS_3D_SKIN_LAYERS_LOADED) {
+        if (com.lanye.dolladdon.compat.skinlayers3d.SkinLayersDetector.IS_3D_SKIN_LAYERS_LOADED) {
             ModuleLogger.info(LOG_MODULE, "✓ 检测到3D皮肤层mod（skinlayers3d）");
             ModuleLogger.info(LOG_MODULE, "正在初始化API...");
             // 尝试初始化API以验证是否可用
-            boolean apiAvailable = com.lanye.dolladdon.util.skinlayers3d.Doll3DSkinUtil.isAvailable();
+            boolean apiAvailable = com.lanye.dolladdon.compat.skinlayers3d.Doll3DSkinUtil.isAvailable();
             if (apiAvailable) {
                 ModuleLogger.info(LOG_MODULE, "✓ API初始化成功，将启用3D皮肤渲染支持");
             } else {

@@ -1,7 +1,7 @@
 package com.lanye.dolladdon.impl.item;
 
 import com.lanye.dolladdon.base.entity.BaseDollEntity;
-import com.lanye.dolladdon.util.PoseDebugStickData;
+import com.lanye.dolladdon.util.data.PoseDebugStickData;
 import com.lanye.dolladdon.util.logging.LogModuleConfig;
 import com.lanye.dolladdon.util.logging.ModuleLogger;
 import com.lanye.dolladdon.util.pose.PoseActionManager;
@@ -16,8 +16,6 @@ import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
 import net.minecraft.util.TypedActionResult;
 import net.minecraft.world.World;
-
-import java.util.List;
 
 /**
  * 姿态调试棒
