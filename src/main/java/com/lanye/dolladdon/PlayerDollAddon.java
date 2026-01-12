@@ -15,6 +15,7 @@ import net.minecraft.world.InteractionResult;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
+import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.BuildCreativeModeTabContentsEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import net.neoforged.neoforge.registries.DeferredHolder;
@@ -74,10 +75,15 @@ public class PlayerDollAddon {
             modEventBus.addListener(this::addCreative);
             LOGGER.info("步骤 5/6: 完成");
             
-            // 步骤 6/6: 注册实体交互事件
+            // 步骤 6/6: 注册实体交互事件（注册到游戏事件总线，而不是模组事件总线）
             LOGGER.info("步骤 6/6: 注册实体交互事件...");
-            modEventBus.addListener(this::onEntityInteract);
+            NeoForge.EVENT_BUS.addListener(this::onEntityInteract);
             LOGGER.info("步骤 6/6: 完成");
+            
+            // 客户端初始化（如果是在客户端）
+            if (net.neoforged.fml.loading.FMLEnvironment.dist == net.neoforged.api.distmarker.Dist.CLIENT) {
+                PlayerDollAddonClient.init();
+            }
             
             LOGGER.info("========== 玩偶模组初始化完成 ==========");
         } catch (Exception e) {

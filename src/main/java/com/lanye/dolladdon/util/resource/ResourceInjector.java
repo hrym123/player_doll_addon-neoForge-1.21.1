@@ -41,7 +41,10 @@ public class ResourceInjector {
             for (PngTextureScanner.PngTextureInfo pngInfo : pngFiles) {
                 String registryName = pngInfo.getRegistryName();
                 String itemId = "custom_doll_" + registryName;
-                ResourceLocation modelId = new ResourceLocation(PlayerDollAddon.MODID, "models/item/" + itemId + ".json");
+                ResourceLocation modelId = ResourceLocation.fromNamespaceAndPath(
+                    PlayerDollAddon.MODID, 
+                    "models/item/" + itemId + ".json"
+                );
                 
                 // 生成物品模型 JSON
                 String modelJson = "{\n" +

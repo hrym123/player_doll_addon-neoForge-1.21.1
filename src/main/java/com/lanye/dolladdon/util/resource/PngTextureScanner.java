@@ -159,7 +159,10 @@ public class PngTextureScanner {
          * @return ResourceLocation
          */
         public net.minecraft.resources.ResourceLocation getTextureIdentifier() {
-            return new net.minecraft.resources.ResourceLocation(PlayerDollAddon.MODID, "textures/entity/custom_doll/" + registryName);
+            return net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(
+                PlayerDollAddon.MODID, 
+                "textures/entity/custom_doll/" + registryName
+            );
         }
     }
 }

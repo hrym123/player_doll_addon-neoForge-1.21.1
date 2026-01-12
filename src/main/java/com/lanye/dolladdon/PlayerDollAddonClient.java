@@ -26,7 +26,6 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.fml.common.Mod;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.event.AddPackFindersEvent;
 import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
@@ -37,19 +36,22 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collections;
 
-@Mod(value = PlayerDollAddon.MODID, dist = Dist.CLIENT)
 @EventBusSubscriber(modid = PlayerDollAddon.MODID, value = Dist.CLIENT)
 public class PlayerDollAddonClient {
     
-    public PlayerDollAddonClient(ModContainer container) {
+    /**
+     * 客户端初始化方法
+     * 在客户端启动时调用
+     */
+    public static void init() {
         // 初始化3D皮肤层检测
         initialize3DSkinLayers();
     }
     
     /**
-     * 初始化3D皮肤层检测
+     * 初始化3D皮肤层检测（静态方法）
      */
-    private void initialize3DSkinLayers() {
+    private static void initialize3DSkinLayers() {
         PlayerDollAddon.LOGGER.info("========== 3D皮肤层兼容性检测 ==========");
         if (SkinLayersDetector.IS_3D_SKIN_LAYERS_LOADED) {
             PlayerDollAddon.LOGGER.info("✓ 检测到3D皮肤层mod（skinlayers3d）");

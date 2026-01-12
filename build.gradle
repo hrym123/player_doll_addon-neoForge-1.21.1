@@ -39,7 +39,7 @@ repositories {
 }
 
 base {
-    archivesName = getModProperty('mod_id', 'player_doll_addon')
+    archivesName = getModProperty('mod_id', 'player_doll')
 }
 
 // Mojang ships Java 21 to end users in 1.21.1, so mods should target Java 21.
@@ -57,23 +57,23 @@ neoForge {
     runs {
         client {
             client()
-            systemProperty 'neoforge.enabledGameTestNamespaces', getModProperty('mod_id', 'player_doll_addon')
+            systemProperty 'neoforge.enabledGameTestNamespaces', getModProperty('mod_id', 'player_doll')
         }
 
         server {
             server()
             programArgument '--nogui'
-            systemProperty 'neoforge.enabledGameTestNamespaces', getModProperty('mod_id', 'player_doll_addon')
+            systemProperty 'neoforge.enabledGameTestNamespaces', getModProperty('mod_id', 'player_doll')
         }
 
         gameTestServer {
             type = "gameTestServer"
-            systemProperty 'neoforge.enabledGameTestNamespaces', getModProperty('mod_id', 'player_doll_addon')
+            systemProperty 'neoforge.enabledGameTestNamespaces', getModProperty('mod_id', 'player_doll')
         }
 
         data {
             data()
-            programArguments.addAll '--mod', getModProperty('mod_id', 'player_doll_addon'), '--all', '--output', file('src/generated/resources/').getAbsolutePath(), '--existing', file('src/main/resources/').getAbsolutePath()
+            programArguments.addAll '--mod', getModProperty('mod_id', 'player_doll'), '--all', '--output', file('src/generated/resources/').getAbsolutePath(), '--existing', file('src/main/resources/').getAbsolutePath()
         }
 
         configureEach {
@@ -83,7 +83,7 @@ neoForge {
     }
 
     mods {
-        "${getModProperty('mod_id', 'player_doll_addon')}" {
+        "${getModProperty('mod_id', 'player_doll')}" {
             sourceSet(sourceSets.main)
         }
     }
@@ -107,7 +107,7 @@ def generateModMetadata = tasks.register("generateModMetadata", ProcessResources
             minecraft_version_range: getModProperty('minecraft_version_range', '[1.21.1]'),
             neo_version            : getModProperty('neo_version', '21.1.217'),
             loader_version_range   : getModProperty('loader_version_range', '[1,)'),
-            mod_id                 : getModProperty('mod_id', 'player_doll_addon'),
+            mod_id                 : getModProperty('mod_id', 'player_doll'),
             mod_name               : getModProperty('mod_name', 'Player Doll Addon'),
             mod_license            : getModProperty('mod_license', 'All Rights Reserved'),
             mod_version            : getModProperty('mod_version', '1.0.0'),
@@ -121,7 +121,7 @@ def generateModMetadata = tasks.register("generateModMetadata", ProcessResources
     // 确保使用 UTF-8 编码处理资源文件
     filteringCharset = 'UTF-8'
 }
-sourceSets.main.resources.srcDir generateModMetadata
+sourceSets.main.resources.srcDir "build/generated/sources/modMetadata"
 // To avoid having to run "generateModMetadata" manually, make it run on every project reload
 neoForge.ideSyncTask generateModMetadata
 

@@ -67,7 +67,7 @@ public class ExternalTextureLoader {
             // 读取 PNG 图像
             net.minecraft.client.renderer.texture.DynamicTexture dynamicTexture = 
                 new net.minecraft.client.renderer.texture.DynamicTexture(
-                    net.minecraft.client.renderer.texture.NativeImage.read(inputStream));
+                    com.mojang.blaze3d.platform.NativeImage.read(inputStream));
             
             // 注册到纹理管理器
             textureManager.register(textureId, dynamicTexture);

@@ -77,7 +77,7 @@ public class RenderContextInfo {
      * 
      * @return 顶点消费者
      */
-    public net.minecraft.client.renderer.VertexConsumer getVertexConsumer() {
+    public com.mojang.blaze3d.vertex.VertexConsumer getVertexConsumer() {
         return bufferSource.getBuffer(renderType);
     }
     

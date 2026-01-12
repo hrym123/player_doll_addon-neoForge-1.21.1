@@ -2,7 +2,7 @@ package com.lanye.dolladdon.compat.skinlayers3d;
 
 import com.lanye.dolladdon.util.resource.ExternalTextureLoader;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.texture.NativeImage;
+import com.mojang.blaze3d.platform.NativeImage;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.Resource;
 import org.slf4j.Logger;
