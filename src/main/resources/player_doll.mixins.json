@@ -1,0 +1,16 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.lanye.dolladdon.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "refmap": "player_doll.refmap.json",
+  "mixins": [
+    "logging.ActionDebugStickMixin",
+    "logging.BaseDollEntityMixin"
+  ],
+  "client": [],
+  "server": [],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
