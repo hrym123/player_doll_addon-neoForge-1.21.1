@@ -4,7 +4,6 @@ import com.lanye.dolladdon.PlayerDollAddon;
 import com.lanye.dolladdon.api.action.DollAction;
 import com.lanye.dolladdon.api.pose.DollPose;
 import net.minecraft.server.packs.resources.ResourceManager;
-import org.slf4j.Logger;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;

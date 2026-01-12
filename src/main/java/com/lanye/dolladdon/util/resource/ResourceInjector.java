@@ -3,8 +3,6 @@ package com.lanye.dolladdon.util.resource;
 import com.lanye.dolladdon.PlayerDollAddon;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.ResourceManager;
-import org.slf4j.Logger;
-import com.mojang.logging.LogUtils;
 
 import java.util.List;
 

@@ -11,8 +11,6 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.EntityType;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
-import org.slf4j.Logger;
-import com.mojang.logging.LogUtils;
 
 import java.util.HashMap;
 import java.util.Map;

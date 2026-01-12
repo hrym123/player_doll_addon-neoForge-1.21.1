@@ -67,21 +67,21 @@ public class LogModuleConfig {
     // 注意：修改这里的级别即可控制对应模块的日志输出
     // 设置为 LogLevel.OFF 即可完全禁用该模块的日志
     
-    private static final LogLevel LEVEL_MAIN = LogLevel.WARN;
-    private static final LogLevel LEVEL_ENTITY = LogLevel.WARN;
-    private static final LogLevel LEVEL_ENTITY_INTERACT = LogLevel.WARN;
-    private static final LogLevel LEVEL_ENTITY_POSE = LogLevel.WARN;
-    private static final LogLevel LEVEL_ENTITY_ACTION = LogLevel.WARN;  // 改为 OFF 可一键关闭所有动作相关日志
-    private static final LogLevel LEVEL_ENTITY_NBT = LogLevel.WARN;
-    private static final LogLevel LEVEL_RENDER = LogLevel.WARN;
-    private static final LogLevel LEVEL_3D_SKIN_LAYERS = LogLevel.WARN;
-    private static final LogLevel LEVEL_RESOURCE = LogLevel.WARN;
-    private static final LogLevel LEVEL_POSE_LOADER = LogLevel.WARN;
-    private static final LogLevel LEVEL_ACTION_LOADER = LogLevel.WARN;  // 改为 OFF 可一键关闭所有动作加载日志
-    private static final LogLevel LEVEL_RESOURCE_GENERATOR = LogLevel.WARN;
-    private static final LogLevel LEVEL_TEXTURE_SCANNER = LogLevel.WARN;
-    private static final LogLevel LEVEL_DEBUG_STICK_ACTION = LogLevel.DEBUG;  // 当前正在调试的模块
-    private static final LogLevel LEVEL_DEBUG_STICK_POSE = LogLevel.WARN;
+    private static final LogLevel LEVEL_MAIN = LogLevel.WARN;  // 主模块日志级别
+    private static final LogLevel LEVEL_ENTITY = LogLevel.WARN;  // 实体基础模块日志级别
+    private static final LogLevel LEVEL_ENTITY_INTERACT = LogLevel.DEBUG;  // 实体交互模块日志级别，当前正在调试交互问题
+    private static final LogLevel LEVEL_ENTITY_POSE = LogLevel.WARN;  // 实体姿态模块日志级别
+    private static final LogLevel LEVEL_ENTITY_ACTION = LogLevel.WARN;  // 实体动作模块日志级别，改为 OFF 可一键关闭所有动作相关日志
+    private static final LogLevel LEVEL_ENTITY_NBT = LogLevel.WARN;  // 实体NBT模块日志级别
+    private static final LogLevel LEVEL_RENDER = LogLevel.WARN;  // 渲染模块日志级别
+    private static final LogLevel LEVEL_3D_SKIN_LAYERS = LogLevel.WARN;  // 3D皮肤层模块日志级别
+    private static final LogLevel LEVEL_RESOURCE = LogLevel.WARN;  // 资源管理模块日志级别
+    private static final LogLevel LEVEL_POSE_LOADER = LogLevel.WARN;  // 姿态加载器模块日志级别
+    private static final LogLevel LEVEL_ACTION_LOADER = LogLevel.WARN;  // 动作加载器模块日志级别，改为 OFF 可一键关闭所有动作加载日志
+    private static final LogLevel LEVEL_RESOURCE_GENERATOR = LogLevel.WARN;  // 资源生成器模块日志级别
+    private static final LogLevel LEVEL_TEXTURE_SCANNER = LogLevel.WARN;  // 纹理扫描器模块日志级别
+    private static final LogLevel LEVEL_DEBUG_STICK_ACTION = LogLevel.DEBUG;  // 动作调试棒模块日志级别，当前正在调试的模块
+    private static final LogLevel LEVEL_DEBUG_STICK_POSE = LogLevel.WARN;  // 姿态调试棒模块日志级别
     
     // ==================== 日志模板配置 ====================
     

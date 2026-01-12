@@ -2,8 +2,6 @@ package com.lanye.dolladdon.util.resource;
 
 import net.minecraft.client.renderer.texture.AbstractTexture;
 import net.minecraft.resources.ResourceLocation;
-import org.slf4j.Logger;
-import com.mojang.logging.LogUtils;
 
 import java.io.IOException;
 import java.io.InputStream;

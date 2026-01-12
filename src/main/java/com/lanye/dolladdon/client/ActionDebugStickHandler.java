@@ -5,8 +5,6 @@ import com.lanye.dolladdon.util.pose.PoseActionManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
-import org.slf4j.Logger;
-import com.mojang.logging.LogUtils;
 
 import java.util.ArrayList;
 import java.util.List;

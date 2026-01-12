@@ -2,7 +2,6 @@ package com.lanye.dolladdon.util.neoForge;
 
 import com.lanye.dolladdon.PlayerDollAddon;
 import net.minecraft.resources.ResourceLocation;
-import org.slf4j.Logger;
 
 import java.io.IOException;
 import java.nio.file.Files;

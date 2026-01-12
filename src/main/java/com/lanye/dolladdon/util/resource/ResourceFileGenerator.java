@@ -1,8 +1,6 @@
 package com.lanye.dolladdon.util.resource;
 
 import com.lanye.dolladdon.PlayerDollAddon;
-import org.slf4j.Logger;
-import com.mojang.logging.LogUtils;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;

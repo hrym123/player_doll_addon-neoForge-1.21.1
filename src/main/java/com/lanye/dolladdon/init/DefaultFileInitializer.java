@@ -1,7 +1,6 @@
 package com.lanye.dolladdon.init;
 
 import com.lanye.dolladdon.PlayerDollAddon;
-import org.slf4j.Logger;
 
 import java.io.IOException;
 import java.io.InputStream;

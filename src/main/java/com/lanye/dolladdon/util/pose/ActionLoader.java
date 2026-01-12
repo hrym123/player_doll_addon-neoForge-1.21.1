@@ -13,7 +13,6 @@ import com.lanye.dolladdon.api.pose.DollPose;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.server.packs.resources.ResourceManager;
-import org.slf4j.Logger;
 
 import java.io.InputStream;
 import java.io.InputStreamReader;
