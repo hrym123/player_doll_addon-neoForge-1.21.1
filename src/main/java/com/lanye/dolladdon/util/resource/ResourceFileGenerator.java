@@ -248,12 +248,16 @@ public class ResourceFileGenerator {
             zhCnEntries.put("entity." + modId + ".steve_doll", "史蒂夫玩偶");
             zhCnEntries.put("item." + modId + ".alex_doll", "艾利克斯玩偶");
             zhCnEntries.put("entity." + modId + ".alex_doll", "艾利克斯玩偶");
+            zhCnEntries.put("item." + modId + ".action_debug_stick", "动作调试棒");
+            zhCnEntries.put("item." + modId + ".pose_debug_stick", "姿态调试棒");
             zhCnEntries.put("itemGroup." + modId + ".player_doll_tab", "玩家玩偶");
             
             enUsEntries.put("item." + modId + ".steve_doll", "Steve Doll");
             enUsEntries.put("entity." + modId + ".steve_doll", "Steve Doll");
             enUsEntries.put("item." + modId + ".alex_doll", "Alex Doll");
             enUsEntries.put("entity." + modId + ".alex_doll", "Alex Doll");
+            enUsEntries.put("item." + modId + ".action_debug_stick", "Action Debug Stick");
+            enUsEntries.put("item." + modId + ".pose_debug_stick", "Pose Debug Stick");
             enUsEntries.put("itemGroup." + modId + ".player_doll_tab", "Player Dolls");
             
             // 为每个 PNG 文件生成翻译
