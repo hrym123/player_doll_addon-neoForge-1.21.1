@@ -3,16 +3,23 @@ package com.lanye.dolladdon.init;
 import com.lanye.dolladdon.PlayerDollAddon;
 import com.lanye.dolladdon.dynamic.DynamicDollItem;
 import com.lanye.dolladdon.impl.item.AlexDollItem;
+import com.lanye.dolladdon.impl.item.CustomTextureDollItem;
 import com.lanye.dolladdon.impl.item.SteveDollItem;
+import com.lanye.dolladdon.util.resource.PngTextureScanner;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.item.Item;
 import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
+import org.slf4j.Logger;
+import com.mojang.logging.LogUtils;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class ModItems {
+    private static final Logger LOGGER = LogUtils.getLogger();
     public static final DeferredRegister.Items ITEMS = DeferredRegister.createItems(PlayerDollAddon.MODID);
     
     // 史蒂夫玩偶物品（固定模型：粗手臂 + Steve默认皮肤）
@@ -23,6 +30,9 @@ public class ModItems {
     
     // 动态注册的玩偶物品（从文件加载）
     public static final Map<String, DeferredItem<DynamicDollItem>> DYNAMIC_DOLLS = new HashMap<>();
+    
+    // 自定义纹理玩偶物品映射表（注册名称 -> 物品持有者）
+    public static final Map<String, DeferredItem<CustomTextureDollItem>> CUSTOM_TEXTURE_DOLL_ITEMS = new HashMap<>();
     
     /**
      * 动态注册玩偶物品
@@ -44,6 +54,74 @@ public class ModItems {
         );
         DYNAMIC_DOLLS.put(registryName, holder);
         return holder;
+    }
+    
+    /**
+     * 注册自定义纹理玩偶物品
+     * @param registryName 注册名称
+     * @param textureId 纹理标识符
+     * @return 注册的物品持有者
+     */
+    public static DeferredItem<CustomTextureDollItem> registerCustomTextureDollItem(String registryName, ResourceLocation textureId) {
+        DeferredItem<CustomTextureDollItem> holder = ITEMS.register(
+                "custom_doll_" + registryName,
+                () -> new CustomTextureDollItem(textureId, registryName)
+        );
+        CUSTOM_TEXTURE_DOLL_ITEMS.put(registryName, holder);
+        
+        // 验证注册（在DeferredRegister注册后，通过检查映射表验证）
+        // 注意：DeferredRegister的验证需要在注册完成后进行，这里先存储到映射表
+        return holder;
+    }
+    
+    /**
+     * 获取自定义纹理玩偶物品
+     * @param registryName 注册名称
+     * @return 物品，如果不存在则返回 null
+     */
+    public static Item getCustomTextureDollItem(String registryName) {
+        DeferredItem<CustomTextureDollItem> holder = CUSTOM_TEXTURE_DOLL_ITEMS.get(registryName);
+        return holder != null ? holder.get() : null;
+    }
+    
+    /**
+     * 获取所有自定义纹理玩偶物品
+     * @return 物品映射表
+     */
+    public static Map<String, Item> getAllCustomTextureDollItems() {
+        Map<String, Item> result = new HashMap<>();
+        for (Map.Entry<String, DeferredItem<CustomTextureDollItem>> entry : CUSTOM_TEXTURE_DOLL_ITEMS.entrySet()) {
+            result.put(entry.getKey(), entry.getValue().get());
+        }
+        return result;
+    }
+    
+    /**
+     * 注册所有自定义纹理玩偶物品（从PNG文件扫描）
+     */
+    public static void registerCustomTextureDollItems() {
+        List<PngTextureScanner.PngTextureInfo> pngFiles = PngTextureScanner.scanPngFiles();
+        
+        for (PngTextureScanner.PngTextureInfo pngInfo : pngFiles) {
+            try {
+                String registryName = pngInfo.getRegistryName();
+                ResourceLocation textureId = pngInfo.getTextureIdentifier();
+                ResourceLocation itemId = ResourceLocation.fromNamespaceAndPath(PlayerDollAddon.MODID, "custom_doll_" + registryName);
+                
+                // 注册物品
+                DeferredItem<CustomTextureDollItem> registeredHolder = registerCustomTextureDollItem(registryName, textureId);
+                
+                // 验证注册（在DeferredRegister中，验证通过检查映射表）
+                DeferredItem<CustomTextureDollItem> verifyHolder = CUSTOM_TEXTURE_DOLL_ITEMS.get(registryName);
+                if (verifyHolder == registeredHolder) {
+                    LOGGER.debug("[物品注册] ✓ 注册自定义纹理玩偶物品: {}", registryName);
+                } else {
+                    LOGGER.error("[物品注册] ✗ 注册验证失败: {} (注册的物品与验证的物品不匹配)", registryName);
+                }
+            } catch (Exception e) {
+                LOGGER.error("[物品注册] ✗ 注册失败: {}", pngInfo.getRegistryName(), e);
+            }
+        }
     }
 }
 

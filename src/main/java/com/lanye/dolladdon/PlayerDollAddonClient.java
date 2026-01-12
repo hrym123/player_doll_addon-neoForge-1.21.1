@@ -1,22 +1,24 @@
 package com.lanye.dolladdon;
 
-import com.lanye.dolladdon.dynamic.DynamicDollEntity;
+import com.lanye.dolladdon.compat.skinlayers3d.Doll3DSkinUtil;
+import com.lanye.dolladdon.compat.skinlayers3d.SkinLayersDetector;
 import com.lanye.dolladdon.dynamic.render.DynamicDollRenderer;
+import com.lanye.dolladdon.impl.entity.CustomTextureDollEntity;
 import com.lanye.dolladdon.impl.render.AlexDollRenderer;
+import com.lanye.dolladdon.impl.render.CustomTextureDollRenderer;
 import com.lanye.dolladdon.impl.render.SteveDollRenderer;
 import com.lanye.dolladdon.init.ModEntities;
-import com.lanye.dolladdon.init.ModItems;
-import com.lanye.dolladdon.util.DynamicDollLoader;
-import com.lanye.dolladdon.util.DynamicResourcePack;
-import com.lanye.dolladdon.util.PoseActionManager;
-import net.minecraft.client.resources.model.ModelResourceLocation;
+import com.lanye.dolladdon.util.neoForge.DynamicDollLoader;
+import com.lanye.dolladdon.util.neoForge.DynamicResourcePack;
+import com.lanye.dolladdon.util.pose.PoseActionManager;
+import com.lanye.dolladdon.util.resource.ExternalTextureLoader;
+import com.lanye.dolladdon.util.resource.PngTextureScanner;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.PackLocationInfo;
 import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.repository.Pack;
-import net.minecraft.server.packs.repository.PackSource;
 import net.minecraft.server.packs.repository.PackCompatibility;
 import net.minecraft.server.packs.PackSelectionConfig;
 import net.minecraft.world.flag.FeatureFlagSet;
@@ -30,7 +32,6 @@ import net.neoforged.neoforge.event.AddPackFindersEvent;
 import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 import net.neoforged.neoforge.client.event.RegisterClientReloadListenersEvent;
 import net.minecraft.client.Minecraft;
-import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -41,6 +42,29 @@ import java.util.Collections;
 public class PlayerDollAddonClient {
     
     public PlayerDollAddonClient(ModContainer container) {
+        // 初始化3D皮肤层检测
+        initialize3DSkinLayers();
+    }
+    
+    /**
+     * 初始化3D皮肤层检测
+     */
+    private void initialize3DSkinLayers() {
+        PlayerDollAddon.LOGGER.info("========== 3D皮肤层兼容性检测 ==========");
+        if (SkinLayersDetector.IS_3D_SKIN_LAYERS_LOADED) {
+            PlayerDollAddon.LOGGER.info("✓ 检测到3D皮肤层mod（skinlayers3d）");
+            PlayerDollAddon.LOGGER.info("正在初始化API...");
+            // 尝试初始化API以验证是否可用
+            boolean apiAvailable = Doll3DSkinUtil.isAvailable();
+            if (apiAvailable) {
+                PlayerDollAddon.LOGGER.info("✓ API初始化成功，将启用3D皮肤渲染支持");
+            } else {
+                PlayerDollAddon.LOGGER.warn("✗ API初始化失败，将使用默认2D渲染");
+            }
+        } else {
+            PlayerDollAddon.LOGGER.info("未检测到3D皮肤层mod，使用默认2D渲染");
+        }
+        PlayerDollAddon.LOGGER.info("========================================");
     }
     
     @SubscribeEvent
@@ -64,6 +88,42 @@ public class PlayerDollAddonClient {
                         dollInfo.isAlexModel()
                     )
                 );
+            }
+        }
+        
+        // 注册所有自定义纹理玩偶实体渲染器
+        java.util.Map<String, net.minecraft.world.entity.EntityType<CustomTextureDollEntity>> customEntities = 
+                ModEntities.getAllCustomTextureDollEntityTypes();
+        
+        // 获取所有自定义纹理信息，用于检测模型类型
+        java.util.List<PngTextureScanner.PngTextureInfo> pngInfos = PngTextureScanner.scanPngFiles();
+        
+        for (java.util.Map.Entry<String, net.minecraft.world.entity.EntityType<CustomTextureDollEntity>> entry : customEntities.entrySet()) {
+            try {
+                String registryName = entry.getKey();
+                
+                // 查找对应的纹理信息
+                PngTextureScanner.PngTextureInfo pngInfo = null;
+                for (PngTextureScanner.PngTextureInfo info : pngInfos) {
+                    if (info.getRegistryName().equals(registryName)) {
+                        pngInfo = info;
+                        break;
+                    }
+                }
+                
+                // 检测模型类型
+                boolean isAlexModel = false;
+                if (pngInfo != null) {
+                    isAlexModel = CustomTextureDollRenderer.detectIsAlexModel(
+                            registryName, pngInfo.getTextureIdentifier());
+                }
+                
+                // 创建渲染器工厂，传入模型类型
+                final boolean finalIsAlexModel = isAlexModel;
+                event.registerEntityRenderer(entry.getValue(), 
+                        context -> new CustomTextureDollRenderer(context, finalIsAlexModel));
+            } catch (Exception e) {
+                PlayerDollAddon.LOGGER.error("[渲染器] ✗ 注册自定义纹理玩偶实体渲染器失败: {}", entry.getKey(), e);
             }
         }
     }
@@ -133,7 +193,22 @@ public class PlayerDollAddonClient {
     public static void onRegisterClientReloadListeners(RegisterClientReloadListenersEvent event) {
         event.registerReloadListener((ResourceManagerReloadListener) resourceManager -> {
             try {
+                // 加载姿态和动作资源
                 PoseActionManager.loadResources(resourceManager);
+                
+                // 加载外部纹理
+                ExternalTextureLoader.loadExternalTextures();
+                
+                // 将外部纹理注册到纹理管理器
+                net.minecraft.client.renderer.texture.TextureManager textureManager = 
+                        Minecraft.getInstance().getTextureManager();
+                if (textureManager != null) {
+                    java.util.Map<ResourceLocation, java.nio.file.Path> textures = 
+                            ExternalTextureLoader.getAllLoadedTextures();
+                    for (ResourceLocation textureId : textures.keySet()) {
+                        ExternalTextureLoader.loadTexture(textureId, textureManager);
+                    }
+                }
             } catch (Exception e) {
                 PlayerDollAddon.LOGGER.error("资源重载过程中发生异常", e);
             }
@@ -158,6 +233,19 @@ public class PlayerDollAddonClient {
                 Minecraft minecraft = Minecraft.getInstance();
                 if (minecraft != null && minecraft.getResourceManager() != null) {
                     PoseActionManager.loadResources(minecraft.getResourceManager());
+                    
+                    // 加载外部纹理
+                    ExternalTextureLoader.loadExternalTextures();
+                    
+                    // 将外部纹理注册到纹理管理器
+                    net.minecraft.client.renderer.texture.TextureManager textureManager = minecraft.getTextureManager();
+                    if (textureManager != null) {
+                        java.util.Map<ResourceLocation, java.nio.file.Path> textures = 
+                                ExternalTextureLoader.getAllLoadedTextures();
+                        for (ResourceLocation textureId : textures.keySet()) {
+                            ExternalTextureLoader.loadTexture(textureId, textureManager);
+                        }
+                    }
                 }
             });
         });

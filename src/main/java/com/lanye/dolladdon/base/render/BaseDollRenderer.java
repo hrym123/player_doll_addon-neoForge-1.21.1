@@ -1,10 +1,18 @@
 package com.lanye.dolladdon.base.render;
 
 import com.lanye.dolladdon.base.entity.BaseDollEntity;
+import com.lanye.dolladdon.compat.skinlayers3d.Doll3DSkinData;
+import com.lanye.dolladdon.compat.skinlayers3d.Doll3DSkinUtil;
+import com.lanye.dolladdon.compat.skinlayers3d.SkinLayersDetector;
+import com.lanye.dolladdon.model.MeshRenderPartsInfo;
+import com.lanye.dolladdon.model.PartTransformInfo;
+import com.lanye.dolladdon.model.RenderContextInfo;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.PlayerModel;
 import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.resources.ResourceLocation;
@@ -19,6 +27,16 @@ import org.slf4j.LoggerFactory;
 public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityRenderer<T> {
     private static final Logger LOGGER = LoggerFactory.getLogger(BaseDollRenderer.class);
     protected final PlayerModel<Player> playerModel;
+    
+    // 3D皮肤层相关标志位，避免频繁输出日志
+    private static boolean hasLoggedRenderCheck = false;
+    private static boolean hasLogged3DRenderStart = false;
+    private static boolean hasLoggedMeshCreation = false;
+    private static boolean hasLoggedSkinCheck = false;
+    private static boolean hasLoggedDistanceCheck = false;
+    
+    // 是否为细手臂模型（由子类设置）
+    protected abstract boolean isThinArms();
     
     protected BaseDollRenderer(EntityRendererProvider.Context context, PlayerModel<Player> playerModel) {
         super(context);
@@ -186,39 +204,111 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
         // 第二步：渲染外层（overlay layer）- 使用半透明渲染以正确显示多层皮肤
         var overlayVertexConsumer = bufferSource.getBuffer(translucentRenderType);
         
+        // 检查是否使用3D皮肤层渲染
+        boolean modLoaded = SkinLayersDetector.IS_3D_SKIN_LAYERS_LOADED;
+        boolean apiAvailable = Doll3DSkinUtil.isAvailable();
+        boolean inRange = shouldUse3DSkinLayers(entity);
+        boolean use3DSkinLayers = modLoaded && apiAvailable && inRange;
+        
+        // 只在第一次渲染时记录检查结果，避免每帧都输出日志导致卡顿
+        if (!hasLoggedRenderCheck) {
+            LOGGER.debug("渲染检查: modLoaded={}, apiAvailable={}, inRange={}, use3D={}",
+                    modLoaded, apiAvailable, inRange, use3DSkinLayers);
+            hasLoggedRenderCheck = true;
+        }
+        
+        // 第三步：延迟渲染3D网格 - 在所有其他渲染完成后执行，确保不会被遮挡
+        boolean willRender3DLast = false;
+        
+        if (use3DSkinLayers) {
+            // 预加载3D数据，但暂时不渲染
+            if (!hasLogged3DRenderStart) {
+                LOGGER.debug("🎨 准备3D皮肤层渲染，皮肤: {}", skinLocation);
+                hasLogged3DRenderStart = true;
+            }
+            
+            // 预加载3D皮肤数据，确保在需要时可用
+            var preloadResult = Doll3DSkinUtil.setup3dLayers(skinLocation, isThinArms());
+            if (preloadResult != null) {
+                willRender3DLast = true;
+                LOGGER.debug("✓ 3D皮肤数据预加载成功，将在最后阶段渲染");
+            } else {
+                LOGGER.warn("✗ 3D皮肤数据预加载失败，降级到2D渲染");
+            }
+        }
+        
         // 如果有身体旋转，使用 PoseStack 在身体旋转中心应用旋转，然后渲染所有外层部分
-        if (bodyRotX != 0 || bodyRotY != 0 || bodyRotZ != 0) {
-            poseStack.pushPose();
-            
-            // 移动到身体的旋转中心（身体和头连接处，Y坐标约为0.375）
-            float rotationCenterY = 0.375f;
-            poseStack.translate(0.0, rotationCenterY, 0.0);
-            
-            // 应用身体旋转（只在这里应用，不在 setRotation 中设置）
-            poseStack.mulPose(Axis.XP.rotation(bodyRotX));
-            poseStack.mulPose(Axis.YP.rotation(bodyRotY));
-            poseStack.mulPose(Axis.ZP.rotation(bodyRotZ));
-            
-            // 移回旋转中心
-            poseStack.translate(0.0, -rotationCenterY, 0.0);
-            // 在旋转后的坐标系中 渲染所有外层部分
-            // hat层（头发外层），使用 headScale 和 hatScale 的组合
-            renderPartWithTransform(poseStack, playerModel.hat, overlayVertexConsumer, packedLight, overlay, hatPosition, hatCombinedScale);
-            // 手臂外层（保持它们自己的旋转值）
-            renderArmOverlayParts(poseStack, overlayVertexConsumer, packedLight, overlay, rightArmPosition, rightArmScale, leftArmPosition, leftArmScale);
-            // 身体和腿部外层（jacket 的旋转设为0）
-            setBodyOverlayRotation(0, 0, 0); // 确保身体外层不额外旋转
-            renderBodyLegOverlayParts(poseStack, overlayVertexConsumer, packedLight, overlay, bodyPosition, bodyScale, rightLegPosition, rightLegScale, leftLegPosition, leftLegScale);
-            poseStack.popPose();
-        } else {
-            // 没有身体旋转时，正常渲染
-            renderPartWithTransform(poseStack, playerModel.hat, overlayVertexConsumer, packedLight, overlay, hatPosition, hatCombinedScale);
-            renderArmOverlayParts(poseStack, overlayVertexConsumer, packedLight, overlay, rightArmPosition, rightArmScale, leftArmPosition, leftArmScale);
-            setBodyOverlayRotation(0, 0, 0);
-            renderBodyLegOverlayParts(poseStack, overlayVertexConsumer, packedLight, overlay, bodyPosition, bodyScale, rightLegPosition, rightLegScale, leftLegPosition, leftLegScale);
+        if (!use3DSkinLayers) {
+            // 使用默认2D渲染
+            if (bodyRotX != 0 || bodyRotY != 0 || bodyRotZ != 0) {
+                poseStack.pushPose();
+                
+                // 移动到身体的旋转中心（身体和头连接处，Y坐标约为0.375）
+                float rotationCenterY = 0.375f;
+                poseStack.translate(0.0, rotationCenterY, 0.0);
+                
+                // 应用身体旋转（只在这里应用，不在 setRotation 中设置）
+                poseStack.mulPose(Axis.XP.rotation(bodyRotX));
+                poseStack.mulPose(Axis.YP.rotation(bodyRotY));
+                poseStack.mulPose(Axis.ZP.rotation(bodyRotZ));
+                
+                // 移回旋转中心
+                poseStack.translate(0.0, -rotationCenterY, 0.0);
+                // 在旋转后的坐标系中 渲染所有外层部分
+                // hat层（头发外层），使用 headScale 和 hatScale 的组合
+                renderPartWithTransform(poseStack, playerModel.hat, overlayVertexConsumer, packedLight, overlay, hatPosition, hatCombinedScale);
+                // 手臂外层（保持它们自己的旋转值）
+                renderArmOverlayParts(poseStack, overlayVertexConsumer, packedLight, overlay, rightArmPosition, rightArmScale, leftArmPosition, leftArmScale);
+                // 身体和腿部外层（jacket 的旋转设为0）
+                setBodyOverlayRotation(0, 0, 0); // 确保身体外层不额外旋转
+                renderBodyLegOverlayParts(poseStack, overlayVertexConsumer, packedLight, overlay, bodyPosition, bodyScale, rightLegPosition, rightLegScale, leftLegPosition, leftLegScale);
+                poseStack.popPose();
+            } else {
+                // 没有身体旋转时，正常渲染
+                renderPartWithTransform(poseStack, playerModel.hat, overlayVertexConsumer, packedLight, overlay, hatPosition, hatCombinedScale);
+                renderArmOverlayParts(poseStack, overlayVertexConsumer, packedLight, overlay, rightArmPosition, rightArmScale, leftArmPosition, leftArmScale);
+                setBodyOverlayRotation(0, 0, 0);
+                renderBodyLegOverlayParts(poseStack, overlayVertexConsumer, packedLight, overlay, bodyPosition, bodyScale, rightLegPosition, rightLegScale, leftLegPosition, leftLegScale);
+            }
         }
         
         poseStack.popPose();
+        
+        // 第四步：最后的3D网格渲染 - 在所有其他渲染完成后执行，确保不会被遮挡
+        if (willRender3DLast) {
+            // 只在第一次渲染时记录日志，避免每帧都输出导致卡顿
+            if (!hasLoggedMeshCreation) {
+                LOGGER.debug("🎨 执行延迟3D网格渲染 - 在所有渲染完成后");
+            }
+            try {
+                // 为3D网格渲染应用玩偶的基础变换
+                poseStack.pushPose();
+                applyBaseDollTransforms(poseStack, entity, partialTick);
+                
+                // 使用新的方法签名，封装参数为 info 类
+                RenderContextInfo overlayContextInfo = new RenderContextInfo(packedLight, overlay, bufferSource, translucentRenderType);
+                MeshRenderPartsInfo partsInfo = MeshRenderPartsInfo.of(
+                    hatPosition, hatCombinedScale, hatRot,
+                    rightArmPosition, rightArmScale, rightArmRot,
+                    leftArmPosition, leftArmScale, leftArmRot,
+                    bodyPosition, bodyScale, bodyRot,
+                    rightLegPosition, rightLegScale, rightLegRot,
+                    leftLegPosition, leftLegScale, leftLegRot
+                );
+                renderOverlayWith3DSkinLayers(poseStack, overlayContextInfo, skinLocation,
+                    bodyRotX, bodyRotY, bodyRotZ, partsInfo);
+                
+                poseStack.popPose();
+                // 只在第一次渲染时记录日志
+                if (!hasLoggedMeshCreation) {
+                    LOGGER.debug("✅ 延迟3D网格渲染完成 - 这应该在最上层显示");
+                    hasLoggedMeshCreation = true; // 标记已完成一次完整渲染
+                }
+            } catch (Exception e) {
+                LOGGER.error("❌ 延迟3D网格渲染失败", e);
+                LOGGER.error("  错误详情: {}", e.getMessage());
+            }
+        }
         
         super.render(entity, entityYaw, partialTick, poseStack, bufferSource, packedLight);
     }
@@ -444,6 +534,402 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
             }
         } catch (NoSuchFieldException | IllegalAccessException e) {
             // 如果模型不支持这些字段，则忽略
+        }
+    }
+    
+    /**
+     * 检查是否应该使用3D皮肤层渲染
+     * 实现距离检测（12格LOD）
+     */
+    private boolean shouldUse3DSkinLayers(T entity) {
+        Minecraft client = Minecraft.getInstance();
+        if (client == null || client.gameRenderer == null ||
+            client.gameRenderer.getMainCamera() == null) {
+            LOGGER.debug("客户端未初始化，无法使用3D渲染");
+            return false;
+        }
+
+        // 获取皮肤路径进行兼容性检查
+        ResourceLocation skinLocation = getSkinLocation(entity);
+        if (skinLocation == null) {
+            LOGGER.debug("皮肤路径为空，无法使用3D渲染");
+            return false;
+        }
+
+        // 不再预先检查皮肤路径，让3D渲染系统自己验证皮肤格式
+        // 3D皮肤层mod会检查皮肤是否为有效的64x64格式，如果不是会自动回退到2D渲染
+        // 只在第一次调用时记录日志，避免每帧都输出导致卡顿
+        if (!hasLoggedSkinCheck) {
+            LOGGER.info("🎯 皮肤路径 {}，移除路径检查，允许尝试3D渲染", skinLocation);
+            hasLoggedSkinCheck = true;
+        }
+
+        // 计算距离：应该计算到玩家的距离，而不是到相机的距离
+        // 3D皮肤层的LOD是基于到玩家的距离
+        var player = client.player;
+        if (player == null) {
+            // 只在第一次调用时记录日志
+            if (!hasLoggedDistanceCheck) {
+                LOGGER.debug("玩家对象为空，无法使用3D渲染");
+                hasLoggedDistanceCheck = true;
+            }
+            return false;
+        }
+
+        var playerPos = player.position();
+        var entityPos = entity.position();
+
+        double distanceSq = entity.distanceToSqr(playerPos.x, playerPos.y, playerPos.z);
+        double distance = Math.sqrt(distanceSq);
+        boolean shouldUse = distanceSq <= 12.0 * 12.0;
+
+        // 只在第一次调用时记录距离检测日志，避免每帧都输出导致卡顿
+        if (!hasLoggedDistanceCheck) {
+            LOGGER.debug("距离检测: 实体位置({:.1f}, {:.1f}, {:.1f}), 玩家位置({:.1f}, {:.1f}, {:.1f}), 到玩家距离={:.2f}格, 阈值=144.0, 使用3D渲染={}",
+                    entityPos.x, entityPos.y, entityPos.z,
+                    playerPos.x, playerPos.y, playerPos.z,
+                    distance, shouldUse);
+            hasLoggedDistanceCheck = true;
+        }
+
+        // 12格以内且为标准Minecraft皮肤时使用3D渲染
+        return shouldUse;
+    }
+    
+    /**
+     * 为3D网格渲染应用玩偶的基础变换
+     * 确保3D网格和普通模型使用相同的坐标系统和缩放
+     * 必须与主渲染方法中的变换顺序完全一致
+     */
+    private void applyBaseDollTransforms(PoseStack poseStack, T entity, float partialTick) {
+        // 获取玩偶的pose数据
+        var pose = entity.getCurrentPose();
+        if (pose == null) {
+            pose = com.lanye.dolladdon.api.pose.SimpleDollPose.createDefaultStandingPose();
+        }
+
+        // 第一步：应用实体旋转（与主渲染方法一致）
+        float yRot = Mth.lerp(partialTick, entity.yRotO, entity.getYRot());
+        float xRot = Mth.lerp(partialTick, entity.xRotO, entity.getXRot());
+        poseStack.mulPose(Axis.YP.rotationDegrees(180.0F - yRot));
+        poseStack.mulPose(Axis.XP.rotationDegrees(xRot));
+
+        // 第二步：应用Y偏移和模型缩放（与主渲染方法一致）
+        float modelScale = 0.5F;
+        float[] scale = pose.getScale();
+        float yOffset = 0.75f * scale[1];
+        poseStack.translate(0.0, yOffset, 0.0);
+        poseStack.scale(-modelScale, -modelScale, modelScale);
+
+        // 第三步：应用姿态的位置和缩放（与主渲染方法一致）
+        float[] position = pose.getPosition();
+        if (position[0] != 0.0f || position[1] != 0.0f || position[2] != 0.0f) {
+            poseStack.translate(position[0], -position[1], position[2]);
+        }
+        if (scale[0] != 1.0f || scale[1] != 1.0f || scale[2] != 1.0f) {
+            poseStack.scale(scale[0], scale[1], scale[2]);
+        }
+
+        // 注意：身体旋转在renderOverlayWith3DSkinLayers方法中处理，不在这里处理
+    }
+    
+    /**
+     * 使用3D皮肤层渲染外层（新方法签名，使用 MeshRenderPartsInfo）
+     */
+    private void renderOverlayWith3DSkinLayers(PoseStack matrixStack,
+                                               RenderContextInfo contextInfo,
+                                               ResourceLocation skinLocation,
+                                               float bodyRotX, float bodyRotY, float bodyRotZ,
+                                               MeshRenderPartsInfo partsInfo) {
+        renderOverlayWith3DSkinLayersInternal(matrixStack, contextInfo, skinLocation, 
+            bodyRotX, bodyRotY, bodyRotZ, partsInfo);
+    }
+    
+    /**
+     * 使用3D皮肤层渲染外层（内部实现）
+     */
+    private void renderOverlayWith3DSkinLayersInternal(PoseStack matrixStack,
+                                                       RenderContextInfo contextInfo,
+                                                       ResourceLocation skinLocation,
+                                                       float bodyRotX, float bodyRotY, float bodyRotZ,
+                                                       MeshRenderPartsInfo partsInfo) {
+        if (!hasLogged3DRenderStart) {
+            LOGGER.debug("开始3D渲染，皮肤: {}, thinArms: {}", skinLocation, isThinArms());
+            hasLogged3DRenderStart = true;
+        }
+
+        // 获取或创建3D皮肤数据
+        if (!hasLoggedMeshCreation) {
+            LOGGER.debug("获取3D皮肤数据...");
+        }
+        Doll3DSkinData skinData = Doll3DSkinUtil.setup3dLayers(skinLocation, isThinArms());
+        if (skinData == null) {
+            LOGGER.warn("✗ 无法获取3D皮肤数据（返回null），回退到2D渲染");
+            return;
+        }
+        if (!skinData.hasValidData()) {
+            LOGGER.warn("✗ 3D皮肤数据无效，回退到2D渲染");
+            return;
+        }
+        
+        if (!hasLoggedMeshCreation) {
+            LOGGER.debug("✓ 3D皮肤数据有效，开始渲染各个部位");
+        }
+        
+        // 重要优化：批量初始化所有mesh（copyFrom和setVisible），避免每个部件都单独处理
+        initializeAllMeshes(skinData);
+        
+        // 重要：在所有3D部件渲染前统一禁用深度测试，避免每个部件都处理
+        try {
+            com.mojang.blaze3d.systems.RenderSystem.disableDepthTest();
+            com.mojang.blaze3d.systems.RenderSystem.depthMask(false);
+        } catch (Exception e) {
+            if (!hasLoggedMeshCreation) {
+                LOGGER.warn("⚠ 无法禁用深度测试: {}", e.getMessage());
+            }
+        }
+        
+        // 确保纹理已绑定（只绑定一次，所有部件共享）
+        if (skinLocation != null) {
+            try {
+                com.mojang.blaze3d.systems.RenderSystem.setShaderTexture(0, skinLocation);
+            } catch (Exception texEx) {
+                // 静默失败，纹理可能已经绑定
+            }
+        }
+        
+        try {
+            // 处理身体旋转 - 使用辅助方法（它会自动处理有无旋转的情况）
+            applyBodyRotationFor3D(matrixStack, bodyRotX, bodyRotY, bodyRotZ, () -> {
+                // 批量渲染所有部位的3D网格
+                renderAll3DMeshParts(matrixStack, skinData, contextInfo, partsInfo);
+            });
+        } finally {
+            // 重要：在所有3D部件渲染后统一恢复深度测试
+            try {
+                com.mojang.blaze3d.systems.RenderSystem.enableDepthTest();
+                com.mojang.blaze3d.systems.RenderSystem.depthMask(true);
+            } catch (Exception e) {
+                if (!hasLoggedMeshCreation) {
+                    LOGGER.warn("⚠ 无法恢复深度测试: {}", e.getMessage());
+                }
+            }
+        }
+    }
+    
+    /**
+     * 应用身体旋转（用于3D渲染）
+     */
+    private void applyBodyRotationFor3D(PoseStack matrixStack, float bodyRotX, float bodyRotY, float bodyRotZ, Runnable renderAction) {
+        if (bodyRotX != 0 || bodyRotY != 0 || bodyRotZ != 0) {
+            matrixStack.pushPose();
+            
+            // 移动到身体的旋转中心（身体和头连接处，Y坐标约为0.375）
+            float rotationCenterY = 0.375f;
+            matrixStack.translate(0.0, rotationCenterY, 0.0);
+            
+            // 应用身体旋转
+            matrixStack.mulPose(Axis.XP.rotation(bodyRotX));
+            matrixStack.mulPose(Axis.YP.rotation(bodyRotY));
+            matrixStack.mulPose(Axis.ZP.rotation(bodyRotZ));
+            
+            // 移回旋转中心
+            matrixStack.translate(0.0, -rotationCenterY, 0.0);
+            
+            renderAction.run();
+            
+            matrixStack.popPose();
+        } else {
+            renderAction.run();
+        }
+    }
+    
+    /**
+     * 批量渲染所有部位的3D网格
+     */
+    private void renderAll3DMeshParts(PoseStack matrixStack,
+                                     Doll3DSkinData skinData,
+                                     RenderContextInfo contextInfo,
+                                     MeshRenderPartsInfo partsInfo) {
+        // 使用批量方法渲染各个部位
+        render3DMeshPartFast(matrixStack, com.lanye.dolladdon.model.MeshRenderInfo.of(
+            playerModel.hat, skinData.getHeadMesh(), "HEAD",
+            contextInfo.getLight(), contextInfo.getOverlay(), contextInfo.getBufferSource(), contextInfo.getRenderType(),
+            partsInfo.getHat().getPositionInternal(),
+            partsInfo.getHat().getScaleInternal(),
+            partsInfo.getHat().getRotationInternal()
+        ));
+        
+        render3DMeshPartFast(matrixStack, com.lanye.dolladdon.model.MeshRenderInfo.of(
+            playerModel.leftArm, skinData.getLeftArmMesh(),
+            isThinArms() ? "LEFT_ARM_SLIM" : "LEFT_ARM",
+            contextInfo.getLight(), contextInfo.getOverlay(), contextInfo.getBufferSource(), contextInfo.getRenderType(),
+            partsInfo.getLeftArm().getPositionInternal(),
+            partsInfo.getLeftArm().getScaleInternal(),
+            partsInfo.getLeftArm().getRotationInternal()
+        ));
+        
+        render3DMeshPartFast(matrixStack, com.lanye.dolladdon.model.MeshRenderInfo.of(
+            playerModel.rightArm, skinData.getRightArmMesh(),
+            isThinArms() ? "RIGHT_ARM_SLIM" : "RIGHT_ARM",
+            contextInfo.getLight(), contextInfo.getOverlay(), contextInfo.getBufferSource(), contextInfo.getRenderType(),
+            partsInfo.getRightArm().getPositionInternal(),
+            partsInfo.getRightArm().getScaleInternal(),
+            partsInfo.getRightArm().getRotationInternal()
+        ));
+        
+        render3DMeshPartFast(matrixStack, com.lanye.dolladdon.model.MeshRenderInfo.of(
+            playerModel.body, skinData.getTorsoMesh(), "BODY",
+            contextInfo.getLight(), contextInfo.getOverlay(), contextInfo.getBufferSource(), contextInfo.getRenderType(),
+            partsInfo.getBody().getPositionInternal(),
+            partsInfo.getBody().getScaleInternal(),
+            partsInfo.getBody().getRotationInternal()
+        ));
+        
+        render3DMeshPartFast(matrixStack, com.lanye.dolladdon.model.MeshRenderInfo.of(
+            playerModel.leftLeg, skinData.getLeftLegMesh(), "LEFT_LEG",
+            contextInfo.getLight(), contextInfo.getOverlay(), contextInfo.getBufferSource(), contextInfo.getRenderType(),
+            partsInfo.getLeftLeg().getPositionInternal(),
+            partsInfo.getLeftLeg().getScaleInternal(),
+            partsInfo.getLeftLeg().getRotationInternal()
+        ));
+        
+        render3DMeshPartFast(matrixStack, com.lanye.dolladdon.model.MeshRenderInfo.of(
+            playerModel.rightLeg, skinData.getRightLegMesh(), "RIGHT_LEG",
+            contextInfo.getLight(), contextInfo.getOverlay(), contextInfo.getBufferSource(), contextInfo.getRenderType(),
+            partsInfo.getRightLeg().getPositionInternal(),
+            partsInfo.getRightLeg().getScaleInternal(),
+            partsInfo.getRightLeg().getRotationInternal()
+        ));
+    }
+    
+    /**
+     * 批量初始化所有mesh（copyFrom和setVisible），只执行一次
+     */
+    private void initializeAllMeshes(Doll3DSkinData skinData) {
+        // 初始化render方法缓存（如果还没初始化）
+        if (!renderMethodCacheInitialized && skinData.getHeadMesh() != null) {
+            initializeRenderMethodCache(skinData.getHeadMesh());
+        }
+        
+        // 批量初始化所有mesh
+        initializeMesh(skinData.getHeadMesh(), playerModel.hat, "HEAD");
+        initializeMesh(skinData.getLeftArmMesh(), playerModel.leftArm, isThinArms() ? "LEFT_ARM_SLIM" : "LEFT_ARM");
+        initializeMesh(skinData.getRightArmMesh(), playerModel.rightArm, isThinArms() ? "RIGHT_ARM_SLIM" : "RIGHT_ARM");
+        initializeMesh(skinData.getTorsoMesh(), playerModel.body, "BODY");
+        initializeMesh(skinData.getLeftLegMesh(), playerModel.leftLeg, "LEFT_LEG");
+        initializeMesh(skinData.getRightLegMesh(), playerModel.rightLeg, "RIGHT_LEG");
+    }
+    
+    // 反射方法缓存
+    private static java.lang.reflect.Method cachedCopyFromMethod;
+    private static java.lang.reflect.Method cachedSetVisibleMethod;
+    private static java.lang.reflect.Method cachedRenderMethod;
+    private static boolean renderMethodCacheInitialized = false;
+    
+    /**
+     * 初始化render方法缓存
+     */
+    private void initializeRenderMethodCache(Object mesh) {
+        if (renderMethodCacheInitialized) {
+            return;
+        }
+        
+        try {
+            Class<?> meshClass = mesh.getClass();
+            cachedRenderMethod = meshClass.getMethod("render", 
+                PoseStack.class, 
+                com.mojang.blaze3d.vertex.VertexConsumer.class,
+                int.class, int.class, float.class, float.class, float.class, float.class);
+            cachedRenderMethod.setAccessible(true);
+            renderMethodCacheInitialized = true;
+        } catch (Exception e) {
+            LOGGER.warn("初始化render方法缓存失败: {}", e.getMessage());
+        }
+    }
+    
+    /**
+     * 初始化单个mesh（copyFrom和setVisible）
+     */
+    private void initializeMesh(Object mesh, net.minecraft.client.model.geom.ModelPart modelPart, String name) {
+        if (mesh == null) {
+            return;
+        }
+
+        try {
+            // 使用缓存的方法，避免每帧都查找
+            if (cachedCopyFromMethod == null) {
+                cachedCopyFromMethod = mesh.getClass().getMethod("copyFrom", net.minecraft.client.model.geom.ModelPart.class);
+            }
+            cachedCopyFromMethod.invoke(mesh, modelPart);
+            
+            if (cachedSetVisibleMethod == null) {
+                cachedSetVisibleMethod = mesh.getClass().getMethod("setVisible", boolean.class);
+            }
+            cachedSetVisibleMethod.invoke(mesh, true);
+        } catch (Exception e) {
+            if (!hasLoggedMeshCreation) {
+                LOGGER.warn("⚠ {} 初始化mesh失败: {}", name, e.getMessage());
+            }
+        }
+    }
+    
+    /**
+     * 快速渲染3D网格部件（使用缓存的方法）
+     */
+    private void render3DMeshPartFast(PoseStack matrixStack, com.lanye.dolladdon.model.MeshRenderInfo meshInfo) {
+        Object mesh = meshInfo.getMesh();
+        if (mesh == null) {
+            return;
+        }
+        
+        try {
+            // 应用变换
+            matrixStack.pushPose();
+            
+            PartTransformInfo transform = meshInfo.getTransformInfo();
+            float[] position = transform.getPositionInternal();
+            float[] scale = transform.getScaleInternal();
+            float[] rotation = transform.getRotationInternal();
+            
+            // 应用位置偏移
+            if (position[0] != 0.0f || position[1] != 0.0f || position[2] != 0.0f) {
+                matrixStack.translate(position[0], -position[1], position[2]);
+            }
+            
+            // 应用缩放
+            if (scale[0] != 1.0f || scale[1] != 1.0f || scale[2] != 1.0f) {
+                matrixStack.scale(scale[0], scale[1], scale[2]);
+            }
+            
+            // 应用旋转（如果有）
+            if (rotation != null && (rotation[0] != 0.0f || rotation[1] != 0.0f || rotation[2] != 0.0f)) {
+                matrixStack.mulPose(Axis.XP.rotation(rotation[0]));
+                matrixStack.mulPose(Axis.YP.rotation(rotation[1]));
+                matrixStack.mulPose(Axis.ZP.rotation(rotation[2]));
+            }
+            
+            // 使用缓存的方法调用render
+            if (cachedRenderMethod == null) {
+                initializeRenderMethodCache(mesh);
+            }
+            
+            if (cachedRenderMethod != null) {
+                RenderContextInfo contextInfo = meshInfo.getContextInfo();
+                cachedRenderMethod.invoke(mesh, 
+                    matrixStack,
+                    contextInfo.getVertexConsumer(),
+                    contextInfo.getLight(),
+                    contextInfo.getOverlay(),
+                    1.0f, 1.0f, 1.0f, 1.0f // r, g, b, a
+                );
+            }
+            
+            matrixStack.popPose();
+        } catch (Exception e) {
+            if (!hasLoggedMeshCreation) {
+                LOGGER.warn("⚠ 渲染3D网格部件失败: {} - {}", meshInfo.getOffsetProviderName(), e.getMessage());
+            }
         }
     }
     

@@ -2,7 +2,7 @@ package com.lanye.dolladdon.impl.render;
 
 import com.lanye.dolladdon.base.render.BaseDollRenderer;
 import com.lanye.dolladdon.impl.entity.AlexDollEntity;
-import com.lanye.dolladdon.util.PlayerSkinUtil;
+import com.lanye.dolladdon.util.resource.PlayerSkinUtil;
 import net.minecraft.client.model.PlayerModel;
 import net.minecraft.client.model.geom.ModelLayers;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
@@ -21,6 +21,11 @@ public class AlexDollRenderer extends BaseDollRenderer<AlexDollEntity> {
     @Override
     protected ResourceLocation getSkinLocation(AlexDollEntity entity) {
         return PlayerSkinUtil.getAlexSkin();
+    }
+    
+    @Override
+    protected boolean isThinArms() {
+        return true; // Alex使用细手臂
     }
 }
 

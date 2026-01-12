@@ -1,4 +1,4 @@
-package com.lanye.dolladdon.util;
+package com.lanye.dolladdon.util.pose;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -34,7 +34,7 @@ public class ActionLoader {
     
     /**
      * 从资源文件加载动作
-     * 资源文件路径格式：player_doll_addon:actions/{name}.json
+     * 资源文件路径格式：player_doll:actions/{name}.json
      * 
      * JSON格式示例：
      * {

@@ -14,6 +14,7 @@ import net.minecraft.world.entity.player.Player;
  */
 public class DynamicDollRenderer extends BaseDollRenderer<DynamicDollEntity> {
     private final ResourceLocation skinLocation;
+    private final boolean isAlexModel;
     
     public DynamicDollRenderer(EntityRendererProvider.Context context, ResourceLocation skinLocation, boolean isAlexModel) {
         super(context, new PlayerModel<>(
@@ -21,11 +22,17 @@ public class DynamicDollRenderer extends BaseDollRenderer<DynamicDollEntity> {
             isAlexModel
         ));
         this.skinLocation = skinLocation;
+        this.isAlexModel = isAlexModel;
     }
     
     @Override
     protected ResourceLocation getSkinLocation(DynamicDollEntity entity) {
         return skinLocation;
+    }
+    
+    @Override
+    protected boolean isThinArms() {
+        return isAlexModel;
     }
 }
 

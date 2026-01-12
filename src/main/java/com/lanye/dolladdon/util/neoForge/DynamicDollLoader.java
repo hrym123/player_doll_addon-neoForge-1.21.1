@@ -1,11 +1,9 @@
-package com.lanye.dolladdon.util;
+package com.lanye.dolladdon.util.neoForge;
 
 import com.lanye.dolladdon.PlayerDollAddon;
-import com.lanye.dolladdon.util.DynamicTextureManager;
 import net.minecraft.resources.ResourceLocation;
 import org.slf4j.Logger;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -181,7 +179,7 @@ public class DynamicDollLoader {
         
         // 生成注册名称（使用哈希值，因为它已经符合规范）
         // 加上前缀标识符，确保模型文件名和注册名称一致，Minecraft 才能找到对应的模型文件
-        String registryName = com.lanye.dolladdon.util.DynamicModelGenerator.DYNAMIC_MODEL_PREFIX + fileHash;
+        String registryName = DynamicModelGenerator.DYNAMIC_MODEL_PREFIX + fileHash;
         
         return new DollInfo(registryName, displayName, isAlexModel, textureLocation, filePath);
     }

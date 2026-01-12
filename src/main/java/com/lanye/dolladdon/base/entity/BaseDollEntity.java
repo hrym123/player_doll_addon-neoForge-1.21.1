@@ -3,7 +3,7 @@ package com.lanye.dolladdon.base.entity;
 import com.lanye.dolladdon.api.action.DollAction;
 import com.lanye.dolladdon.api.pose.DollPose;
 import com.lanye.dolladdon.api.pose.SimpleDollPose;
-import com.lanye.dolladdon.util.PoseActionManager;
+import com.lanye.dolladdon.util.pose.PoseActionManager;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;

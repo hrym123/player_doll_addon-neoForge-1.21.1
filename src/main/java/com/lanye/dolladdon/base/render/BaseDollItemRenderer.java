@@ -3,7 +3,7 @@ package com.lanye.dolladdon.base.render;
 import com.lanye.dolladdon.api.action.DollAction;
 import com.lanye.dolladdon.api.pose.DollPose;
 import com.lanye.dolladdon.api.pose.SimpleDollPose;
-import com.lanye.dolladdon.util.PoseActionManager;
+import com.lanye.dolladdon.util.pose.PoseActionManager;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import net.minecraft.client.Minecraft;
