@@ -2,6 +2,8 @@ package com.lanye.dolladdon;
 
 import com.lanye.dolladdon.init.ModEntities;
 import com.lanye.dolladdon.init.ModItems;
+import com.lanye.dolladdon.impl.item.ActionDebugStick;
+import com.lanye.dolladdon.impl.item.PoseDebugStick;
 import com.lanye.dolladdon.util.neoForge.DynamicDollLoader;
 import com.lanye.dolladdon.util.neoForge.DynamicModelGenerator;
 import com.lanye.dolladdon.util.resource.ResourceFileGenerator;
@@ -116,8 +118,25 @@ public class PlayerDollAddon {
                 return;
             }
             
-            // 检查玩家是否手持调试棒（如果调试棒类存在）
-            // 注意：NeoForge版本中调试棒类不存在，跳过此功能
+            // 检查玩家是否手持调试棒
+            ItemStack heldStack = event.getEntity().getItemInHand(event.getHand());
+            if (!heldStack.isEmpty()) {
+                if (heldStack.getItem() instanceof ActionDebugStick) {
+                    InteractionResult result = ActionDebugStick.applyActionToEntity(heldStack, event.getEntity(), dollEntity, event.getLevel());
+                    if (result != InteractionResult.PASS) {
+                        event.setCancellationResult(result);
+                        event.setCanceled(true);
+                    }
+                    return;
+                } else if (heldStack.getItem() instanceof PoseDebugStick) {
+                    InteractionResult result = PoseDebugStick.applyPoseToEntity(heldStack, event.getEntity(), dollEntity, event.getLevel());
+                    if (result != InteractionResult.PASS) {
+                        event.setCancellationResult(result);
+                        event.setCanceled(true);
+                    }
+                    return;
+                }
+            }
             
             // 记录交互尝试
             double distance = event.getEntity().position().distanceTo(event.getTarget().position());
@@ -263,19 +282,13 @@ public class PlayerDollAddon {
                             }
                         }
                         
-                        // 添加调试棒（如果存在）
-                        // 注意：NeoForge版本中调试棒类不存在，跳过此功能
-                        // 如果将来添加了调试棒，可以在这里添加：
-                        // try {
-                        //     if (ModItems.ACTION_DEBUG_STICK != null) {
-                        //         output.accept(new ItemStack(ModItems.ACTION_DEBUG_STICK.get()));
-                        //     }
-                        //     if (ModItems.POSE_DEBUG_STICK != null) {
-                        //         output.accept(new ItemStack(ModItems.POSE_DEBUG_STICK.get()));
-                        //     }
-                        // } catch (Exception e) {
-                        //     LOGGER.debug("调试棒不存在，跳过添加到创造模式物品栏", e);
-                        // }
+                        // 添加调试棒
+                        try {
+                            output.accept(new ItemStack(ModItems.ACTION_DEBUG_STICK.get()));
+                            output.accept(new ItemStack(ModItems.POSE_DEBUG_STICK.get()));
+                        } catch (Exception e) {
+                            LOGGER.debug("调试棒不存在，跳过添加到创造模式物品栏", e);
+                        }
                     })
                     .build()
     );

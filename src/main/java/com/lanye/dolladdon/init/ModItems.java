@@ -2,8 +2,10 @@ package com.lanye.dolladdon.init;
 
 import com.lanye.dolladdon.PlayerDollAddon;
 import com.lanye.dolladdon.dynamic.DynamicDollItem;
+import com.lanye.dolladdon.impl.item.ActionDebugStick;
 import com.lanye.dolladdon.impl.item.AlexDollItem;
 import com.lanye.dolladdon.impl.item.CustomTextureDollItem;
+import com.lanye.dolladdon.impl.item.PoseDebugStick;
 import com.lanye.dolladdon.impl.item.SteveDollItem;
 import com.lanye.dolladdon.util.resource.PngTextureScanner;
 import net.minecraft.resources.ResourceLocation;
@@ -27,6 +29,12 @@ public class ModItems {
     
     // 艾利克斯玩偶物品（固定模型：细手臂 + Alex默认皮肤）
     public static final DeferredItem<AlexDollItem> ALEX_DOLL = ITEMS.register("alex_doll", AlexDollItem::new);
+    
+    // 动作调试棒（潜行时滑动滚轮切换动作，右键玩偶应用当前动作）
+    public static final DeferredItem<ActionDebugStick> ACTION_DEBUG_STICK = ITEMS.register("action_debug_stick", ActionDebugStick::new);
+    
+    // 姿态调试棒（潜行时滑动滚轮切换姿态，右键玩偶应用当前姿态）
+    public static final DeferredItem<PoseDebugStick> POSE_DEBUG_STICK = ITEMS.register("pose_debug_stick", PoseDebugStick::new);
     
     // 动态注册的玩偶物品（从文件加载）
     public static final Map<String, DeferredItem<DynamicDollItem>> DYNAMIC_DOLLS = new HashMap<>();

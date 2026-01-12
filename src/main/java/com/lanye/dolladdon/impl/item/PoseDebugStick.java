@@ -1,0 +1,253 @@
+package com.lanye.dolladdon.impl.item;
+
+import com.lanye.dolladdon.base.entity.BaseDollEntity;
+import com.lanye.dolladdon.client.data.PoseDebugStickData;
+import com.lanye.dolladdon.util.pose.PoseActionManager;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.InteractionResultHolder;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
+import org.slf4j.Logger;
+import com.mojang.logging.LogUtils;
+
+/**
+ * 姿态调试棒
+ * 潜行时滑动滚轮切换姿态，右键玩偶应用当前姿态
+ */
+public class PoseDebugStick extends Item {
+    private static final String NBT_KEY_POSE = "SelectedPose";
+    private static final Logger LOGGER = LogUtils.getLogger();
+    
+    public PoseDebugStick() {
+        super(new Item.Properties());
+    }
+    
+    /**
+     * 获取当前选中的姿态名称（优先从全局数据读取，然后从 ItemStack NBT 读取）
+     */
+    public static String getSelectedPose(Player player, ItemStack stack) {
+        // 优先从全局数据读取（客户端和服务端共享）
+        if (player != null) {
+            String pose = PoseDebugStickData.getSelectedPose(player);
+            if (pose != null) {
+                return pose;
+            }
+        }
+        
+        // 从 ItemStack NBT 读取（向后兼容）
+        if (!stack.isEmpty() && stack.getItem() instanceof PoseDebugStick) {
+            var customData = stack.get(DataComponents.CUSTOM_DATA);
+            if (customData != null) {
+                var nbt = customData.copyTag();
+                if (nbt != null && nbt.contains(NBT_KEY_POSE)) {
+                    String poseName = nbt.getString(NBT_KEY_POSE);
+                    // 同时更新到全局数据
+                    if (player != null && poseName != null) {
+                        PoseDebugStickData.setSelectedPose(player, poseName);
+                    }
+                    return poseName;
+                }
+            }
+        }
+        return null;
+    }
+    
+    /**
+     * 设置选中的姿态名称（同时保存到全局数据和 ItemStack NBT）
+     */
+    public static void setSelectedPose(Player player, ItemStack stack, String poseName) {
+        // 保存到全局数据（客户端和服务端共享）
+        if (player != null) {
+            PoseDebugStickData.setSelectedPose(player, poseName);
+        }
+        
+        // 保存到 ItemStack NBT（用于持久化）
+        if (!stack.isEmpty() && stack.getItem() instanceof PoseDebugStick) {
+            var existingData = stack.get(DataComponents.CUSTOM_DATA);
+            CompoundTag nbt;
+            if (existingData != null) {
+                var existingTag = existingData.copyTag();
+                nbt = existingTag != null ? existingTag : new CompoundTag();
+            } else {
+                nbt = new CompoundTag();
+            }
+            if (poseName != null && !poseName.isEmpty()) {
+                nbt.putString(NBT_KEY_POSE, poseName);
+            } else {
+                nbt.remove(NBT_KEY_POSE);
+            }
+            // 使用反射创建 CustomData 对象
+            try {
+                Object customDataComponent = createCustomData(nbt);
+                if (customDataComponent != null) {
+                    java.lang.reflect.Method setMethod = ItemStack.class.getMethod("set", 
+                        net.minecraft.core.component.DataComponentType.class, Object.class);
+                    setMethod.invoke(stack, DataComponents.CUSTOM_DATA, customDataComponent);
+                }
+            } catch (Exception e) {
+                LOGGER.error("设置 CustomData 失败", e);
+            }
+        }
+    }
+    
+    /**
+     * 获取当前选中的姿态名称（仅从 ItemStack NBT 读取，用于兼容）
+     */
+    @Deprecated
+    public static String getSelectedPose(ItemStack stack) {
+        if (stack.isEmpty() || !(stack.getItem() instanceof PoseDebugStick)) {
+            return null;
+        }
+        var customData = stack.get(DataComponents.CUSTOM_DATA);
+        if (customData != null) {
+            var nbt = customData.copyTag();
+            if (nbt != null && nbt.contains(NBT_KEY_POSE)) {
+                return nbt.getString(NBT_KEY_POSE);
+            }
+        }
+        return null;
+    }
+    
+    /**
+     * 设置选中的姿态名称（仅保存到 ItemStack NBT，用于兼容）
+     */
+    @Deprecated
+    public static void setSelectedPose(ItemStack stack, String poseName) {
+        if (stack.isEmpty() || !(stack.getItem() instanceof PoseDebugStick)) {
+            return;
+        }
+        var existingData = stack.get(DataComponents.CUSTOM_DATA);
+        CompoundTag nbt;
+        if (existingData != null) {
+            var existingTag = existingData.copyTag();
+            nbt = existingTag != null ? existingTag : new CompoundTag();
+        } else {
+            nbt = new CompoundTag();
+        }
+        if (poseName != null && !poseName.isEmpty()) {
+            nbt.putString(NBT_KEY_POSE, poseName);
+        } else {
+            nbt.remove(NBT_KEY_POSE);
+        }
+        // 使用反射创建 CustomData 对象
+        try {
+            Object customDataComponent = createCustomData(nbt);
+            if (customDataComponent != null) {
+                java.lang.reflect.Method setMethod = ItemStack.class.getMethod("set", 
+                    net.minecraft.core.component.DataComponentType.class, Object.class);
+                setMethod.invoke(stack, DataComponents.CUSTOM_DATA, customDataComponent);
+            }
+        } catch (Exception e) {
+            LOGGER.error("设置 CustomData 失败", e);
+        }
+    }
+    
+    /**
+     * 应用姿态到玩偶实体（由事件处理器调用）
+     */
+    public static InteractionResult applyPoseToEntity(ItemStack stack, Player user, BaseDollEntity dollEntity, Level world) {
+        if (world.isClientSide()) {
+            return InteractionResult.SUCCESS;
+        }
+        
+        // 从全局数据或 ItemStack NBT 读取选中的姿态
+        String selectedPoseName = getSelectedPose(user, stack);
+        // 调试日志
+        var customData = stack.get(DataComponents.CUSTOM_DATA);
+        LOGGER.debug("姿态调试棒应用姿态: ItemStack NBT={}, 选中的姿态={}", 
+            customData != null ? customData.copyTag() : null, selectedPoseName);
+        
+        if (selectedPoseName == null || selectedPoseName.isEmpty()) {
+            user.sendSystemMessage(Component.literal("请先选择一个姿态（潜行时滑动滚轮）"));
+            return InteractionResult.FAIL;
+        }
+        
+        // 使用 setPoseByName 方法设置姿态并更新索引
+        boolean success = dollEntity.setPoseByName(selectedPoseName);
+        if (!success) {
+            user.sendSystemMessage(Component.literal("姿态不存在或设置失败: " + selectedPoseName));
+            LOGGER.warn("姿态调试棒: 姿态不存在或设置失败: {}", selectedPoseName);
+            return InteractionResult.FAIL;
+        }
+        
+        // 获取姿态显示名称
+        var pose = PoseActionManager.getPose(selectedPoseName);
+        String displayName = pose != null && pose.getDisplayName() != null ? pose.getDisplayName() : selectedPoseName;
+        
+        user.sendSystemMessage(Component.literal("已应用姿态: " + displayName));
+        world.playSound(null, dollEntity.getX(), dollEntity.getY(), dollEntity.getZ(),
+                SoundEvents.EXPERIENCE_ORB_PICKUP, SoundSource.PLAYERS, 0.5F, 1.2F);
+        LOGGER.debug("姿态调试棒: 玩家 {} 对玩偶 {} 应用姿态 {}", 
+            user.getName().getString(), dollEntity.getId(), selectedPoseName);
+        
+        return InteractionResult.SUCCESS;
+    }
+    
+    @Override
+    public InteractionResultHolder<ItemStack> use(Level world, Player user, InteractionHand hand) {
+        ItemStack stack = user.getItemInHand(hand);
+        
+        // 显示当前选中的姿态
+        String selectedPoseName = getSelectedPose(user, stack);
+        if (selectedPoseName != null && !selectedPoseName.isEmpty()) {
+            var pose = PoseActionManager.getPose(selectedPoseName);
+            if (pose != null) {
+                String displayName = pose.getDisplayName();
+                user.sendSystemMessage(Component.literal("当前姿态: " + displayName));
+            } else {
+                user.sendSystemMessage(Component.literal("当前姿态: " + selectedPoseName + " (不存在)"));
+            }
+        } else {
+            user.sendSystemMessage(Component.literal("未选择姿态（潜行时滑动滚轮切换）"));
+        }
+        
+        return InteractionResultHolder.success(stack);
+    }
+    
+    @Override
+    public boolean isFoil(ItemStack stack) {
+        // 如果有选中的姿态，显示附魔光效
+        // 注意：isFoil 方法在客户端调用，无法访问 Player
+        // 所以这里使用 ItemStack NBT 作为后备
+        var customData = stack.get(DataComponents.CUSTOM_DATA);
+        if (customData != null) {
+            var nbt = customData.copyTag();
+            if (nbt != null && nbt.contains(NBT_KEY_POSE)) {
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    /**
+     * 创建 CustomData 对象（使用反射，兼容不同的包路径）
+     */
+    private static Object createCustomData(CompoundTag nbt) {
+        String[] possiblePaths = {
+            "net.minecraft.core.component.types.CustomData",
+            "net.minecraft.core.component.CustomData",
+            "net.minecraft.world.item.component.CustomData"
+        };
+        
+        for (String className : possiblePaths) {
+            try {
+                Class<?> customDataClass = Class.forName(className);
+                java.lang.reflect.Method ofMethod = customDataClass.getMethod("of", CompoundTag.class);
+                return ofMethod.invoke(null, nbt);
+            } catch (ClassNotFoundException e) {
+                continue;
+            } catch (Exception e) {
+                continue;
+            }
+        }
+        return null;
+    }
+}

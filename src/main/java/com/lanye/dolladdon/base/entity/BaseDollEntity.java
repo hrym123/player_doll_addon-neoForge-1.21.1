@@ -683,6 +683,51 @@ public abstract class BaseDollEntity extends Entity {
     }
     
     /**
+     * 根据姿态名称设置姿态并更新索引
+     * @param poseName 姿态名称
+     * @return 是否设置成功
+     */
+    public boolean setPoseByName(String poseName) {
+        if (poseName == null || poseName.isEmpty()) {
+            return false;
+        }
+        
+        DollPose pose = PoseActionManager.getPose(poseName);
+        if (pose == null) {
+            com.lanye.dolladdon.PlayerDollAddon.LOGGER.warn("设置姿态失败: 姿态不存在: {}", poseName);
+            return false;
+        }
+        
+        // 先更新姿态索引并同步到客户端（在清空动作之前）
+        // 这确保客户端在动作被清空时能立即应用正确的姿态
+        List<String> poseNames = getAvailablePoseNames();
+        int poseIndex = poseNames.indexOf(poseName);
+        
+        if (poseIndex >= 0) {
+            this.currentPoseIndex = poseIndex;
+            // 同步姿态索引到客户端（仅在服务端设置）
+            if (!this.level().isClientSide()) {
+                if (currentPoseIndex == 0) {
+                    this.entityData.set(DATA_POSE_INDEX, (byte) 255);
+                } else if (currentPoseIndex < 255) {
+                    this.entityData.set(DATA_POSE_INDEX, (byte) (currentPoseIndex & 0xFF));
+                } else {
+                    this.entityData.set(DATA_POSE_INDEX, (byte) 255);
+                }
+            }
+        } else {
+            com.lanye.dolladdon.PlayerDollAddon.LOGGER.warn("设置姿态失败: 姿态不在可用列表中: {}", poseName);
+            return false;
+        }
+        
+        // 然后设置姿态（这会清空动作）
+        setPose(pose);
+        
+        com.lanye.dolladdon.PlayerDollAddon.LOGGER.debug("设置姿态并更新索引: {} (索引: {})", poseName, poseIndex);
+        return true;
+    }
+    
+    /**
      * 获取当前动作
      * @return 当前动作，如果没有则返回null
      */
