@@ -63,9 +63,6 @@ public class ActionDebugStickHandler {
             String displayName = action.getName();
             client.player.displayClientMessage(Component.literal("选中动作: " + displayName + " (" + (nextIndex + 1) + "/" + actionList.size() + ")"), true);
         }
-        
-        LOGGER.debug("动作调试棒: 切换到动作 {} (索引: {}), ItemStack NBT={}", 
-            nextActionName, nextIndex, stack.get(net.minecraft.core.component.DataComponents.CUSTOM_DATA));
     }
     
     /**

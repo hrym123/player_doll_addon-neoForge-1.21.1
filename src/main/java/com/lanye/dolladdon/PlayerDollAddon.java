@@ -82,6 +82,10 @@ public class PlayerDollAddon {
             NeoForge.EVENT_BUS.addListener(this::onEntityInteract);
             LOGGER.info("步骤 6/6: 完成");
             
+            // 注册玩家登录和退出事件，恢复和保存调试棒数据
+            NeoForge.EVENT_BUS.addListener(this::onPlayerLoggedIn);
+            NeoForge.EVENT_BUS.addListener(this::onPlayerLoggedOut);
+            
             // 客户端初始化（如果是在客户端）
             if (net.neoforged.fml.loading.FMLEnvironment.dist == net.neoforged.api.distmarker.Dist.CLIENT) {
                 PlayerDollAddonClient.init();
@@ -298,6 +302,38 @@ public class PlayerDollAddon {
     private void addCreative(BuildCreativeModeTabContentsEvent event) {
         // 注意：玩家玩偶物品不添加到原版创造模式物品栏
         // 它们有自己的物品栏（PLAYER_DOLL_TAB）
+    }
+    
+    /**
+     * 处理玩家登录事件，恢复调试棒数据
+     */
+    private void onPlayerLoggedIn(net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerLoggedInEvent event) {
+        try {
+            net.minecraft.world.entity.player.Player player = event.getEntity();
+            if (player != null) {
+                // 从物品栏恢复调试棒数据
+                ActionDebugStick.restoreFromInventory(player);
+                PoseDebugStick.restoreFromInventory(player);
+            }
+        } catch (Exception e) {
+            LOGGER.error("恢复调试棒数据时出错", e);
+        }
+    }
+    
+    /**
+     * 处理玩家退出事件，保存调试棒数据到 ItemStack NBT
+     */
+    private void onPlayerLoggedOut(net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerLoggedOutEvent event) {
+        try {
+            net.minecraft.world.entity.player.Player player = event.getEntity();
+            if (player != null && !player.level().isClientSide()) {
+                // 在服务端保存数据到 ItemStack NBT
+                ActionDebugStick.saveToInventory(player);
+                PoseDebugStick.saveToInventory(player);
+            }
+        } catch (Exception e) {
+            LOGGER.error("保存调试棒数据时出错", e);
+        }
     }
     
 }

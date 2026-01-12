@@ -230,6 +230,12 @@ public class PlayerDollAddonClient {
      */
     @SubscribeEvent
     public static void onClientPlayerLoggedIn(ClientPlayerNetworkEvent.LoggingIn event) {
+        // 恢复调试棒数据（从物品栏中的 ItemStack NBT）
+        if (event.getPlayer() != null) {
+            com.lanye.dolladdon.impl.item.ActionDebugStick.restoreFromInventory(event.getPlayer());
+            com.lanye.dolladdon.impl.item.PoseDebugStick.restoreFromInventory(event.getPlayer());
+        }
+        
         // 延迟加载，确保资源管理器已完全初始化
         net.minecraft.Util.backgroundExecutor().execute(() -> {
             try {

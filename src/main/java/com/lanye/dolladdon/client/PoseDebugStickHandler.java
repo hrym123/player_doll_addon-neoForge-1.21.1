@@ -63,9 +63,6 @@ public class PoseDebugStickHandler {
             String displayName = pose.getDisplayName();
             client.player.displayClientMessage(Component.literal("选中姿态: " + displayName + " (" + (nextIndex + 1) + "/" + poseList.size() + ")"), true);
         }
-        
-        LOGGER.debug("姿态调试棒: 切换到姿态 {} (索引: {}), ItemStack NBT={}", 
-            nextPoseName, nextIndex, stack.get(net.minecraft.core.component.DataComponents.CUSTOM_DATA));
     }
     
     /**

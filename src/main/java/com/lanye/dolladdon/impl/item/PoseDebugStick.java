@@ -36,6 +36,67 @@ public class PoseDebugStick extends Item {
     }
     
     /**
+     * 保存调试棒数据到玩家物品栏（在玩家退出时调用）
+     */
+    public static void saveToInventory(Player player) {
+        if (player == null || player.level().isClientSide()) {
+            return;
+        }
+        
+        // 从内存获取数据
+        String poseName = PoseDebugStickData.getSelectedPose(player);
+        if (poseName == null || poseName.isEmpty()) {
+            return;
+        }
+        
+        // 保存到物品栏中所有姿态调试棒
+        for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
+            ItemStack stack = player.getInventory().getItem(i);
+            if (!stack.isEmpty() && stack.getItem() instanceof PoseDebugStick) {
+                savePoseToStack(stack, poseName);
+            }
+        }
+    }
+    
+    /**
+     * 从玩家物品栏恢复调试棒数据（在玩家登录时调用）
+     */
+    public static void restoreFromInventory(Player player) {
+        if (player == null) {
+            return;
+        }
+        
+        // 扫描玩家物品栏中的所有姿态调试棒
+        for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
+            ItemStack stack = player.getInventory().getItem(i);
+            if (!stack.isEmpty() && stack.getItem() instanceof PoseDebugStick) {
+                String poseName = getSelectedPoseFromStack(stack);
+                if (poseName != null && !poseName.isEmpty()) {
+                    PoseDebugStickData.setSelectedPose(player, poseName);
+                    break; // 找到第一个有数据的调试棒就停止
+                }
+            }
+        }
+    }
+    
+    /**
+     * 从 ItemStack NBT 读取姿态名称（不更新全局数据）
+     */
+    private static String getSelectedPoseFromStack(ItemStack stack) {
+        if (stack.isEmpty() || !(stack.getItem() instanceof PoseDebugStick)) {
+            return null;
+        }
+        var customData = stack.get(DataComponents.CUSTOM_DATA);
+        if (customData != null) {
+            var nbt = customData.copyTag();
+            if (nbt != null && nbt.contains(NBT_KEY_POSE)) {
+                return nbt.getString(NBT_KEY_POSE);
+            }
+        }
+        return null;
+    }
+    
+    /**
      * 获取当前选中的姿态名称（优先从全局数据读取，然后从 ItemStack NBT 读取）
      */
     public static String getSelectedPose(Player player, ItemStack stack) {
@@ -49,17 +110,13 @@ public class PoseDebugStick extends Item {
         
         // 从 ItemStack NBT 读取（向后兼容）
         if (!stack.isEmpty() && stack.getItem() instanceof PoseDebugStick) {
-            var customData = stack.get(DataComponents.CUSTOM_DATA);
-            if (customData != null) {
-                var nbt = customData.copyTag();
-                if (nbt != null && nbt.contains(NBT_KEY_POSE)) {
-                    String poseName = nbt.getString(NBT_KEY_POSE);
-                    // 同时更新到全局数据
-                    if (player != null && poseName != null) {
-                        PoseDebugStickData.setSelectedPose(player, poseName);
-                    }
-                    return poseName;
+            String poseName = getSelectedPoseFromStack(stack);
+            if (poseName != null) {
+                // 同时更新到全局数据
+                if (player != null) {
+                    PoseDebugStickData.setSelectedPose(player, poseName);
                 }
+                return poseName;
             }
         }
         return null;
@@ -74,31 +131,64 @@ public class PoseDebugStick extends Item {
             PoseDebugStickData.setSelectedPose(player, poseName);
         }
         
-        // 保存到 ItemStack NBT（用于持久化）
-        if (!stack.isEmpty() && stack.getItem() instanceof PoseDebugStick) {
-            var existingData = stack.get(DataComponents.CUSTOM_DATA);
-            CompoundTag nbt;
-            if (existingData != null) {
-                var existingTag = existingData.copyTag();
-                nbt = existingTag != null ? existingTag : new CompoundTag();
+        // 保存到当前 ItemStack NBT
+        savePoseToStack(stack, poseName);
+        
+        // 同步到玩家物品栏中所有姿态调试棒（确保数据一致性）
+        if (player != null) {
+            syncPoseToAllSticks(player, poseName);
+        }
+    }
+    
+    /**
+     * 保存姿态到 ItemStack NBT
+     */
+    private static void savePoseToStack(ItemStack stack, String poseName) {
+        if (stack.isEmpty() || !(stack.getItem() instanceof PoseDebugStick)) {
+            return;
+        }
+        
+        var existingData = stack.get(DataComponents.CUSTOM_DATA);
+        CompoundTag nbt;
+        if (existingData != null) {
+            var existingTag = existingData.copyTag();
+            nbt = existingTag != null ? existingTag : new CompoundTag();
+        } else {
+            nbt = new CompoundTag();
+        }
+        if (poseName != null && !poseName.isEmpty()) {
+            nbt.putString(NBT_KEY_POSE, poseName);
+        } else {
+            nbt.remove(NBT_KEY_POSE);
+        }
+        // 使用反射创建 CustomData 对象
+        try {
+            Object customDataComponent = createCustomData(nbt);
+            if (customDataComponent != null) {
+                java.lang.reflect.Method setMethod = ItemStack.class.getMethod("set", 
+                    net.minecraft.core.component.DataComponentType.class, Object.class);
+                setMethod.invoke(stack, DataComponents.CUSTOM_DATA, customDataComponent);
             } else {
-                nbt = new CompoundTag();
+                LOGGER.error("创建 CustomData 对象失败");
             }
-            if (poseName != null && !poseName.isEmpty()) {
-                nbt.putString(NBT_KEY_POSE, poseName);
-            } else {
-                nbt.remove(NBT_KEY_POSE);
-            }
-            // 使用反射创建 CustomData 对象
-            try {
-                Object customDataComponent = createCustomData(nbt);
-                if (customDataComponent != null) {
-                    java.lang.reflect.Method setMethod = ItemStack.class.getMethod("set", 
-                        net.minecraft.core.component.DataComponentType.class, Object.class);
-                    setMethod.invoke(stack, DataComponents.CUSTOM_DATA, customDataComponent);
-                }
-            } catch (Exception e) {
-                LOGGER.error("设置 CustomData 失败", e);
+        } catch (Exception e) {
+            LOGGER.error("设置 CustomData 失败", e);
+        }
+    }
+    
+    /**
+     * 同步姿态到玩家物品栏中所有姿态调试棒
+     */
+    private static void syncPoseToAllSticks(Player player, String poseName) {
+        if (player == null) {
+            return;
+        }
+        
+        // 同步到物品栏中所有姿态调试棒
+        for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
+            ItemStack stack = player.getInventory().getItem(i);
+            if (!stack.isEmpty() && stack.getItem() instanceof PoseDebugStick) {
+                savePoseToStack(stack, poseName);
             }
         }
     }
@@ -178,10 +268,6 @@ public class PoseDebugStick extends Item {
         
         // 从全局数据或 ItemStack NBT 读取选中的姿态
         String selectedPoseName = getSelectedPose(user, stack);
-        // 调试日志
-        var customData = stack.get(DataComponents.CUSTOM_DATA);
-        LOGGER.debug("姿态调试棒应用姿态: ItemStack NBT={}, 选中的姿态={}", 
-            customData != null ? customData.copyTag() : null, selectedPoseName);
         
         if (selectedPoseName == null || selectedPoseName.isEmpty()) {
             sendActionBarMessage(user, Component.literal("请先选择一个姿态（潜行时滑动滚轮）"));
@@ -203,8 +289,6 @@ public class PoseDebugStick extends Item {
         sendActionBarMessage(user, Component.literal("已应用姿态: " + displayName));
         world.playSound(null, dollEntity.getX(), dollEntity.getY(), dollEntity.getZ(),
                 SoundEvents.EXPERIENCE_ORB_PICKUP, SoundSource.PLAYERS, 0.5F, 1.2F);
-        LOGGER.debug("姿态调试棒: 玩家 {} 对玩偶 {} 应用姿态 {}", 
-            user.getName().getString(), dollEntity.getId(), selectedPoseName);
         
         return InteractionResult.SUCCESS;
     }
@@ -275,16 +359,28 @@ public class PoseDebugStick extends Item {
             "net.minecraft.world.item.component.CustomData"
         };
         
+        Exception lastException = null;
         for (String className : possiblePaths) {
             try {
                 Class<?> customDataClass = Class.forName(className);
                 java.lang.reflect.Method ofMethod = customDataClass.getMethod("of", CompoundTag.class);
-                return ofMethod.invoke(null, nbt);
+                Object result = ofMethod.invoke(null, nbt);
+                if (result != null) {
+                    return result;
+                }
             } catch (ClassNotFoundException e) {
+                lastException = e;
                 continue;
             } catch (Exception e) {
+                lastException = e;
                 continue;
             }
+        }
+        
+        if (lastException != null) {
+            LOGGER.error("所有 CustomData 类路径都失败，最后一个错误: {}", lastException.getMessage(), lastException);
+        } else {
+            LOGGER.error("无法创建 CustomData 对象，所有类路径都未找到");
         }
         return null;
     }
