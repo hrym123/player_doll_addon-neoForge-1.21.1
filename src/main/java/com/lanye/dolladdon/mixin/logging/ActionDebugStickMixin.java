@@ -40,16 +40,16 @@ public class ActionDebugStickMixin {
         Level world,
         CallbackInfoReturnable<InteractionResult> cir
     ) {
-        LoggingUtil.info(
-            "[Mixin日志] ActionDebugStick.applyActionToEntity 开始调用: " +
-            "玩家={}, 服务端={}, 实体ID={}, 实体位置=({}, {}, {}), 物品={}",
+        ModuleLogger.debug(
+            LogModuleConfig.MODULE_DEBUG_STICK_ACTION,
+            "ActionDebugStick.applyActionToEntity called: player={}, server={}, entityID={}, entityPosition=({}, {}, {}), item={}",
             user != null ? user.getName().getString() : "null",
             !world.isClientSide(),
             dollEntity != null ? dollEntity.getId() : -1,
             dollEntity != null ? String.format("%.2f", dollEntity.getX()) : "null",
             dollEntity != null ? String.format("%.2f", dollEntity.getY()) : "null",
             dollEntity != null ? String.format("%.2f", dollEntity.getZ()) : "null",
-            stack != null && !stack.isEmpty() ? stack.getItem().toString() : "空"
+            stack != null && !stack.isEmpty() ? stack.getItem().toString() : "empty"
         );
     }
     
@@ -69,8 +69,9 @@ public class ActionDebugStickMixin {
         Level world,
         CallbackInfoReturnable<InteractionResult> cir
     ) {
-        LoggingUtil.info(
-            "[Mixin日志] ActionDebugStick.applyActionToEntity 返回: {}, 玩家={}, 服务端={}",
+        ModuleLogger.debug(
+            LogModuleConfig.MODULE_DEBUG_STICK_ACTION,
+            "ActionDebugStick.applyActionToEntity returned: {}, player={}, server={}",
             cir.getReturnValue(),
             user != null ? user.getName().getString() : "null",
             !world.isClientSide()

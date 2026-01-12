@@ -22,15 +22,11 @@ import net.neoforged.neoforge.event.BuildCreativeModeTabContentsEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
-import org.slf4j.Logger;
-import com.mojang.logging.LogUtils;
-
 import java.nio.file.Path;
 
 @Mod(PlayerDollAddon.MODID)
 public class PlayerDollAddon {
     public static final String MODID = "player_doll";
-    public static final Logger LOGGER = LogUtils.getLogger();
     
     // 玩偶图片目录路径（相对于游戏目录）
     public static final String PNG_DIR = "player_doll/png";
@@ -43,58 +39,41 @@ public class PlayerDollAddon {
     public static final DeferredRegister<CreativeModeTab> CREATIVE_MODE_TABS = DeferredRegister.create(Registries.CREATIVE_MODE_TAB, MODID);
 
     public PlayerDollAddon(IEventBus modEventBus, ModContainer modContainer) {
-        LOGGER.info("========== 玩偶模组开始初始化 ==========");
-        
         try {
-            // 步骤 1/6: 初始化默认文件（从资源包复制到文件系统）
-            LOGGER.info("步骤 1/6: 初始化默认文件...");
+            // Step 1/6: Initialize default files (copy from resource pack to file system)
             initializeDefaultFiles();
-            LOGGER.info("步骤 1/6: 完成");
             
-            // 步骤 2/6: 生成资源文件（物品模型和语言文件）
-            LOGGER.info("步骤 2/6: 生成资源文件...");
+            // Step 2/6: Generate resource files (item models and language files)
             generateResourceFiles();
-            LOGGER.info("步骤 2/6: 完成");
             
-            // 步骤 3/6: 注册自定义纹理玩偶（必须在注册器注册之前）
-            LOGGER.info("步骤 3/6: 注册自定义纹理玩偶...");
+            // Step 3/6: Register custom texture dolls (must be before registry registration)
             ModItems.registerCustomTextureDollItems();
             ModEntities.registerCustomTextureDollEntities();
-            LOGGER.info("步骤 3/6: 完成");
             
-            // 先扫描目录并注册动态玩偶（必须在注册器注册之前）
+            // Scan directory and register dynamic dolls (must be before registry registration)
             registerDynamicDolls();
             
-            // 步骤 4/6: 注册物品和实体（使用DeferredRegister）
-            LOGGER.info("步骤 4/6: 注册物品和实体...");
+            // Step 4/6: Register items and entities (using DeferredRegister)
             ModItems.ITEMS.register(modEventBus);
             ModEntities.ENTITIES.register(modEventBus);
-            LOGGER.info("步骤 4/6: 完成");
             
-            // 步骤 5/6: 注册创造模式物品栏
-            LOGGER.info("步骤 5/6: 注册创造模式物品栏...");
+            // Step 5/6: Register creative mode tab
             CREATIVE_MODE_TABS.register(modEventBus);
             modEventBus.addListener(this::addCreative);
-            LOGGER.info("步骤 5/6: 完成");
             
-            // 步骤 6/6: 注册实体交互事件（注册到游戏事件总线，而不是模组事件总线）
-            LOGGER.info("步骤 6/6: 注册实体交互事件...");
+            // Step 6/6: Register entity interaction events (register to game event bus, not mod event bus)
             NeoForge.EVENT_BUS.addListener(this::onEntityInteract);
-            LOGGER.info("步骤 6/6: 完成");
             
-            // 注册玩家登录和退出事件，恢复和保存调试棒数据
+            // Register player login and logout events to restore and save debug stick data
             NeoForge.EVENT_BUS.addListener(this::onPlayerLoggedIn);
             NeoForge.EVENT_BUS.addListener(this::onPlayerLoggedOut);
             
-            // 客户端初始化（如果是在客户端）
+            // Client initialization (if on client)
             if (net.neoforged.fml.loading.FMLEnvironment.dist == net.neoforged.api.distmarker.Dist.CLIENT) {
                 PlayerDollAddonClient.init();
             }
-            
-            LOGGER.info("========== 玩偶模组初始化完成 ==========");
         } catch (Exception e) {
-            LOGGER.error("========== 玩偶模组初始化失败 ==========", e);
-            throw new RuntimeException("玩偶模组初始化失败", e);
+            throw new RuntimeException("Player Doll Mod initialization failed", e);
         }
     }
     
@@ -104,14 +83,6 @@ public class PlayerDollAddon {
      */
     private void onEntityInteract(PlayerInteractEvent.EntityInteract event) {
         try {
-            // 记录所有实体交互尝试（用于调试）
-            LOGGER.info("[实体交互] 玩家 {} 交互实体: 类型={}, ID={}, 手={}, 服务端={}, 实体类={}", 
-                    event.getEntity().getName().getString(), 
-                    event.getTarget() != null ? event.getTarget().getType().toString() : "null",
-                    event.getTarget() != null ? event.getTarget().getId() : -1,
-                    event.getHand(), !event.getLevel().isClientSide(),
-                    event.getTarget() != null ? event.getTarget().getClass().getName() : "null");
-            
             // 只处理主手（右键）交互
             if (event.getHand() != InteractionHand.MAIN_HAND) {
                 return;
@@ -142,24 +113,8 @@ public class PlayerDollAddon {
                 }
             }
             
-            // 记录交互尝试
-            double distance = event.getEntity().position().distanceTo(event.getTarget().position());
-            LOGGER.info("[实体交互] 玩家 {} 尝试交互玩偶实体: 实体ID={}, 位置=({}, {}, {}), 玩家位置=({}, {}, {}), 距离={}, 手={}, 服务端={}", 
-                    event.getEntity().getName().getString(), event.getTarget().getId(),
-                    String.format("%.2f", event.getTarget().getX()), 
-                    String.format("%.2f", event.getTarget().getY()), 
-                    String.format("%.2f", event.getTarget().getZ()),
-                    String.format("%.2f", event.getEntity().getX()), 
-                    String.format("%.2f", event.getEntity().getY()), 
-                    String.format("%.2f", event.getEntity().getZ()),
-                    String.format("%.2f", distance), event.getHand(), !event.getLevel().isClientSide());
-            
-            // 调用实体的 interact 方法
+            // Call entity's interact method
             InteractionResult result = dollEntity.interact(event.getEntity(), event.getHand());
-            
-            // 记录结果
-            LOGGER.info("[实体交互] 实体返回结果: {}, 服务端={}", 
-                    result, !event.getLevel().isClientSide());
             
             // 如果实体返回了结果，使用它
             if (result != InteractionResult.PASS) {
@@ -167,7 +122,7 @@ public class PlayerDollAddon {
                 event.setCanceled(true);
             }
         } catch (Exception e) {
-            LOGGER.error("处理实体交互事件时出错", e);
+            // Error logging handled by Mixin
         }
     }
     
@@ -187,7 +142,7 @@ public class PlayerDollAddon {
             
             com.lanye.dolladdon.init.DefaultFileInitializer.initializeDefaultFiles(gameDir);
         } catch (Exception e) {
-            LOGGER.error("初始化默认文件失败", e);
+            // Error logging handled by Mixin
         }
     }
     
@@ -199,7 +154,7 @@ public class PlayerDollAddon {
             ResourceFileGenerator.generateItemModels();
             ResourceFileGenerator.updateLanguageFiles();
         } catch (Exception e) {
-            LOGGER.error("生成资源文件时出错", e);
+            // Error logging handled by Mixin
         }
     }
     
@@ -241,7 +196,7 @@ public class PlayerDollAddon {
                 
                 successCount++;
             } catch (Exception e) {
-                LOGGER.error("注册动态玩偶失败: {}", dollInfo.getFileName(), e);
+                // Error logging handled by Mixin
                 e.printStackTrace();
             }
         }
@@ -272,26 +227,26 @@ public class PlayerDollAddon {
                                 output.accept(stack);
                                 dynamicCount++;
                             } catch (Exception e) {
-                                LOGGER.error("添加动态玩偶到物品栏失败: {}", entry.getKey(), e);
+                                // Error logging handled by Mixin
                             }
                         }
                         
-                        // 添加所有自定义纹理玩偶物品
+                        // Add all custom texture doll items
                         for (var entry : ModItems.CUSTOM_TEXTURE_DOLL_ITEMS.entrySet()) {
                             try {
                                 ItemStack stack = new ItemStack(entry.getValue().get());
                                 output.accept(stack);
                             } catch (Exception e) {
-                                LOGGER.error("添加自定义纹理玩偶到物品栏失败: {}", entry.getKey(), e);
+                                // Error logging handled by Mixin
                             }
                         }
                         
-                        // 添加调试棒
+                        // Add debug sticks
                         try {
                             output.accept(new ItemStack(ModItems.ACTION_DEBUG_STICK.get()));
                             output.accept(new ItemStack(ModItems.POSE_DEBUG_STICK.get()));
                         } catch (Exception e) {
-                            LOGGER.debug("调试棒不存在，跳过添加到创造模式物品栏", e);
+                            // Error logging handled by Mixin
                         }
                     })
                     .build()
@@ -305,34 +260,34 @@ public class PlayerDollAddon {
     }
     
     /**
-     * 处理玩家登录事件，恢复调试棒数据
+     * Handle player login event, restore debug stick data
      */
     private void onPlayerLoggedIn(net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerLoggedInEvent event) {
         try {
             net.minecraft.world.entity.player.Player player = event.getEntity();
             if (player != null) {
-                // 从物品栏恢复调试棒数据
+                // Restore debug stick data from inventory
                 ActionDebugStick.restoreFromInventory(player);
                 PoseDebugStick.restoreFromInventory(player);
             }
         } catch (Exception e) {
-            LOGGER.error("恢复调试棒数据时出错", e);
+            // Error logging handled by Mixin
         }
     }
     
     /**
-     * 处理玩家退出事件，保存调试棒数据到 ItemStack NBT
+     * Handle player logout event, save debug stick data to ItemStack NBT
      */
     private void onPlayerLoggedOut(net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerLoggedOutEvent event) {
         try {
             net.minecraft.world.entity.player.Player player = event.getEntity();
             if (player != null && !player.level().isClientSide()) {
-                // 在服务端保存数据到 ItemStack NBT
+                // Save data to ItemStack NBT on server
                 ActionDebugStick.saveToInventory(player);
                 PoseDebugStick.saveToInventory(player);
             }
         } catch (Exception e) {
-            LOGGER.error("保存调试棒数据时出错", e);
+            // Error logging handled by Mixin
         }
     }
     

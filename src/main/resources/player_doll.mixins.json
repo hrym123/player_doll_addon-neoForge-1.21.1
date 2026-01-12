@@ -6,7 +6,9 @@
   "refmap": "player_doll.refmap.json",
   "mixins": [
     "logging.ActionDebugStickMixin",
-    "logging.BaseDollEntityMixin"
+    "logging.BaseDollEntityMixin",
+    "logging.PlayerDollAddonMixin",
+    "logging.PlayerDollAddonEventMixin"
   ],
   "client": [],
   "server": [],

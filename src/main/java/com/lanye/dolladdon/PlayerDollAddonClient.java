@@ -60,19 +60,19 @@ public class PlayerDollAddonClient {
      * 初始化3D皮肤层检测（静态方法）
      */
     private static void initialize3DSkinLayers() {
-        PlayerDollAddon.LOGGER.info("========== 3D皮肤层兼容性检测 ==========");
+        PlayerDollAddon.LOGGER.info("========== 3D Skin Layers Compatibility Check ==========");
         if (SkinLayersDetector.IS_3D_SKIN_LAYERS_LOADED) {
-            PlayerDollAddon.LOGGER.info("✓ 检测到3D皮肤层mod（skinlayers3d）");
-            PlayerDollAddon.LOGGER.info("正在初始化API...");
-            // 尝试初始化API以验证是否可用
+            PlayerDollAddon.LOGGER.info("✓ Detected 3D skin layers mod (skinlayers3d)");
+            PlayerDollAddon.LOGGER.info("Initializing API...");
+            // Try to initialize API to verify availability
             boolean apiAvailable = Doll3DSkinUtil.isAvailable();
             if (apiAvailable) {
-                PlayerDollAddon.LOGGER.info("✓ API初始化成功，将启用3D皮肤渲染支持");
+                PlayerDollAddon.LOGGER.info("✓ API initialization successful, 3D skin rendering will be enabled");
             } else {
-                PlayerDollAddon.LOGGER.warn("✗ API初始化失败，将使用默认2D渲染");
+                PlayerDollAddon.LOGGER.warn("✗ API initialization failed, will use default 2D rendering");
             }
         } else {
-            PlayerDollAddon.LOGGER.info("未检测到3D皮肤层mod，使用默认2D渲染");
+            PlayerDollAddon.LOGGER.info("3D skin layers mod not detected, using default 2D rendering");
         }
         PlayerDollAddon.LOGGER.info("========================================");
     }
@@ -133,7 +133,7 @@ public class PlayerDollAddonClient {
                 event.registerEntityRenderer(entry.getValue(), 
                         context -> new CustomTextureDollRenderer(context, finalIsAlexModel));
             } catch (Exception e) {
-                PlayerDollAddon.LOGGER.error("[渲染器] ✗ 注册自定义纹理玩偶实体渲染器失败: {}", entry.getKey(), e);
+                PlayerDollAddon.LOGGER.error("[Renderer] ✗ Failed to register custom texture doll entity renderer: {}", entry.getKey(), e);
             }
         }
     }
@@ -189,7 +189,7 @@ public class PlayerDollAddonClient {
                     packConsumer.accept(pack);
                 });
             } catch (Exception e) {
-                PlayerDollAddon.LOGGER.error("注册动态资源包失败", e);
+                PlayerDollAddon.LOGGER.error("Failed to register dynamic resource pack", e);
                 e.printStackTrace();
             }
         }
@@ -220,7 +220,7 @@ public class PlayerDollAddonClient {
                     }
                 }
             } catch (Exception e) {
-                PlayerDollAddon.LOGGER.error("资源重载过程中发生异常", e);
+                PlayerDollAddon.LOGGER.error("Exception occurred during resource reload", e);
             }
         });
     }

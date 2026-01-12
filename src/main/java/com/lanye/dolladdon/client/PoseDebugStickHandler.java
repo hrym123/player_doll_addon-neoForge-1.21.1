@@ -26,7 +26,7 @@ public class PoseDebugStickHandler {
      * 初始化
      */
     public static void initialize() {
-        LOGGER.debug("姿态调试棒处理器已初始化");
+        LOGGER.debug("Pose debug stick handler initialized");
     }
     
     /**

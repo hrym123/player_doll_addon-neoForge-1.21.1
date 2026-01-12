@@ -169,10 +169,10 @@ public class ActionDebugStick extends Item {
                     net.minecraft.core.component.DataComponentType.class, Object.class);
                 setMethod.invoke(stack, DataComponents.CUSTOM_DATA, customDataComponent);
             } else {
-                LOGGER.error("创建 CustomData 对象失败");
+                LOGGER.error("Failed to create CustomData object");
             }
         } catch (Exception e) {
-            LOGGER.error("设置 CustomData 失败", e);
+            LOGGER.error("Failed to set CustomData", e);
         }
     }
     
@@ -241,7 +241,7 @@ public class ActionDebugStick extends Item {
                 setMethod.invoke(stack, DataComponents.CUSTOM_DATA, customDataComponent);
             }
         } catch (Exception e) {
-            LOGGER.error("设置 CustomData 失败", e);
+            LOGGER.error("Failed to set CustomData", e);
         }
     }
     
@@ -277,7 +277,7 @@ public class ActionDebugStick extends Item {
         var action = PoseActionManager.getAction(selectedActionName);
         if (action == null) {
             sendActionBarMessage(user, Component.literal("动作不存在: " + selectedActionName));
-            LOGGER.warn("动作调试棒: 动作不存在: {}", selectedActionName);
+            LOGGER.warn("Action debug stick: Action does not exist: {}", selectedActionName);
             return InteractionResult.FAIL;
         }
         
@@ -375,9 +375,9 @@ public class ActionDebugStick extends Item {
         }
         
         if (lastException != null) {
-            LOGGER.error("所有 CustomData 类路径都失败，最后一个错误: {}", lastException.getMessage(), lastException);
+            LOGGER.error("All CustomData class paths failed, last error: {}", lastException.getMessage(), lastException);
         } else {
-            LOGGER.error("无法创建 CustomData 对象，所有类路径都未找到");
+            LOGGER.error("Failed to create CustomData object, all class paths not found");
         }
         return null;
     }

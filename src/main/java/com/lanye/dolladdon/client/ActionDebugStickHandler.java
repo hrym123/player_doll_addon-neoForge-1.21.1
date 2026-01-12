@@ -26,7 +26,7 @@ public class ActionDebugStickHandler {
      * 初始化
      */
     public static void initialize() {
-        LOGGER.debug("动作调试棒处理器已初始化");
+        LOGGER.debug("Action debug stick handler initialized");
     }
     
     /**

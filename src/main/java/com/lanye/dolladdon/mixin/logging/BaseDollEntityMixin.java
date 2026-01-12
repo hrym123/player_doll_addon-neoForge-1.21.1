@@ -33,12 +33,12 @@ public class BaseDollEntityMixin {
         BaseDollEntity entity = (BaseDollEntity) (Object) this;
         ItemStack heldStack = player != null ? player.getItemInHand(hand) : null;
         
-        LoggingUtil.info(
-            "[Mixin日志] BaseDollEntity.interact 被调用: " +
-            "玩家={}, 手={}, 物品={}, 服务端={}, 实体ID={}, 实体位置=({}, {}, {}), 潜行={}",
+        ModuleLogger.debug(
+            LogModuleConfig.MODULE_ENTITY_INTERACT,
+            "BaseDollEntity.interact called: player={}, hand={}, item={}, server={}, entityID={}, entityPosition=({}, {}, {}), sneaking={}",
             player != null ? player.getName().getString() : "null",
             hand,
-            heldStack != null && !heldStack.isEmpty() ? heldStack.getItem().toString() : "空",
+            heldStack != null && !heldStack.isEmpty() ? heldStack.getItem().toString() : "empty",
             !entity.level().isClientSide(),
             entity.getId(),
             String.format("%.2f", entity.getX()),
@@ -59,8 +59,9 @@ public class BaseDollEntityMixin {
     private void onInteractReturn(Player player, InteractionHand hand, CallbackInfoReturnable<InteractionResult> cir) {
         BaseDollEntity entity = (BaseDollEntity) (Object) this;
         
-        LoggingUtil.info(
-            "[Mixin日志] BaseDollEntity.interact 返回: {}, 玩家={}, 服务端={}, 实体ID={}",
+        ModuleLogger.debug(
+            LogModuleConfig.MODULE_ENTITY_INTERACT,
+            "BaseDollEntity.interact returned: {}, player={}, server={}, entityID={}",
             cir.getReturnValue(),
             player != null ? player.getName().getString() : "null",
             !entity.level().isClientSide(),

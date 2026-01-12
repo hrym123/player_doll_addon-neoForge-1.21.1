@@ -169,10 +169,10 @@ public class PoseDebugStick extends Item {
                     net.minecraft.core.component.DataComponentType.class, Object.class);
                 setMethod.invoke(stack, DataComponents.CUSTOM_DATA, customDataComponent);
             } else {
-                LOGGER.error("创建 CustomData 对象失败");
+                LOGGER.error("Failed to create CustomData object");
             }
         } catch (Exception e) {
-            LOGGER.error("设置 CustomData 失败", e);
+            LOGGER.error("Failed to set CustomData", e);
         }
     }
     
@@ -241,7 +241,7 @@ public class PoseDebugStick extends Item {
                 setMethod.invoke(stack, DataComponents.CUSTOM_DATA, customDataComponent);
             }
         } catch (Exception e) {
-            LOGGER.error("设置 CustomData 失败", e);
+            LOGGER.error("Failed to set CustomData", e);
         }
     }
     
@@ -278,7 +278,7 @@ public class PoseDebugStick extends Item {
         boolean success = dollEntity.setPoseByName(selectedPoseName);
         if (!success) {
             sendActionBarMessage(user, Component.literal("姿态不存在或设置失败: " + selectedPoseName));
-            LOGGER.warn("姿态调试棒: 姿态不存在或设置失败: {}", selectedPoseName);
+            LOGGER.warn("Pose debug stick: Pose does not exist or failed to set: {}", selectedPoseName);
             return InteractionResult.FAIL;
         }
         
@@ -378,9 +378,9 @@ public class PoseDebugStick extends Item {
         }
         
         if (lastException != null) {
-            LOGGER.error("所有 CustomData 类路径都失败，最后一个错误: {}", lastException.getMessage(), lastException);
+            LOGGER.error("All CustomData class paths failed, last error: {}", lastException.getMessage(), lastException);
         } else {
-            LOGGER.error("无法创建 CustomData 对象，所有类路径都未找到");
+            LOGGER.error("Failed to create CustomData object, all class paths not found");
         }
         return null;
     }
