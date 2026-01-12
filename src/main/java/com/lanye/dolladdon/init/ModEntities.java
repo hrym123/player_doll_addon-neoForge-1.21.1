@@ -109,9 +109,9 @@ public class ModEntities {
                 DeferredHolder<EntityType<?>, EntityType<CustomTextureDollEntity>> holder = 
                         registerCustomTextureDollEntity(registryName, textureId);
                 
-                // Debug logging handled by Mixin"[实体注册] ✓ 注册自定义纹理玩偶实体: {}", registryName);
+                // Debug logging handled by Mixin
             } catch (Exception e) {
-                // Error logging handled by Mixin"[实体注册] ✗ 注册失败: {}", pngInfo.getRegistryName(), e);
+                // Error logging handled by Mixin
             }
         }
     }

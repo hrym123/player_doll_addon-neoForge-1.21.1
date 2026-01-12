@@ -43,7 +43,7 @@ public class ResourceFileGenerator {
         Path gameDir = getGameDir();
         Path normalizedGameDir = gameDir.normalize().toAbsolutePath();
         
-        // Debug logging handled by Mixin"[资源生成] 开始解析项目根目录，游戏目录: {}", normalizedGameDir);
+        // Debug logging handled by Mixin
         
         // 从游戏目录开始，向上查找包含 build.gradle 的目录
         Path currentDir = normalizedGameDir;
@@ -54,12 +54,11 @@ public class ResourceFileGenerator {
             Path buildGradle = currentDir.resolve("build.gradle");
             Path settingsGradle = currentDir.resolve("settings.gradle");
             
-            // Debug logging handled by Mixin"[资源生成] 检查目录 (深度 {}): {}, build.gradle存在: {}, settings.gradle存在: {}", 
-                    depth, currentDir, Files.exists(buildGradle), Files.exists(settingsGradle));
+            // Debug logging handled by Mixin
             
             // 如果找到 build.gradle 或 settings.gradle，说明这是项目根目录
             if (Files.exists(buildGradle) || Files.exists(settingsGradle)) {
-                // Debug logging handled by Mixin"[资源生成] ✓ 找到项目根目录: {}", currentDir.toAbsolutePath());
+                // Debug logging handled by Mixin
                 return currentDir.toAbsolutePath();
             }
             
@@ -78,16 +77,16 @@ public class ResourceFileGenerator {
         String lastSegment = normalizedGameDir.getFileName().toString();
         if (lastSegment.equals("run")) {
             Path result = normalizedGameDir.getParent().toAbsolutePath();
-            // Debug logging handled by Mixin"[资源生成] 游戏目录是 run，返回父目录: {}", result);
+            // Debug logging handled by Mixin
             return result;
         } else {
             Path possibleRunDir = normalizedGameDir.resolve("run");
             if (Files.exists(possibleRunDir) && Files.isDirectory(possibleRunDir)) {
-                // Debug logging handled by Mixin"[资源生成] 游戏目录包含 run 子目录，返回游戏目录: {}", normalizedGameDir.toAbsolutePath());
+                // Debug logging handled by Mixin
                 return normalizedGameDir.toAbsolutePath();
             } else {
                 Path result = normalizedGameDir.getParent().toAbsolutePath();
-                // Debug logging handled by Mixin"[资源生成] 返回游戏目录的父目录: {}", result);
+                // Debug logging handled by Mixin
                 return result;
             }
         }
@@ -132,14 +131,14 @@ public class ResourceFileGenerator {
                 throw new IOException("路径解析错误: 目标目录不在项目根目录下");
             }
             
-            // Info logging handled by Mixin"[资源生成] ✓ 路径验证通过，生成物品模型到: {}", buildModelsDirAbs);
+            // Info logging handled by Mixin
             
             // 创建目录
             Files.createDirectories(buildModelsDirAbs);
-            // Debug logging handled by Mixin"[资源生成] 目录已创建: {}", buildModelsDirAbs);
+            // Debug logging handled by Mixin
             
             List<PngTextureScanner.PngTextureInfo> pngFiles = PngTextureScanner.scanPngFiles();
-            // Debug logging handled by Mixin"[资源生成] 扫描到 {} 个PNG文件", pngFiles.size());
+            // Debug logging handled by Mixin
             
             int successCount = 0;
             int failCount = 0;
@@ -149,7 +148,7 @@ public class ResourceFileGenerator {
                     String registryName = pngInfo.getRegistryName();
                     String itemId = "custom_doll_" + registryName;
                     
-                    // Debug logging handled by Mixin"[资源生成] 生成物品模型: 注册名={}, 物品ID={}", registryName, itemId);
+                    // Debug logging handled by Mixin
                     
                     // 生成物品模型 JSON
                     String modelJson = generateItemModelJson();
@@ -160,21 +159,21 @@ public class ResourceFileGenerator {
                     
                     // 验证文件是否生成成功
                     if (Files.exists(buildModelFile)) {
-                        // Debug logging handled by Mixin"[资源生成] ✓ 模型文件生成成功: {}", buildModelFile);
+                        // Debug logging handled by Mixin
                         successCount++;
                     } else {
-                        // Error logging handled by Mixin"[资源生成] ✗ 模型文件生成失败: {}", buildModelFile);
+                        // Error logging handled by Mixin
                         failCount++;
                     }
                 } catch (Exception e) {
-                    // Error logging handled by Mixin"[资源生成] ✗ 生成模型文件时出错: {}", pngInfo.getRegistryName(), e);
+                    // Error logging handled by Mixin
                     failCount++;
                 }
             }
             
-            // Info logging handled by Mixin"[资源生成] 物品模型生成完成: 成功 {} 个, 失败 {} 个", successCount, failCount);
+            // Info logging handled by Mixin
         } catch (IOException e) {
-            // Error logging handled by Mixin"[资源生成] ✗ 生成物品模型文件时出错", e);
+            // Error logging handled by Mixin
         }
     }
     
@@ -227,14 +226,14 @@ public class ResourceFileGenerator {
                 throw new IOException("路径解析错误: 目标目录不在项目根目录下");
             }
             
-            // Info logging handled by Mixin"[资源生成] ✓ 路径验证通过，生成语言文件到: {}", buildLangDirAbs);
+            // Info logging handled by Mixin
             
             // 创建目录
             Files.createDirectories(buildLangDirAbs);
-            // Debug logging handled by Mixin"[资源生成] 目录已创建: {}", buildLangDirAbs);
+            // Debug logging handled by Mixin
             
             List<PngTextureScanner.PngTextureInfo> pngFiles = PngTextureScanner.scanPngFiles();
-            // Debug logging handled by Mixin"[资源生成] 扫描到 {} 个PNG文件用于生成翻译", pngFiles.size());
+            // Debug logging handled by Mixin
             
             // 生成中文语言文件
             Map<String, String> zhCnEntries = new HashMap<>();
@@ -242,7 +241,7 @@ public class ResourceFileGenerator {
             
             // 添加固定的翻译
             String modId = PlayerDollAddon.MODID;
-            // Debug logging handled by Mixin"[资源生成] 添加固定翻译，MODID: {}", modId);
+            // Debug logging handled by Mixin
             
             zhCnEntries.put("item." + modId + ".steve_doll", "史蒂夫玩偶");
             zhCnEntries.put("entity." + modId + ".steve_doll", "史蒂夫玩偶");
@@ -268,11 +267,11 @@ public class ResourceFileGenerator {
                     String fileName = pngInfo.getFileName();
                     String itemId = "custom_doll_" + registryName;
                     
-                    // Debug logging handled by Mixin"[资源生成] 生成翻译: 注册名={}, 文件名={}, 物品ID={}", registryName, fileName, itemId);
+                    // Debug logging handled by Mixin
                     
                     // 从文件名提取显示名称（移除扩展名，保留原始名称的部分）
                     String displayName = extractDisplayName(fileName);
-                    // Debug logging handled by Mixin"[资源生成] 提取的显示名称: {}", displayName);
+                    // Debug logging handled by Mixin
                     
                     // 生成翻译键
                     String itemKey = "item." + modId + "." + itemId;
@@ -286,19 +285,18 @@ public class ResourceFileGenerator {
                     
                     translationCount++;
                 } catch (Exception e) {
-                    // Error logging handled by Mixin"[资源生成] ✗ 生成翻译条目时出错: {}", pngInfo.getRegistryName(), e);
+                    // Error logging handled by Mixin
                 }
             }
             
-            // Debug logging handled by Mixin"[资源生成] 生成了 {} 个翻译条目", translationCount);
-            // Debug logging handled by Mixin"[资源生成] 中文翻译总数: {}, 英文翻译总数: {}", zhCnEntries.size(), enUsEntries.size());
+            // Debug logging handled by Mixin
+            // Debug logging handled by Mixin
             
             // 生成语言文件 JSON
             String zhCnJson = generateLanguageJson(zhCnEntries);
             String enUsJson = generateLanguageJson(enUsEntries);
             
-            // Debug logging handled by Mixin"[资源生成] 语言文件JSON生成完成，中文大小: {} 字符, 英文大小: {} 字符", 
-                    zhCnJson.length(), enUsJson.length());
+            // Debug logging handled by Mixin
             
             // 写入构建目录
             Path buildZhCnFile = buildLangDir.resolve("zh_cn.json");
@@ -307,25 +305,24 @@ public class ResourceFileGenerator {
             Files.writeString(buildZhCnFile, zhCnJson, StandardCharsets.UTF_8);
             Files.writeString(buildEnUsFile, enUsJson, StandardCharsets.UTF_8);
             
-            // Debug logging handled by Mixin"[资源生成] 语言文件已写入: {}, {}", buildZhCnFile, buildEnUsFile);
+            // Debug logging handled by Mixin
             
             // 验证文件是否生成成功
             boolean zhCnSuccess = Files.exists(buildZhCnFile);
             boolean enUsSuccess = Files.exists(buildEnUsFile);
             
             if (zhCnSuccess && enUsSuccess) {
-                // Info logging handled by Mixin"[资源生成] ✓ 语言文件生成成功: 中文 {} 个条目, 英文 {} 个条目", 
-                        zhCnEntries.size(), enUsEntries.size());
+                // Info logging handled by Mixin
             } else {
                 if (!zhCnSuccess) {
-                    // Error logging handled by Mixin"[资源生成] ✗ 中文语言文件生成失败: {}", buildZhCnFile);
+                    // Error logging handled by Mixin
                 }
                 if (!enUsSuccess) {
-                    // Error logging handled by Mixin"[资源生成] ✗ 英文语言文件生成失败: {}", buildEnUsFile);
+                    // Error logging handled by Mixin
                 }
             }
         } catch (IOException e) {
-            // Error logging handled by Mixin"[资源生成] ✗ 生成语言文件时出错", e);
+            // Error logging handled by Mixin
         }
     }
     

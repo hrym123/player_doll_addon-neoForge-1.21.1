@@ -42,7 +42,7 @@ public class DefaultFileInitializer {
             copyIfNotExists(actionsDir.resolve("sit.json"), "assets/player_doll/defaults/actions/sit.json");
             copyIfNotExists(actionsDir.resolve("wave.json"), "assets/player_doll/defaults/actions/wave.json");
         } catch (Exception e) {
-            // Error logging handled by Mixin"初始化默认文件失败", e);
+            // Error logging handled by Mixin
         }
     }
     
@@ -62,7 +62,7 @@ public class DefaultFileInitializer {
             String readmeContent = generateReadmeContent();
             Files.writeString(readmePath, readmeContent, StandardCharsets.UTF_8);
         } catch (IOException e) {
-            // Error logging handled by Mixin"生成 README.md 失败", e);
+            // Error logging handled by Mixin
         }
     }
     
@@ -402,7 +402,7 @@ public class DefaultFileInitializer {
             // 从资源包读取文件
             InputStream resourceStream = DefaultFileInitializer.class.getClassLoader().getResourceAsStream(resourcePath);
             if (resourceStream == null) {
-                // Error logging handled by Mixin"找不到资源文件: {}", resourcePath);
+                // Error logging handled by Mixin
                 return;
             }
             
@@ -410,7 +410,7 @@ public class DefaultFileInitializer {
             Files.copy(resourceStream, targetPath);
             resourceStream.close();
         } catch (IOException e) {
-            // Error logging handled by Mixin"复制文件失败: {} -> {}", resourcePath, targetPath, e);
+            // Error logging handled by Mixin
         }
     }
 }

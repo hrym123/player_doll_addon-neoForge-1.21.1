@@ -88,7 +88,7 @@ public class PoseLoader {
                 return parsePose(json);
             }
         } catch (Exception e) {
-            // Error logging handled by Mixin"加载姿态文件失败: {}", location, e);
+            // Error logging handled by Mixin
             return null;
         }
     }
@@ -203,7 +203,7 @@ public class PoseLoader {
                 return parsePose(json);
             }
         } catch (Exception e) {
-            // Error logging handled by Mixin"从文件系统加载姿态文件失败: {}", poseFile, e);
+            // Error logging handled by Mixin
             return null;
         }
     }
@@ -238,11 +238,11 @@ public class PoseLoader {
                             }
                         }
                     } catch (Exception e) {
-                        // Error logging handled by Mixin"从文件系统加载姿态文件失败: {}", poseFile, e);
+                        // Error logging handled by Mixin
                     }
                 });
         } catch (Exception e) {
-            // Error logging handled by Mixin"扫描文件系统姿态目录失败: {}", posesDir, e);
+            // Error logging handled by Mixin
         }
         
         return poses;
@@ -274,11 +274,11 @@ public class PoseLoader {
                         }
                     }
                 } catch (Exception e) {
-                    // Error logging handled by Mixin"加载姿态文件失败: {}", location, e);
+                    // Error logging handled by Mixin
                 }
             }
         } catch (Exception e) {
-            // Error logging handled by Mixin"扫描姿态资源失败", e);
+            // Error logging handled by Mixin
         }
         
         // 然后从文件系统加载（文件系统中的姿态会覆盖资源包中的同名姿态）
@@ -296,7 +296,7 @@ public class PoseLoader {
             Map<String, DollPose> fileSystemPoses = loadPosesFromFileSystem(posesDir);
             poses.putAll(fileSystemPoses); // 文件系统的姿态会覆盖资源包中的同名姿态
         } catch (Exception e) {
-            // Error logging handled by Mixin"从文件系统加载姿态失败", e);
+            // Error logging handled by Mixin
         }
         
         return poses;

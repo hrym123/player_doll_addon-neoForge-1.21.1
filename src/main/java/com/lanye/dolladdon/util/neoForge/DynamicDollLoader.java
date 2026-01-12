@@ -91,7 +91,7 @@ public class DynamicDollLoader {
                 try {
                     Files.createDirectories(targetDir);
                 } catch (IOException e) {
-                    // Error logging handled by Mixin"无法创建玩偶材质目录: {}", targetDir, e);
+                    // Error logging handled by Mixin
                     return dollInfos;
                 }
             }
@@ -107,13 +107,13 @@ public class DynamicDollLoader {
                                  dollInfos.add(info);
                              }
                          } catch (Exception e) {
-                             // Error logging handled by Mixin"解析玩偶文件失败: {}", path, e);
+                             // Error logging handled by Mixin
                          }
                      });
             }
             
         } catch (Exception e) {
-            // Error logging handled by Mixin"扫描玩偶材质目录失败: {}", directoryPath, e);
+            // Error logging handled by Mixin
         }
         
         return dollInfos;
@@ -157,7 +157,7 @@ public class DynamicDollLoader {
         // 计算文件哈希值（用于 ResourceLocation，因为 ResourceLocation 不支持中文字符）
         String fileHash = calculateFileHash(filePath);
         if (fileHash == null) {
-            // Error logging handled by Mixin"无法计算文件哈希值，跳过: {}", fileName);
+            // Error logging handled by Mixin
             return null;
         }
         
@@ -170,7 +170,7 @@ public class DynamicDollLoader {
                 resourcePath
             );
         } catch (Exception e) {
-            // Error logging handled by Mixin"创建 ResourceLocation 失败: {} (资源路径: {})", fileName, resourcePath, e);
+            // Error logging handled by Mixin
             return null;
         }
         
@@ -219,10 +219,10 @@ public class DynamicDollLoader {
             }
             return sb.toString();
         } catch (NoSuchAlgorithmException e) {
-            // Error logging handled by Mixin"MD5 算法不可用", e);
+            // Error logging handled by Mixin
             return null;
         } catch (IOException e) {
-            // Error logging handled by Mixin"读取文件失败，无法计算哈希值: {}", filePath, e);
+            // Error logging handled by Mixin
             return null;
         }
     }

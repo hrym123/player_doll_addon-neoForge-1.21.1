@@ -59,7 +59,7 @@ public class ExternalTextureLoader {
     public static boolean loadTexture(ResourceLocation textureId, net.minecraft.client.renderer.texture.TextureManager textureManager) {
         Path filePath = LOADED_TEXTURES.get(textureId);
         if (filePath == null || !Files.exists(filePath)) {
-            // Warning logging handled by Mixin"找不到纹理文件: {} -> {}", textureId, filePath);
+            // Warning logging handled by Mixin
             return false;
         }
         
@@ -74,7 +74,7 @@ public class ExternalTextureLoader {
             
             return true;
         } catch (IOException e) {
-            // Error logging handled by Mixin"加载外部纹理失败: {} -> {}", textureId, filePath, e);
+            // Error logging handled by Mixin
             return false;
         }
     }

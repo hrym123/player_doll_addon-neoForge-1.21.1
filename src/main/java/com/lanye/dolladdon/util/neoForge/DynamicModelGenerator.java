@@ -75,7 +75,7 @@ public class DynamicModelGenerator {
             // 在生产环境中，模型文件应该已经在 JAR 包中
             return success;
         } catch (Exception e) {
-            // Error logging handled by Mixin"生成模型文件失败: {}", registryName, e);
+            // Error logging handled by Mixin
             return false;
         }
     }
@@ -107,7 +107,7 @@ public class DynamicModelGenerator {
             Files.writeString(modelFile, MODEL_CONTENT);
             return true;
         } catch (IOException e) {
-            // Warning logging handled by Mixin"生成模型文件失败: {} ({})", modelFile, locationName, e);
+            // Warning logging handled by Mixin
             return false;
         }
     }
@@ -162,7 +162,7 @@ public class DynamicModelGenerator {
                 }
             }
         } catch (IOException e) {
-            // Error logging handled by Mixin"清理动态模型文件目录失败: {} ({})", itemModelsDir, locationName, e);
+            // Error logging handled by Mixin
         }
     }
     

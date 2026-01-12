@@ -122,9 +122,9 @@ public class ModItems {
                 // 验证注册（在DeferredRegister中，验证通过检查映射表）
                 DeferredItem<CustomTextureDollItem> verifyHolder = CUSTOM_TEXTURE_DOLL_ITEMS.get(registryName);
                 if (verifyHolder == registeredHolder) {
-                    // Debug logging handled by Mixin"[物品注册] ✓ 注册自定义纹理玩偶物品: {}", registryName);
+                    // Debug logging handled by Mixin
                 } else {
-                    // Error logging handled by Mixin"[物品注册] ✗ 注册验证失败: {} (注册的物品与验证的物品不匹配)", registryName);
+                    // Error logging handled by Mixin
                 }
             } catch (Exception e) {
                 // Error logging handled by Mixin

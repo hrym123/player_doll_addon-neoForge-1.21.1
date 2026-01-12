@@ -61,14 +61,14 @@ public class Doll3DSkinUtil {
      */
     private static boolean initialize() {
         if (initialized) {
-            // Debug logging handled by Mixin"[{}] 已初始化，可用状态: {}", LOG_MODULE, available);
+            // Debug logging handled by Mixin
             return available;
         }
         
         initialized = true;
         
         if (!SkinLayersDetector.IS_3D_SKIN_LAYERS_LOADED) {
-            // Warning logging handled by Mixin"[{}] mod未加载，无法初始化", LOG_MODULE);
+            // Warning logging handled by Mixin
             return false;
         }
         
@@ -76,102 +76,101 @@ public class Doll3DSkinUtil {
         
         try {
             // 获取SkinLayersAPI类
-            // Debug logging handled by Mixin"[{}] 正在加载SkinLayersAPI类...", LOG_MODULE);
+            // Debug logging handled by Mixin
             Class<?> apiClass = Class.forName("dev.tr7zw.skinlayers.api.SkinLayersAPI");
-            // Debug logging handled by Mixin"[{}] ✓ SkinLayersAPI类加载成功", LOG_MODULE);
+            // Debug logging handled by Mixin
             
             // 获取getMeshHelper方法
-            // Debug logging handled by Mixin"[{}] 正在获取getMeshHelper方法...", LOG_MODULE);
+            // Debug logging handled by Mixin
             Method getMeshHelperMethod = apiClass.getMethod("getMeshHelper");
             getMeshHelperMethod.setAccessible(true); // 绕过访问控制
             meshHelper = getMeshHelperMethod.invoke(null);
             
             if (meshHelper == null) {
-                // Error logging handled by Mixin"[{}] ✗ 无法获取MeshHelper实例（返回null）", LOG_MODULE);
+                // Error logging handled by Mixin
                 return false;
             }
-            // Debug logging handled by Mixin"[{}] ✓ MeshHelper实例获取成功: {}", LOG_MODULE, meshHelper.getClass().getName());
+            // Debug logging handled by Mixin
             
             // 获取MeshHelper类
             meshHelperClass = meshHelper.getClass();
             
             // 获取create3DMesh方法
             // 尝试8参数版本（兼容旧版本）
-            // Debug logging handled by Mixin"[{}] 正在获取create3DMesh方法...", LOG_MODULE);
+            // Debug logging handled by Mixin
             try {
                 create3DMeshMethod = meshHelperClass.getMethod("create3DMesh",
                         NativeImage.class, int.class, int.class, int.class,
                         int.class, int.class, boolean.class, float.class);
                 // 绕过访问控制，允许调用私有内部类的方法
                 create3DMeshMethod.setAccessible(true);
-                // Debug logging handled by Mixin"[{}] ✓ 获取到8参数版本的create3DMesh方法", LOG_MODULE);
+                // Debug logging handled by Mixin
             } catch (NoSuchMethodException e) {
                 // 尝试9参数版本（新版本）
-                // Debug logging handled by Mixin"[{}] 8参数版本不存在，尝试9参数版本...", LOG_MODULE);
+                // Debug logging handled by Mixin
                 create3DMeshMethod = meshHelperClass.getMethod("create3DMesh",
                         NativeImage.class, int.class, int.class, int.class,
                         int.class, int.class, boolean.class, float.class, boolean.class);
                 // 绕过访问控制，允许调用私有内部类的方法
                 create3DMeshMethod.setAccessible(true);
-                // Debug logging handled by Mixin"[{}] ✓ 获取到9参数版本的create3DMesh方法", LOG_MODULE);
+                // Debug logging handled by Mixin
             }
             
             // 获取Mesh接口类
-            // Debug logging handled by Mixin"[{}] 正在加载Mesh接口类...", LOG_MODULE);
+            // Debug logging handled by Mixin
             meshClass = Class.forName("dev.tr7zw.skinlayers.api.Mesh");
-            // Debug logging handled by Mixin"[{}] ✓ Mesh接口类加载成功", LOG_MODULE);
+            // Debug logging handled by Mixin
 
             // 推迟API可用性测试到第一次实际使用时进行
             // 避免在mod初始化阶段测试，此时3D皮肤层mod的配置可能还未完全初始化
             // 这解决了 ModBase.config 为 null 的问题
-            // Debug logging handled by Mixin"[{}] 跳过初始化阶段的API测试，将在首次使用时进行完整测试", LOG_MODULE);
-            // Info logging handled by Mixin"[{}] ✓ 基础API反射初始化成功，将启用3D皮肤层功能", LOG_MODULE);
+            // Debug logging handled by Mixin
+            // Info logging handled by Mixin
             available = true;
             
             // 获取OffsetProvider类（注意：这是一个接口，不是具体的类）
-            // Debug logging handled by Mixin"[{}] 正在加载OffsetProvider接口...", LOG_MODULE);
+            // Debug logging handled by Mixin
             try {
                 offsetProviderClass = Class.forName("dev.tr7zw.skinlayers.api.OffsetProvider");
-                // Debug logging handled by Mixin"[{}] ✓ OffsetProvider接口加载成功", LOG_MODULE);
+                // Debug logging handled by Mixin
             } catch (ClassNotFoundException e) {
-                // Warning logging handled by Mixin"[{}] ⚠ OffsetProvider接口不存在，某些高级功能将被禁用", LOG_MODULE);
-                // Warning logging handled by Mixin"[{}]   这不会影响基本的3D网格创建，但可能影响位置偏移功能", LOG_MODULE);
+                // Warning logging handled by Mixin
+                // Warning logging handled by Mixin
                 offsetProviderClass = null; // 标记为不可用
             }
 
             available = true;
-            // Info logging handled by Mixin"[{}] ✓ 成功初始化3D皮肤层API反射（OffsetProvider: {}）",
-                LOG_MODULE, offsetProviderClass != null ? "可用" : "不可用");
+            // Info logging handled by Mixin
 
             // 检查是否可以为3D Skin Layers提供外部文件支持
             try {
                 boolean externalSupportEnabled = checkExternalFileSupport();
                 if (externalSupportEnabled) {
-                    // Info logging handled by Mixin"[{}] ✓ 外部PNG文件支持已启用，3D皮肤层可以访问外部纹理", LOG_MODULE);
+                    // Info logging handled by Mixin
                 } else {
-                    // Warning logging handled by Mixin"[{}] ⚠ 外部PNG文件支持未完全启用，某些功能可能受限", LOG_MODULE);
+                    // Warning logging handled by Mixin
                 }
             } catch (Exception e) {
-                // Warning logging handled by Mixin"[{}] ⚠ 检查外部文件支持时出错: {}", LOG_MODULE, e.getMessage());
+                // Warning logging handled by Mixin
             }
 
             return true;
             
         } catch (ClassNotFoundException e) {
-            // Error logging handled by Mixin"[{}] ✗ 类未找到: {} - 请检查3D皮肤层mod版本是否正确", LOG_MODULE, e.getMessage());
-            // Error logging handled by Mixin"[{}]   期望的API包结构: dev.tr7zw.skinlayers.api.*", LOG_MODULE);
-            // Error logging handled by Mixin"[{}]   可能的原因: 1) mod版本不匹配 2) API已更改 3) mod未正确加载", LOG_MODULE);
-            // Error logging handled by Mixin"[{}]   建议的兼容版本: skinlayers3d-fabric-1.6.x (for MC 1.20.1)", LOG_MODULE);
-            // Error logging handled by Mixin"[{}]   当前支持的方法签名: 8参数和9参数版本", LOG_MODULE);
-            // Error logging handled by Mixin"[{}]   如果问题持续，请检查mod版本或报告给开发者", LOG_MODULE);
+            // Error logging handled by Mixin
+            // Error logging handled by Mixin
+            // Error logging handled by Mixin
+            // Error logging handled by Mixin
+            // Error logging handled by Mixin
+            // Error logging handled by Mixin
             available = false;
             return false;
         } catch (NoSuchMethodException e) {
-            // Error logging handled by Mixin"[{}] ✗ 方法未找到: {}", LOG_MODULE, e.getMessage());
+            // Error logging handled by Mixin
             available = false;
             return false;
         } catch (Exception e) {
-            // Error logging handled by Mixin"[{}] ✗ 初始化3D皮肤层API反射失败", LOG_MODULE, e);
+            // Error logging handled by Mixin
             available = false;
             return false;
         }
@@ -184,7 +183,7 @@ public class Doll3DSkinUtil {
         if (!SkinLayersDetector.IS_3D_SKIN_LAYERS_LOADED) {
             // 只在第一次调用时记录日志，避免每帧都输出导致卡顿
             if (!hasLoggedIsAvailable) {
-                // Debug logging handled by Mixin"[{}] 3D皮肤层mod未加载", LOG_MODULE);
+                // Debug logging handled by Mixin
                 hasLoggedIsAvailable = true;
             }
             return false;
@@ -193,7 +192,7 @@ public class Doll3DSkinUtil {
         if (!initialize()) {
             // 只在第一次调用时记录日志
             if (!hasLoggedIsAvailable) {
-                // Debug logging handled by Mixin"[{}] 3D皮肤层API初始化失败", LOG_MODULE);
+                // Debug logging handled by Mixin
                 hasLoggedIsAvailable = true;
             }
             return false;
@@ -201,8 +200,8 @@ public class Doll3DSkinUtil {
 
         // 只在第一次调用时记录日志
         if (!hasLoggedIsAvailable) {
-            // Debug logging handled by Mixin"[{}] 已初始化，可用状态: {}", LOG_MODULE, available);
-            // Debug logging handled by Mixin"[{}] 3D皮肤层API状态: {}", LOG_MODULE, available ? "可用" : "不可用");
+            // Debug logging handled by Mixin
+            // Debug logging handled by Mixin
             hasLoggedIsAvailable = true;
         }
         return available;
@@ -224,13 +223,12 @@ public class Doll3DSkinUtil {
     private static Object create3DMesh(NativeImage skin, int width, int height, int depth,
                                        int textureU, int textureV, boolean topPivot, float rotationOffset) {
         if (!isAvailable()) {
-            // Debug logging handled by Mixin"[{}] API不可用，无法创建3D网格", LOG_MODULE);
+            // Debug logging handled by Mixin
             return null;
         }
 
         try {
-            // Debug logging handled by Mixin"[{}] 正在创建3D网格: {}x{}x{}, UV({},{}), topPivot={}, rotationOffset={}",
-                    LOG_MODULE, width, height, depth, textureU, textureV, topPivot, rotationOffset);
+            // Debug logging handled by Mixin
 
             Object mesh;
             if (create3DMeshMethod.getParameterCount() == 8) {
@@ -244,18 +242,18 @@ public class Doll3DSkinUtil {
             }
 
             if (mesh == null) {
-                // Warning logging handled by Mixin"[{}] create3DMesh返回null", LOG_MODULE);
+                // Warning logging handled by Mixin
             } else {
-                // Debug logging handled by Mixin"[{}] ✓ 3D网格创建成功: {}", LOG_MODULE, mesh.getClass().getName());
+                // Debug logging handled by Mixin
             }
             return mesh;
         } catch (Exception e) {
-            // Error logging handled by Mixin"[{}] ✗ 创建3D网格失败", LOG_MODULE, e);
+            // Error logging handled by Mixin
 
             // 检查是否是配置相关的问题，如果是则标记API不可用
             String errorMessage = e.getMessage();
             if (errorMessage != null && errorMessage.contains("ModBase.config") && errorMessage.contains("null")) {
-                // Error logging handled by Mixin"[{}] 检测到3D皮肤层配置问题，自动禁用API可用性", LOG_MODULE);
+                // Error logging handled by Mixin
                 available = false; // 标记API不可用，避免后续尝试
             }
 
@@ -273,29 +271,28 @@ public class Doll3DSkinUtil {
         // 首先尝试从外部PNG文件加载（玩偶系统使用的纹理）
         Path externalFilePath = ExternalTextureLoader.getTexturePath(skinLocation);
         if (externalFilePath != null && Files.exists(externalFilePath)) {
-            // Debug logging handled by Mixin"[{}] ✓ 找到外部PNG文件，正在从文件系统加载: {}", LOG_MODULE, externalFilePath);
+            // Debug logging handled by Mixin
             try {
                 NativeImage skin = NativeImage.read(Files.newInputStream(externalFilePath));
 
                 int width = skin.getWidth();
                 int height = skin.getHeight();
-                // Debug logging handled by Mixin"[{}] 外部皮肤尺寸: {}x{}", LOG_MODULE, width, height);
+                // Debug logging handled by Mixin
 
                 // 检查是否为64x64皮肤（3D皮肤层只支持64x64）
                 if (width == 64 && height == 64) {
-                    // Debug logging handled by Mixin"[{}] ✓ 外部皮肤尺寸符合要求（64x64）", LOG_MODULE);
+                    // Debug logging handled by Mixin
                     return skin;
                 } else {
-                    // Warning logging handled by Mixin"[{}] ✗ 外部皮肤 {} 不是64x64（实际: {}x{}），无法使用3D渲染",
-                            LOG_MODULE, skinLocation, width, height);
+                    // Warning logging handled by Mixin
                     skin.close();
                     return null;
                 }
             } catch (Exception e) {
-                // Error logging handled by Mixin"[{}] ✗ 从外部文件加载皮肤纹理失败: {} -> {}", LOG_MODULE, skinLocation, externalFilePath, e);
+                // Error logging handled by Mixin
             }
         } else {
-            // Debug logging handled by Mixin"[{}] 未找到外部PNG文件，将尝试从资源包加载", LOG_MODULE);
+            // Debug logging handled by Mixin
         }
 
         // 如果外部文件加载失败，尝试从资源包加载（兼容标准Minecraft皮肤）
@@ -304,28 +301,27 @@ public class Doll3DSkinUtil {
                     .getResourceManager().getResource(skinLocation);
 
             if (resource.isPresent()) {
-                // Debug logging handled by Mixin"[{}] ✓ 资源包中找到资源，正在读取...", LOG_MODULE);
+                // Debug logging handled by Mixin
                 NativeImage skin = NativeImage.read(resource.get().open());
 
                 int width = skin.getWidth();
                 int height = skin.getHeight();
-                // Debug logging handled by Mixin"[{}] 资源包皮肤尺寸: {}x{}", LOG_MODULE, width, height);
+                // Debug logging handled by Mixin
 
                 // 检查是否为64x64皮肤（3D皮肤层只支持64x64）
                 if (width == 64 && height == 64) {
-                    // Debug logging handled by Mixin"[{}] ✓ 资源包皮肤尺寸符合要求（64x64）", LOG_MODULE);
+                    // Debug logging handled by Mixin
                     return skin;
                 } else {
-                    // Warning logging handled by Mixin"[{}] ✗ 资源包皮肤 {} 不是64x64（实际: {}x{}），无法使用3D渲染",
-                            LOG_MODULE, skinLocation, width, height);
+                    // Warning logging handled by Mixin
                     skin.close();
                     return null;
                 }
             } else {
-                // Warning logging handled by Mixin"[{}] ✗ 资源包中也未找到资源: {}", LOG_MODULE, skinLocation);
+                // Warning logging handled by Mixin
             }
         } catch (Exception e) {
-            // Error logging handled by Mixin"[{}] ✗ 从资源包加载皮肤纹理失败: {}", LOG_MODULE, skinLocation, e);
+            // Error logging handled by Mixin
         }
 
         return null;
@@ -342,16 +338,16 @@ public class Doll3DSkinUtil {
             // 检查是否有已加载的外部纹理
             Map<ResourceLocation, Path> loadedTextures = ExternalTextureLoader.getAllLoadedTextures();
             if (loadedTextures.isEmpty()) {
-                // Debug logging handled by Mixin"[{}] 未检测到已加载的外部纹理文件", LOG_MODULE);
+                // Debug logging handled by Mixin
                 return false;
             }
 
-            // Debug logging handled by Mixin"[{}] ✓ 检测到 {} 个已加载的外部纹理文件", LOG_MODULE, loadedTextures.size());
+            // Debug logging handled by Mixin
 
             // 检查纹理管理器是否可用
             var textureManager = Minecraft.getInstance().getTextureManager();
             if (textureManager == null) {
-                // Warning logging handled by Mixin"[{}] 纹理管理器不可用", LOG_MODULE);
+                // Warning logging handled by Mixin
                 return false;
             }
 
@@ -361,17 +357,17 @@ public class Doll3DSkinUtil {
                 Path filePath = entry.getValue();
 
                 if (Files.exists(filePath)) {
-                    // Debug logging handled by Mixin"[{}] ✓ 验证外部纹理可用: {} -> {}", LOG_MODULE, textureId, filePath.getFileName());
+                    // Debug logging handled by Mixin
                 } else {
-                    // Warning logging handled by Mixin"[{}] ✗ 外部纹理文件不存在: {} -> {}", LOG_MODULE, textureId, filePath);
+                    // Warning logging handled by Mixin
                 }
             }
 
-            // Debug logging handled by Mixin"[{}] ✓ 外部文件支持检查完成", LOG_MODULE);
+            // Debug logging handled by Mixin
             return true;
 
         } catch (Exception e) {
-            // Error logging handled by Mixin"[{}] ✗ 检查外部文件支持时出错", LOG_MODULE, e);
+            // Error logging handled by Mixin
             return false;
         }
     }
@@ -402,23 +398,23 @@ public class Doll3DSkinUtil {
                     // 确保纹理已注册到纹理管理器
                     boolean registered = ExternalTextureLoader.loadTexture(textureId, textureManager);
                     if (registered) {
-                        // Debug logging handled by Mixin"[{}] ✓ 外部纹理已预注册到3D皮肤层: {}", LOG_MODULE, textureId);
+                        // Debug logging handled by Mixin
                         successCount++;
                     } else {
-                        // Warning logging handled by Mixin"[{}] ✗ 外部纹理预注册失败: {}", LOG_MODULE, textureId);
+                        // Warning logging handled by Mixin
                     }
                 } else {
-                    // Warning logging handled by Mixin"[{}] ✗ 外部纹理文件不存在，跳过预注册: {} -> {}", LOG_MODULE, textureId, filePath);
+                    // Warning logging handled by Mixin
                 }
             }
 
-            // Info logging handled by Mixin"[{}] ✓ 外部纹理预加载完成，已为3D皮肤层注册 {} 个纹理", LOG_MODULE, successCount);
+            // Info logging handled by Mixin
             
             // 标记为已预加载
             texturesPreloaded = true;
 
         } catch (Exception e) {
-            // Error logging handled by Mixin"[{}] ✗ 预加载外部纹理时出错", LOG_MODULE, e);
+            // Error logging handled by Mixin
         }
     }
 
@@ -432,14 +428,14 @@ public class Doll3DSkinUtil {
     public static Doll3DSkinData setup3dLayers(ResourceLocation skinLocation, boolean thinArms) {
         // 只在第一次调用时记录日志，避免每帧都输出导致卡顿
         if (!hasLoggedSetup3dLayers) {
-            // Info logging handled by Mixin"[{}] 开始设置3D皮肤层: {}, thinArms={}", LOG_MODULE, skinLocation, thinArms);
+            // Info logging handled by Mixin
             hasLoggedSetup3dLayers = true;
         }
         
         if (!isAvailable()) {
             // 只在第一次调用时记录日志
             if (!hasLoggedSetup3dLayers) {
-                // Warning logging handled by Mixin"[{}] ✗ API不可用，无法设置3D皮肤层", LOG_MODULE);
+                // Warning logging handled by Mixin
             }
             return null;
         }
@@ -455,7 +451,7 @@ public class Doll3DSkinUtil {
             cached.isThinArms() == thinArms) {
             // 只在第一次调用时记录日志
             if (!hasLoggedSetup3dLayers) {
-                // Debug logging handled by Mixin"[{}] ✓ 使用缓存的3D皮肤数据", LOG_MODULE);
+                // Debug logging handled by Mixin
             }
             return cached;
         }
@@ -464,33 +460,33 @@ public class Doll3DSkinUtil {
         // Debug logging handled by Mixin
         NativeImage skin = loadSkinTexture(skinLocation);
         if (skin == null) {
-            // Warning logging handled by Mixin"[{}] ✗ 无法加载皮肤纹理，设置失败", LOG_MODULE);
+            // Warning logging handled by Mixin
             return null;
         }
         
         try {
-            // Debug logging handled by Mixin"[{}] 开始创建3D网格...", LOG_MODULE);
+            // Debug logging handled by Mixin
             Doll3DSkinData data = new Doll3DSkinData();
             
             // 创建各个部位的3D网格（参考SkinUtil.setup3dLayers的实现）
-            // Debug logging handled by Mixin"[{}] 创建左腿网格...", LOG_MODULE);
+            // Debug logging handled by Mixin
             Object leftLegMesh = create3DMesh(skin, 4, 12, 4, 0, 48, true, 0f);
             data.setLeftLegMesh(leftLegMesh);
             
-            // Debug logging handled by Mixin"[{}] 创建右腿网格...", LOG_MODULE);
+            // Debug logging handled by Mixin
             Object rightLegMesh = create3DMesh(skin, 4, 12, 4, 0, 32, true, 0f);
             data.setRightLegMesh(rightLegMesh);
             
             // 手臂（根据thinArms选择不同的宽度）
             if (thinArms) {
-                // Debug logging handled by Mixin"[{}] 创建细手臂网格...", LOG_MODULE);
+                // Debug logging handled by Mixin
                 // 细手臂：宽度3
                 Object leftArmMesh = create3DMesh(skin, 3, 12, 4, 48, 48, true, -2f);
                 Object rightArmMesh = create3DMesh(skin, 3, 12, 4, 40, 32, true, -2f);
                 data.setLeftArmMesh(leftArmMesh);
                 data.setRightArmMesh(rightArmMesh);
             } else {
-                // Debug logging handled by Mixin"[{}] 创建粗手臂网格...", LOG_MODULE);
+                // Debug logging handled by Mixin
                 // 粗手臂：宽度4
                 Object leftArmMesh = create3DMesh(skin, 4, 12, 4, 48, 48, true, -2f);
                 Object rightArmMesh = create3DMesh(skin, 4, 12, 4, 40, 32, true, -2f);
@@ -498,11 +494,11 @@ public class Doll3DSkinUtil {
                 data.setRightArmMesh(rightArmMesh);
             }
             
-            // Debug logging handled by Mixin"[{}] 创建身体网格...", LOG_MODULE);
+            // Debug logging handled by Mixin
             Object torsoMesh = create3DMesh(skin, 8, 12, 4, 16, 32, true, 0);
             data.setTorsoMesh(torsoMesh);
             
-            // Debug logging handled by Mixin"[{}] 创建头部网格...", LOG_MODULE);
+            // Debug logging handled by Mixin
             Object headMesh = create3DMesh(skin, 8, 8, 8, 32, 0, false, 0.6f);
             data.setHeadMesh(headMesh);
             
@@ -511,20 +507,19 @@ public class Doll3DSkinUtil {
             
             // 检查数据有效性
             if (data.hasValidData()) {
-                // Info logging handled by Mixin"[{}] ✓ 3D皮肤层设置成功，有效网格数: {}", 
-                        LOG_MODULE, countValidMeshes(data));
+                // Info logging handled by Mixin
             } else {
-                // Warning logging handled by Mixin"[{}] ✗ 3D皮肤层设置完成但无有效网格", LOG_MODULE);
+                // Warning logging handled by Mixin
             }
             
             // 缓存结果
             CACHE.put(cacheKey, data);
-            // Debug logging handled by Mixin"[{}] 数据已缓存", LOG_MODULE);
+            // Debug logging handled by Mixin
             
             return data;
             
         } catch (Exception e) {
-            // Error logging handled by Mixin"[{}] ✗ 设置3D皮肤层失败: {}", LOG_MODULE, skinLocation, e);
+            // Error logging handled by Mixin
             return null;
         } finally {
             // 关闭NativeImage（如果不再需要）
@@ -555,7 +550,7 @@ public class Doll3DSkinUtil {
      */
     public static Object getOffsetProvider(String name) {
         if (!isAvailable() || offsetProviderClass == null) {
-            // Debug logging handled by Mixin"[{}] OffsetProvider不可用，跳过: {}", LOG_MODULE, name);
+            // Debug logging handled by Mixin
             return null;
         }
 
@@ -563,10 +558,10 @@ public class Doll3DSkinUtil {
             java.lang.reflect.Field field = offsetProviderClass.getField(name);
             field.setAccessible(true); // 绕过访问控制
             Object result = field.get(null);
-            // Debug logging handled by Mixin"[{}] 获取OffsetProvider成功: {} = {}", LOG_MODULE, name, result);
+            // Debug logging handled by Mixin
             return result;
         } catch (Exception e) {
-            // Warning logging handled by Mixin"[{}] 获取OffsetProvider失败: {} - {}", LOG_MODULE, name, e.getMessage());
+            // Warning logging handled by Mixin
             return null;
         }
     }

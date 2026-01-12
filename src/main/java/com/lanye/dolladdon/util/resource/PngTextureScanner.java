@@ -49,12 +49,12 @@ public class PngTextureScanner {
             // 如果文件夹不存在，创建它
             if (!Files.exists(pngDir)) {
                 Files.createDirectories(pngDir);
-                // Warning logging handled by Mixin"[PNG扫描] PNG 文件夹不存在，已创建: {}", pngDir);
+                // Warning logging handled by Mixin
                 return pngFiles; // 返回空列表
             }
             
             if (!Files.isDirectory(pngDir)) {
-                // Error logging handled by Mixin"[PNG扫描] 路径不是文件夹: {}", pngDir);
+                // Error logging handled by Mixin
                 return pngFiles;
             }
             
@@ -76,17 +76,17 @@ public class PngTextureScanner {
                                  if (!registryName.isEmpty()) {
                                      pngFiles.add(new PngTextureInfo(registryName, path, fileName));
                                  } else {
-                                     // Warning logging handled by Mixin"[PNG扫描] ✗ 跳过无效的 PNG 文件名: {} (无法生成有效的注册名称)", fileName);
+                                     // Warning logging handled by Mixin
                                  }
                              } catch (Exception e) {
-                                 // Error logging handled by Mixin"[PNG扫描] ✗ 处理 PNG 文件时出错: {}", path, e);
+                                 // Error logging handled by Mixin
                              }
                          }
                      });
             }
             
             if (pngFiles.isEmpty()) {
-                // Warning logging handled by Mixin"[PNG扫描] 警告: 未找到任何 PNG 文件！请确保文件位于: {}", pngDir);
+                // Warning logging handled by Mixin
             }
         } catch (IOException e) {
             // Error logging handled by Mixin

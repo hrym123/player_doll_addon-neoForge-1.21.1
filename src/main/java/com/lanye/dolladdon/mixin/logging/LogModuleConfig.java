@@ -74,13 +74,13 @@ public class LogModuleConfig {
     private static final LogLevel LEVEL_ENTITY_ACTION = LogLevel.WARN;  // 改为 OFF 可一键关闭所有动作相关日志
     private static final LogLevel LEVEL_ENTITY_NBT = LogLevel.WARN;
     private static final LogLevel LEVEL_RENDER = LogLevel.WARN;
-    private static final LogLevel LEVEL_3D_SKIN_LAYERS = LogLevel.DEBUG;  // 当前正在调试的模块
+    private static final LogLevel LEVEL_3D_SKIN_LAYERS = LogLevel.WARN;
     private static final LogLevel LEVEL_RESOURCE = LogLevel.WARN;
     private static final LogLevel LEVEL_POSE_LOADER = LogLevel.WARN;
     private static final LogLevel LEVEL_ACTION_LOADER = LogLevel.WARN;  // 改为 OFF 可一键关闭所有动作加载日志
     private static final LogLevel LEVEL_RESOURCE_GENERATOR = LogLevel.WARN;
     private static final LogLevel LEVEL_TEXTURE_SCANNER = LogLevel.WARN;
-    private static final LogLevel LEVEL_DEBUG_STICK_ACTION = LogLevel.WARN;  // 改为 OFF 可一键关闭动作调试棒日志
+    private static final LogLevel LEVEL_DEBUG_STICK_ACTION = LogLevel.DEBUG;  // 当前正在调试的模块
     private static final LogLevel LEVEL_DEBUG_STICK_POSE = LogLevel.WARN;
     
     // ==================== 日志模板配置 ====================
