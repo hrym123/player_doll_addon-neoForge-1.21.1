@@ -15,7 +15,7 @@ import java.util.Set;
  * 为动态物品生成模型文件
  */
 public class DynamicModelGenerator {
-    private static final Logger LOGGER = PlayerDollAddon.LOGGER;
+    // Logger removed - logging handled by Mixin
     
     /**
      * 动态模型文件的前缀标识符（用于区分动态生成的模型文件）
@@ -75,7 +75,7 @@ public class DynamicModelGenerator {
             // 在生产环境中，模型文件应该已经在 JAR 包中
             return success;
         } catch (Exception e) {
-            LOGGER.error("生成模型文件失败: {}", registryName, e);
+            // Error logging handled by Mixin"生成模型文件失败: {}", registryName, e);
             return false;
         }
     }
@@ -107,7 +107,7 @@ public class DynamicModelGenerator {
             Files.writeString(modelFile, MODEL_CONTENT);
             return true;
         } catch (IOException e) {
-            LOGGER.warn("生成模型文件失败: {} ({})", modelFile, locationName, e);
+            // Warning logging handled by Mixin"生成模型文件失败: {} ({})", modelFile, locationName, e);
             return false;
         }
     }
@@ -162,7 +162,7 @@ public class DynamicModelGenerator {
                 }
             }
         } catch (IOException e) {
-            LOGGER.error("清理动态模型文件目录失败: {} ({})", itemModelsDir, locationName, e);
+            // Error logging handled by Mixin"清理动态模型文件目录失败: {} ({})", itemModelsDir, locationName, e);
         }
     }
     

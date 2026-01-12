@@ -29,7 +29,7 @@ import com.mojang.logging.LogUtils;
  */
 public class ActionDebugStick extends Item {
     private static final String NBT_KEY_ACTION = "SelectedAction";
-    private static final Logger LOGGER = LogUtils.getLogger();
+    // Logger removed - logging handled by Mixin
     
     public ActionDebugStick() {
         super(new Item.Properties());
@@ -169,10 +169,10 @@ public class ActionDebugStick extends Item {
                     net.minecraft.core.component.DataComponentType.class, Object.class);
                 setMethod.invoke(stack, DataComponents.CUSTOM_DATA, customDataComponent);
             } else {
-                LOGGER.error("Failed to create CustomData object");
+                // Error logging handled by Mixin
             }
         } catch (Exception e) {
-            LOGGER.error("Failed to set CustomData", e);
+            // Error logging handled by Mixin
         }
     }
     
@@ -241,7 +241,7 @@ public class ActionDebugStick extends Item {
                 setMethod.invoke(stack, DataComponents.CUSTOM_DATA, customDataComponent);
             }
         } catch (Exception e) {
-            LOGGER.error("Failed to set CustomData", e);
+            // Error logging handled by Mixin
         }
     }
     
@@ -277,7 +277,7 @@ public class ActionDebugStick extends Item {
         var action = PoseActionManager.getAction(selectedActionName);
         if (action == null) {
             sendActionBarMessage(user, Component.literal("动作不存在: " + selectedActionName));
-            LOGGER.warn("Action debug stick: Action does not exist: {}", selectedActionName);
+            // Warning logging handled by Mixin
             return InteractionResult.FAIL;
         }
         
@@ -375,9 +375,9 @@ public class ActionDebugStick extends Item {
         }
         
         if (lastException != null) {
-            LOGGER.error("All CustomData class paths failed, last error: {}", lastException.getMessage(), lastException);
+            // Error logging handled by Mixin
         } else {
-            LOGGER.error("Failed to create CustomData object, all class paths not found");
+            // Error logging handled by Mixin
         }
         return null;
     }

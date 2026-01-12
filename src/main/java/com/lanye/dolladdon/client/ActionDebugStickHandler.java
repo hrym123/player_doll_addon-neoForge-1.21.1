@@ -17,7 +17,7 @@ import java.util.Map;
  * 处理滚轮切换动作
  */
 public class ActionDebugStickHandler {
-    private static final Logger LOGGER = LogUtils.getLogger();
+    // Logger removed - logging handled by Mixin
     
     // 所有可用动作的列表（按加载顺序）
     private static final List<String> actionList = new ArrayList<>();
@@ -26,7 +26,7 @@ public class ActionDebugStickHandler {
      * 初始化
      */
     public static void initialize() {
-        LOGGER.debug("Action debug stick handler initialized");
+        // Debug logging handled by Mixin
     }
     
     /**

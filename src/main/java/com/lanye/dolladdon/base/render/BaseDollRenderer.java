@@ -25,7 +25,7 @@ import org.slf4j.LoggerFactory;
  * 提供所有玩偶实体渲染器的共同功能
  */
 public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityRenderer<T> {
-    private static final Logger LOGGER = LoggerFactory.getLogger(BaseDollRenderer.class);
+    // Logger removed - logging handled by Mixin
     protected final PlayerModel<Player> playerModel;
     
     // 3D皮肤层相关标志位，避免频繁输出日志
@@ -212,7 +212,7 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
         
         // 只在第一次渲染时记录检查结果，避免每帧都输出日志导致卡顿
         if (!hasLoggedRenderCheck) {
-            LOGGER.debug("渲染检查: modLoaded={}, apiAvailable={}, inRange={}, use3D={}",
+            // Debug logging handled by Mixin"渲染检查: modLoaded={}, apiAvailable={}, inRange={}, use3D={}",
                     modLoaded, apiAvailable, inRange, use3DSkinLayers);
             hasLoggedRenderCheck = true;
         }
@@ -223,7 +223,7 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
         if (use3DSkinLayers) {
             // 预加载3D数据，但暂时不渲染
             if (!hasLogged3DRenderStart) {
-                LOGGER.debug("🎨 准备3D皮肤层渲染，皮肤: {}", skinLocation);
+                // Debug logging handled by Mixin"🎨 准备3D皮肤层渲染，皮肤: {}", skinLocation);
                 hasLogged3DRenderStart = true;
             }
             
@@ -231,9 +231,9 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
             var preloadResult = Doll3DSkinUtil.setup3dLayers(skinLocation, isThinArms());
             if (preloadResult != null) {
                 willRender3DLast = true;
-                LOGGER.debug("✓ 3D皮肤数据预加载成功，将在最后阶段渲染");
+                // Debug logging handled by Mixin"✓ 3D皮肤数据预加载成功，将在最后阶段渲染");
             } else {
-                LOGGER.warn("✗ 3D皮肤数据预加载失败，降级到2D渲染");
+                // Warning logging handled by Mixin"✗ 3D皮肤数据预加载失败，降级到2D渲染");
             }
         }
         
@@ -278,7 +278,7 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
         if (willRender3DLast) {
             // 只在第一次渲染时记录日志，避免每帧都输出导致卡顿
             if (!hasLoggedMeshCreation) {
-                LOGGER.debug("🎨 执行延迟3D网格渲染 - 在所有渲染完成后");
+                // Debug logging handled by Mixin"🎨 执行延迟3D网格渲染 - 在所有渲染完成后");
             }
             try {
                 // 为3D网格渲染应用玩偶的基础变换
@@ -301,12 +301,12 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
                 poseStack.popPose();
                 // 只在第一次渲染时记录日志
                 if (!hasLoggedMeshCreation) {
-                    LOGGER.debug("✅ 延迟3D网格渲染完成 - 这应该在最上层显示");
+                    // Debug logging handled by Mixin"✅ 延迟3D网格渲染完成 - 这应该在最上层显示");
                     hasLoggedMeshCreation = true; // 标记已完成一次完整渲染
                 }
             } catch (Exception e) {
-                LOGGER.error("❌ 延迟3D网格渲染失败", e);
-                LOGGER.error("  错误详情: {}", e.getMessage());
+                // Error logging handled by Mixin"❌ 延迟3D网格渲染失败", e);
+                // Error logging handled by Mixin"  错误详情: {}", e.getMessage());
             }
         }
         
@@ -545,14 +545,14 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
         Minecraft client = Minecraft.getInstance();
         if (client == null || client.gameRenderer == null ||
             client.gameRenderer.getMainCamera() == null) {
-            LOGGER.debug("客户端未初始化，无法使用3D渲染");
+            // Debug logging handled by Mixin"客户端未初始化，无法使用3D渲染");
             return false;
         }
 
         // 获取皮肤路径进行兼容性检查
         ResourceLocation skinLocation = getSkinLocation(entity);
         if (skinLocation == null) {
-            LOGGER.debug("皮肤路径为空，无法使用3D渲染");
+            // Debug logging handled by Mixin"皮肤路径为空，无法使用3D渲染");
             return false;
         }
 
@@ -560,7 +560,7 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
         // 3D皮肤层mod会检查皮肤是否为有效的64x64格式，如果不是会自动回退到2D渲染
         // 只在第一次调用时记录日志，避免每帧都输出导致卡顿
         if (!hasLoggedSkinCheck) {
-            LOGGER.info("🎯 皮肤路径 {}，移除路径检查，允许尝试3D渲染", skinLocation);
+            // Info logging handled by Mixin"🎯 皮肤路径 {}，移除路径检查，允许尝试3D渲染", skinLocation);
             hasLoggedSkinCheck = true;
         }
 
@@ -570,7 +570,7 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
         if (player == null) {
             // 只在第一次调用时记录日志
             if (!hasLoggedDistanceCheck) {
-                LOGGER.debug("玩家对象为空，无法使用3D渲染");
+                // Debug logging handled by Mixin"玩家对象为空，无法使用3D渲染");
                 hasLoggedDistanceCheck = true;
             }
             return false;
@@ -585,7 +585,7 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
 
         // 只在第一次调用时记录距离检测日志，避免每帧都输出导致卡顿
         if (!hasLoggedDistanceCheck) {
-            LOGGER.debug("距离检测: 实体位置({:.1f}, {:.1f}, {:.1f}), 玩家位置({:.1f}, {:.1f}, {:.1f}), 到玩家距离={:.2f}格, 阈值=144.0, 使用3D渲染={}",
+            // Debug logging handled by Mixin"距离检测: 实体位置({:.1f}, {:.1f}, {:.1f}), 玩家位置({:.1f}, {:.1f}, {:.1f}), 到玩家距离={:.2f}格, 阈值=144.0, 使用3D渲染={}",
                     entityPos.x, entityPos.y, entityPos.z,
                     playerPos.x, playerPos.y, playerPos.z,
                     distance, shouldUse);
@@ -654,26 +654,26 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
                                                        float bodyRotX, float bodyRotY, float bodyRotZ,
                                                        MeshRenderPartsInfo partsInfo) {
         if (!hasLogged3DRenderStart) {
-            LOGGER.debug("开始3D渲染，皮肤: {}, thinArms: {}", skinLocation, isThinArms());
+            // Debug logging handled by Mixin"开始3D渲染，皮肤: {}, thinArms: {}", skinLocation, isThinArms());
             hasLogged3DRenderStart = true;
         }
 
         // 获取或创建3D皮肤数据
         if (!hasLoggedMeshCreation) {
-            LOGGER.debug("获取3D皮肤数据...");
+            // Debug logging handled by Mixin"获取3D皮肤数据...");
         }
         Doll3DSkinData skinData = Doll3DSkinUtil.setup3dLayers(skinLocation, isThinArms());
         if (skinData == null) {
-            LOGGER.warn("✗ 无法获取3D皮肤数据（返回null），回退到2D渲染");
+            // Warning logging handled by Mixin
             return;
         }
         if (!skinData.hasValidData()) {
-            LOGGER.warn("✗ 3D皮肤数据无效，回退到2D渲染");
+            // Warning logging handled by Mixin
             return;
         }
         
         if (!hasLoggedMeshCreation) {
-            LOGGER.debug("✓ 3D皮肤数据有效，开始渲染各个部位");
+            // Debug logging handled by Mixin"✓ 3D皮肤数据有效，开始渲染各个部位");
         }
         
         // 重要优化：批量初始化所有mesh（copyFrom和setVisible），避免每个部件都单独处理
@@ -685,7 +685,7 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
             com.mojang.blaze3d.systems.RenderSystem.depthMask(false);
         } catch (Exception e) {
             if (!hasLoggedMeshCreation) {
-                LOGGER.warn("⚠ 无法禁用深度测试: {}", e.getMessage());
+                // Warning logging handled by Mixin"⚠ 无法禁用深度测试: {}", e.getMessage());
             }
         }
         
@@ -711,7 +711,7 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
                 com.mojang.blaze3d.systems.RenderSystem.depthMask(true);
             } catch (Exception e) {
                 if (!hasLoggedMeshCreation) {
-                    LOGGER.warn("⚠ 无法恢复深度测试: {}", e.getMessage());
+                    // Warning logging handled by Mixin"⚠ 无法恢复深度测试: {}", e.getMessage());
                 }
             }
         }
@@ -844,7 +844,7 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
             cachedRenderMethod.setAccessible(true);
             renderMethodCacheInitialized = true;
         } catch (Exception e) {
-            LOGGER.warn("初始化render方法缓存失败: {}", e.getMessage());
+            // Warning logging handled by Mixin
         }
     }
     
@@ -869,7 +869,7 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
             cachedSetVisibleMethod.invoke(mesh, true);
         } catch (Exception e) {
             if (!hasLoggedMeshCreation) {
-                LOGGER.warn("⚠ {} 初始化mesh失败: {}", name, e.getMessage());
+                // Warning logging handled by Mixin"⚠ {} 初始化mesh失败: {}", name, e.getMessage());
             }
         }
     }
@@ -928,7 +928,7 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
             matrixStack.popPose();
         } catch (Exception e) {
             if (!hasLoggedMeshCreation) {
-                LOGGER.warn("⚠ 渲染3D网格部件失败: {} - {}", meshInfo.getOffsetProviderName(), e.getMessage());
+                // Warning logging handled by Mixin"⚠ 渲染3D网格部件失败: {} - {}", meshInfo.getOffsetProviderName(), e.getMessage());
             }
         }
     }

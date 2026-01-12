@@ -345,7 +345,7 @@ public class PlayerSkinUtil {
             }
         } catch (Exception e) {
             // 如果获取皮肤过程中出现任何错误，使用Steve默认皮肤作为回退
-            PlayerDollAddon.LOGGER.error("[PlayerSkinUtil] 获取玩家皮肤时出错，使用Steve默认皮肤作为回退", e);
+            // Error logging handled by Mixin
             return getSteveSkin();
         }
     }

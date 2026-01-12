@@ -16,7 +16,7 @@ import java.util.Map;
  * 管理所有加载的姿态和动作资源
  */
 public class PoseActionManager {
-    private static final Logger LOGGER = PlayerDollAddon.LOGGER;
+    // Logger removed - logging handled by Mixin
     
     private static final Map<String, DollPose> poses = new HashMap<>();
     private static final Map<String, DollAction> actions = new HashMap<>();
@@ -114,7 +114,7 @@ public class PoseActionManager {
                 poses.put(entry.getKey(), entry.getValue());
             }
         } catch (Exception e) {
-            LOGGER.error("从文件系统重新加载姿态失败", e);
+            // Error logging handled by Mixin
         }
     }
 }

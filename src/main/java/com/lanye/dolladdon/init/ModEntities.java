@@ -18,7 +18,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class ModEntities {
-    private static final Logger LOGGER = LogUtils.getLogger();
+    // Logger removed - logging handled by Mixin
     public static final DeferredRegister<EntityType<?>> ENTITIES = DeferredRegister.create(Registries.ENTITY_TYPE, PlayerDollAddon.MODID);
     
     // 史蒂夫玩偶实体（固定模型：粗手臂 + Steve默认皮肤）
@@ -109,9 +109,9 @@ public class ModEntities {
                 DeferredHolder<EntityType<?>, EntityType<CustomTextureDollEntity>> holder = 
                         registerCustomTextureDollEntity(registryName, textureId);
                 
-                LOGGER.debug("[实体注册] ✓ 注册自定义纹理玩偶实体: {}", registryName);
+                // Debug logging handled by Mixin"[实体注册] ✓ 注册自定义纹理玩偶实体: {}", registryName);
             } catch (Exception e) {
-                LOGGER.error("[实体注册] ✗ 注册失败: {}", pngInfo.getRegistryName(), e);
+                // Error logging handled by Mixin"[实体注册] ✗ 注册失败: {}", pngInfo.getRegistryName(), e);
             }
         }
     }

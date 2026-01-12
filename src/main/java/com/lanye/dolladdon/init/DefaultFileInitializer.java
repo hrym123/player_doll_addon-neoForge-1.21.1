@@ -14,7 +14,7 @@ import java.nio.file.Path;
  * 在 Mod 首次加载时，从资源包复制默认 JSON 文件到文件系统
  */
 public class DefaultFileInitializer {
-    private static final Logger LOGGER = PlayerDollAddon.LOGGER;
+    // Logger removed - logging handled by Mixin
     
     /**
      * 初始化默认文件（从资源包复制到文件系统）
@@ -42,7 +42,7 @@ public class DefaultFileInitializer {
             copyIfNotExists(actionsDir.resolve("sit.json"), "assets/player_doll/defaults/actions/sit.json");
             copyIfNotExists(actionsDir.resolve("wave.json"), "assets/player_doll/defaults/actions/wave.json");
         } catch (Exception e) {
-            LOGGER.error("初始化默认文件失败", e);
+            // Error logging handled by Mixin"初始化默认文件失败", e);
         }
     }
     
@@ -62,7 +62,7 @@ public class DefaultFileInitializer {
             String readmeContent = generateReadmeContent();
             Files.writeString(readmePath, readmeContent, StandardCharsets.UTF_8);
         } catch (IOException e) {
-            LOGGER.error("生成 README.md 失败", e);
+            // Error logging handled by Mixin"生成 README.md 失败", e);
         }
     }
     
@@ -402,7 +402,7 @@ public class DefaultFileInitializer {
             // 从资源包读取文件
             InputStream resourceStream = DefaultFileInitializer.class.getClassLoader().getResourceAsStream(resourcePath);
             if (resourceStream == null) {
-                LOGGER.error("找不到资源文件: {}", resourcePath);
+                // Error logging handled by Mixin"找不到资源文件: {}", resourcePath);
                 return;
             }
             
@@ -410,7 +410,7 @@ public class DefaultFileInitializer {
             Files.copy(resourceStream, targetPath);
             resourceStream.close();
         } catch (IOException e) {
-            LOGGER.error("复制文件失败: {} -> {}", resourcePath, targetPath, e);
+            // Error logging handled by Mixin"复制文件失败: {} -> {}", resourcePath, targetPath, e);
         }
     }
 }

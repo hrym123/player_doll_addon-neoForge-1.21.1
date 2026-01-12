@@ -13,7 +13,7 @@ import java.util.List;
  * 用于在资源重载时动态注入物品模型和语言文件
  */
 public class ResourceInjector {
-    private static final Logger LOGGER = LogUtils.getLogger();
+    // Logger removed - logging handled by Mixin
     
     /**
      * 注入动态资源到资源管理器
@@ -27,7 +27,7 @@ public class ResourceInjector {
             // 注入语言文件
             injectLanguageFiles(resourceManager);
         } catch (Exception e) {
-            LOGGER.error("注入动态资源时出错", e);
+            // Error logging handled by Mixin
         }
     }
     
@@ -55,7 +55,7 @@ public class ResourceInjector {
                 // 更好的方法是使用 ResourcePackProvider
             }
         } catch (Exception e) {
-            LOGGER.error("注入物品模型时出错", e);
+            // Error logging handled by Mixin
         }
     }
     
@@ -66,7 +66,7 @@ public class ResourceInjector {
         try {
             // 语言文件注入也需要使用 ResourcePackProvider
         } catch (Exception e) {
-            LOGGER.error("注入语言文件时出错", e);
+            // Error logging handled by Mixin
         }
     }
 }

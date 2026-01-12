@@ -29,7 +29,7 @@ import java.util.Optional;
  * 从资源文件加载动作定义
  */
 public class ActionLoader {
-    private static final Logger LOGGER = PlayerDollAddon.LOGGER;
+    // Logger removed - logging handled by Mixin
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     
     /**
@@ -78,7 +78,7 @@ public class ActionLoader {
                 return parseAction(resourceManager, json);
             }
         } catch (Exception e) {
-            LOGGER.error("加载动作文件失败: {}", location, e);
+            // Error logging handled by Mixin
             return null;
         }
     }
@@ -92,7 +92,7 @@ public class ActionLoader {
         boolean looping = json.has("looping") && json.get("looping").getAsBoolean();
         
         if (!json.has("keyframes") || !json.get("keyframes").isJsonArray()) {
-            LOGGER.error("动作缺少keyframes数组: {}", name);
+            // Error logging handled by Mixin
             return null;
         }
         
@@ -174,11 +174,11 @@ public class ActionLoader {
                             }
                         }
                     } catch (Exception e) {
-                        LOGGER.error("从文件系统加载动作文件失败: {}", actionFile, e);
+                        // Error logging handled by Mixin
                     }
                 });
         } catch (Exception e) {
-            LOGGER.error("扫描文件系统动作目录失败: {}", actionsDir, e);
+            // Error logging handled by Mixin
         }
         
         return actions;
@@ -193,7 +193,7 @@ public class ActionLoader {
         boolean looping = json.has("looping") && json.get("looping").getAsBoolean();
         
         if (!json.has("keyframes") || !json.get("keyframes").isJsonArray()) {
-            LOGGER.error("动作缺少keyframes数组: {}", name);
+            // Error logging handled by Mixin
             return null;
         }
         
@@ -248,11 +248,11 @@ public class ActionLoader {
                         actions.put(name, action);
                     }
                 } catch (Exception e) {
-                    LOGGER.error("加载动作文件失败: {}", location, e);
+                    // Error logging handled by Mixin
                 }
             }
         } catch (Exception e) {
-            LOGGER.error("扫描动作资源失败", e);
+            // Error logging handled by Mixin
         }
         
         // 然后从文件系统加载（文件系统中的动作会覆盖资源包中的同名动作）
@@ -270,7 +270,7 @@ public class ActionLoader {
             Map<String, DollAction> fileSystemActions = loadActionsFromFileSystem(actionsDir);
             actions.putAll(fileSystemActions); // 文件系统的动作会覆盖资源包中的同名动作
         } catch (Exception e) {
-            LOGGER.error("从文件系统加载动作失败", e);
+            // Error logging handled by Mixin
         }
         
         return actions;

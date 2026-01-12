@@ -21,7 +21,7 @@ import java.util.List;
 import java.util.Map;
 
 public class ModItems {
-    private static final Logger LOGGER = LogUtils.getLogger();
+    // Logger removed - logging handled by Mixin
     public static final DeferredRegister.Items ITEMS = DeferredRegister.createItems(PlayerDollAddon.MODID);
     
     // 史蒂夫玩偶物品（固定模型：粗手臂 + Steve默认皮肤）
@@ -122,12 +122,12 @@ public class ModItems {
                 // 验证注册（在DeferredRegister中，验证通过检查映射表）
                 DeferredItem<CustomTextureDollItem> verifyHolder = CUSTOM_TEXTURE_DOLL_ITEMS.get(registryName);
                 if (verifyHolder == registeredHolder) {
-                    LOGGER.debug("[物品注册] ✓ 注册自定义纹理玩偶物品: {}", registryName);
+                    // Debug logging handled by Mixin"[物品注册] ✓ 注册自定义纹理玩偶物品: {}", registryName);
                 } else {
-                    LOGGER.error("[物品注册] ✗ 注册验证失败: {} (注册的物品与验证的物品不匹配)", registryName);
+                    // Error logging handled by Mixin"[物品注册] ✗ 注册验证失败: {} (注册的物品与验证的物品不匹配)", registryName);
                 }
             } catch (Exception e) {
-                LOGGER.error("[物品注册] ✗ 注册失败: {}", pngInfo.getRegistryName(), e);
+                // Error logging handled by Mixin
             }
         }
     }

@@ -60,21 +60,11 @@ public class PlayerDollAddonClient {
      * 初始化3D皮肤层检测（静态方法）
      */
     private static void initialize3DSkinLayers() {
-        PlayerDollAddon.LOGGER.info("========== 3D Skin Layers Compatibility Check ==========");
+        // Logging handled by Mixin
         if (SkinLayersDetector.IS_3D_SKIN_LAYERS_LOADED) {
-            PlayerDollAddon.LOGGER.info("✓ Detected 3D skin layers mod (skinlayers3d)");
-            PlayerDollAddon.LOGGER.info("Initializing API...");
             // Try to initialize API to verify availability
             boolean apiAvailable = Doll3DSkinUtil.isAvailable();
-            if (apiAvailable) {
-                PlayerDollAddon.LOGGER.info("✓ API initialization successful, 3D skin rendering will be enabled");
-            } else {
-                PlayerDollAddon.LOGGER.warn("✗ API initialization failed, will use default 2D rendering");
-            }
-        } else {
-            PlayerDollAddon.LOGGER.info("3D skin layers mod not detected, using default 2D rendering");
         }
-        PlayerDollAddon.LOGGER.info("========================================");
     }
     
     @SubscribeEvent
@@ -133,7 +123,7 @@ public class PlayerDollAddonClient {
                 event.registerEntityRenderer(entry.getValue(), 
                         context -> new CustomTextureDollRenderer(context, finalIsAlexModel));
             } catch (Exception e) {
-                PlayerDollAddon.LOGGER.error("[Renderer] ✗ Failed to register custom texture doll entity renderer: {}", entry.getKey(), e);
+                // Error logging handled by Mixin
             }
         }
     }
@@ -189,7 +179,7 @@ public class PlayerDollAddonClient {
                     packConsumer.accept(pack);
                 });
             } catch (Exception e) {
-                PlayerDollAddon.LOGGER.error("Failed to register dynamic resource pack", e);
+                // Error logging handled by Mixin
                 e.printStackTrace();
             }
         }
@@ -220,7 +210,7 @@ public class PlayerDollAddonClient {
                     }
                 }
             } catch (Exception e) {
-                PlayerDollAddon.LOGGER.error("Exception occurred during resource reload", e);
+                // Error logging handled by Mixin
             }
         });
     }

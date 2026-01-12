@@ -23,7 +23,7 @@ import java.util.Set;
  * 用于加载外部文件（纹理、模型等）
  */
 public class DynamicResourcePack implements PackResources {
-    private static final Logger LOGGER = PlayerDollAddon.LOGGER;
+    // Logger removed - logging handled by Mixin
     private final Path gameDir;
     
     public DynamicResourcePack(Path gameDir) {
@@ -80,7 +80,7 @@ public class DynamicResourcePack implements PackResources {
                         try {
                             output.accept(location, () -> Files.newInputStream(filePath));
                         } catch (Exception e) {
-                            LOGGER.error("列出纹理资源失败: {}", location, e);
+                            // Error logging handled by Mixin
                         }
                     }
                 }

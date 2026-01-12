@@ -427,18 +427,18 @@ public abstract class BaseDollEntity extends Entity {
                         setMethod.invoke(itemStack, net.minecraft.core.component.DataComponents.CUSTOM_DATA, customDataComponent);
                         saved = true;
                     } catch (Exception e) {
-                        com.lanye.dolladdon.PlayerDollAddon.LOGGER.error("[破坏掉落] 设置custom_data组件失败", e);
+                        // Error logging handled by Mixin
                     }
                 } else {
                     // 如果所有反射方法都失败，无法创建CustomData对象
-                    com.lanye.dolladdon.PlayerDollAddon.LOGGER.error("[破坏掉落] 无法创建CustomData对象，所有包路径都失败");
+                    // Error logging handled by Mixin
                 }
             } catch (Exception e) {
-                com.lanye.dolladdon.PlayerDollAddon.LOGGER.error("[破坏掉落] NBT保存失败", e);
+                // Error logging handled by Mixin
             }
             
             if (!saved) {
-                com.lanye.dolladdon.PlayerDollAddon.LOGGER.error("[破坏掉落] 无法保存NBT标签到物品，掉落物可能不包含实体状态信息");
+                // Error logging handled by Mixin
             }
         } else {
             // entityTag为空，需要清除EntityData标签以确保物品可以叠加
@@ -455,7 +455,7 @@ public abstract class BaseDollEntity extends Entity {
                                 net.minecraft.core.component.DataComponentType.class);
                             removeMethod.invoke(itemStack, net.minecraft.core.component.DataComponents.CUSTOM_DATA);
                         } catch (Exception e) {
-                            com.lanye.dolladdon.PlayerDollAddon.LOGGER.error("[破坏掉落] 移除custom_data组件失败", e);
+                            // Error logging handled by Mixin
                         }
                     } else {
                         // 还有其他的标签，保留custom_data但移除EntityData
@@ -486,7 +486,7 @@ public abstract class BaseDollEntity extends Entity {
                                 setMethod.invoke(itemStack, net.minecraft.core.component.DataComponents.CUSTOM_DATA, customDataComponent);
                             }
                         } catch (Exception e) {
-                            com.lanye.dolladdon.PlayerDollAddon.LOGGER.error("[破坏掉落] 更新custom_data组件失败", e);
+                            // Error logging handled by Mixin
                         }
                     }
                 }
@@ -694,7 +694,7 @@ public abstract class BaseDollEntity extends Entity {
         
         DollPose pose = PoseActionManager.getPose(poseName);
         if (pose == null) {
-            com.lanye.dolladdon.PlayerDollAddon.LOGGER.warn("设置姿态失败: 姿态不存在: {}", poseName);
+            // Warning logging handled by Mixin
             return false;
         }
         
@@ -716,14 +716,14 @@ public abstract class BaseDollEntity extends Entity {
                 }
             }
         } else {
-            com.lanye.dolladdon.PlayerDollAddon.LOGGER.warn("设置姿态失败: 姿态不在可用列表中: {}", poseName);
+            // Warning logging handled by Mixin
             return false;
         }
         
         // 然后设置姿态（这会清空动作）
         setPose(pose);
         
-        com.lanye.dolladdon.PlayerDollAddon.LOGGER.debug("设置姿态并更新索引: {} (索引: {})", poseName, poseIndex);
+        // Debug logging handled by Mixin
         return true;
     }
     

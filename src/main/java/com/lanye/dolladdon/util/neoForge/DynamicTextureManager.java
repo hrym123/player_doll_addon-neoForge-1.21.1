@@ -13,7 +13,7 @@ import java.util.Map;
  * 管理从文件系统加载的纹理文件
  */
 public class DynamicTextureManager {
-    private static final Logger LOGGER = PlayerDollAddon.LOGGER;
+    // Logger removed - logging handled by Mixin
     public static final Map<ResourceLocation, Path> TEXTURE_PATHS = new HashMap<>();
     
     /**

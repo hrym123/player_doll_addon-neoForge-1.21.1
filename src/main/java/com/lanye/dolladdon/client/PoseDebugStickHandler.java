@@ -17,7 +17,7 @@ import java.util.Map;
  * 处理滚轮切换姿态
  */
 public class PoseDebugStickHandler {
-    private static final Logger LOGGER = LogUtils.getLogger();
+    // Logger removed - logging handled by Mixin
     
     // 所有可用姿态的列表（按加载顺序）
     private static final List<String> poseList = new ArrayList<>();
@@ -26,7 +26,7 @@ public class PoseDebugStickHandler {
      * 初始化
      */
     public static void initialize() {
-        LOGGER.debug("Pose debug stick handler initialized");
+        // Debug logging handled by Mixin
     }
     
     /**
