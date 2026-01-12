@@ -1,9 +1,13 @@
 package com.lanye.dolladdon;
 
+import com.lanye.dolladdon.client.ActionDebugStickHandler;
+import com.lanye.dolladdon.client.PoseDebugStickHandler;
 import com.lanye.dolladdon.compat.skinlayers3d.Doll3DSkinUtil;
 import com.lanye.dolladdon.compat.skinlayers3d.SkinLayersDetector;
 import com.lanye.dolladdon.dynamic.render.DynamicDollRenderer;
 import com.lanye.dolladdon.impl.entity.CustomTextureDollEntity;
+import com.lanye.dolladdon.impl.item.ActionDebugStick;
+import com.lanye.dolladdon.impl.item.PoseDebugStick;
 import com.lanye.dolladdon.impl.render.AlexDollRenderer;
 import com.lanye.dolladdon.impl.render.CustomTextureDollRenderer;
 import com.lanye.dolladdon.impl.render.SteveDollRenderer;
@@ -30,6 +34,7 @@ import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.event.AddPackFindersEvent;
 import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 import net.neoforged.neoforge.client.event.RegisterClientReloadListenersEvent;
+import net.neoforged.neoforge.client.event.InputEvent;
 import net.minecraft.client.Minecraft;
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
 import java.nio.file.Path;
@@ -46,6 +51,9 @@ public class PlayerDollAddonClient {
     public static void init() {
         // 初始化3D皮肤层检测
         initialize3DSkinLayers();
+        // 初始化调试棒处理器
+        ActionDebugStickHandler.initialize();
+        PoseDebugStickHandler.initialize();
     }
     
     /**
@@ -251,6 +259,67 @@ public class PlayerDollAddonClient {
                 }
             });
         });
+    }
+    
+    /**
+     * 处理鼠标滚轮事件，用于调试棒的滚轮切换功能
+     */
+    @SubscribeEvent
+    public static void onMouseScroll(InputEvent.MouseScrollingEvent event) {
+        Minecraft client = Minecraft.getInstance();
+        if (client == null || client.player == null || client.level == null) {
+            return;
+        }
+        
+        // 如果当前有打开的屏幕（GUI），不处理（让默认行为执行）
+        if (client.screen != null) {
+            return;
+        }
+        
+        // 检查玩家是否在潜行
+        if (!client.player.isShiftKeyDown()) {
+            return;
+        }
+        
+        // 检查玩家是否手持动作调试棒或姿态调试棒
+        net.minecraft.world.item.ItemStack mainHandStack = client.player.getMainHandItem();
+        net.minecraft.world.item.ItemStack offHandStack = client.player.getOffhandItem();
+        
+        net.minecraft.world.item.ItemStack heldStack = null;
+        boolean isActionDebugStick = false;
+        boolean isPoseDebugStick = false;
+        
+        if (mainHandStack.getItem() instanceof ActionDebugStick) {
+            heldStack = mainHandStack;
+            isActionDebugStick = true;
+        } else if (offHandStack.getItem() instanceof ActionDebugStick) {
+            heldStack = offHandStack;
+            isActionDebugStick = true;
+        } else if (mainHandStack.getItem() instanceof PoseDebugStick) {
+            heldStack = mainHandStack;
+            isPoseDebugStick = true;
+        } else if (offHandStack.getItem() instanceof PoseDebugStick) {
+            heldStack = offHandStack;
+            isPoseDebugStick = true;
+        }
+        
+        if (heldStack == null) {
+            return;
+        }
+        
+        // 处理滚轮事件
+        // 在 NeoForge 1.21.1 中，MouseScrollingEvent 使用 getScrollDeltaY() 获取垂直滚动量
+        double scrollDelta = event.getScrollDeltaY();
+        if (scrollDelta != 0) {
+            boolean forward = scrollDelta > 0;
+            if (isActionDebugStick) {
+                ActionDebugStickHandler.switchToNextAction(client, heldStack, forward);
+                event.setCanceled(true);
+            } else if (isPoseDebugStick) {
+                PoseDebugStickHandler.switchToNextPose(client, heldStack, forward);
+                event.setCanceled(true);
+            }
+        }
     }
 }
 

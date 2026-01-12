@@ -14,7 +14,11 @@ import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.level.Level;
+import org.jetbrains.annotations.Nullable;
+
+import java.util.List;
 import org.slf4j.Logger;
 import com.mojang.logging.LogUtils;
 
@@ -206,6 +210,26 @@ public class ActionDebugStick extends Item {
         }
         
         return InteractionResultHolder.success(stack);
+    }
+    
+    @Override
+    public void appendHoverText(ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
+        super.appendHoverText(stack, context, tooltip, flag);
+        
+        // 在工具提示中显示当前选中的动作
+        // 注意：在工具提示中无法访问 Player，所以使用 ItemStack NBT
+        String selectedActionName = getSelectedAction(stack);
+        if (selectedActionName != null && !selectedActionName.isEmpty()) {
+            var action = PoseActionManager.getAction(selectedActionName);
+            if (action != null) {
+                String displayName = action.getName();
+                tooltip.add(Component.literal("当前动作: " + displayName));
+            } else {
+                tooltip.add(Component.literal("当前动作: " + selectedActionName + " (不存在)"));
+            }
+        } else {
+            tooltip.add(Component.literal("未选择动作"));
+        }
     }
     
     @Override

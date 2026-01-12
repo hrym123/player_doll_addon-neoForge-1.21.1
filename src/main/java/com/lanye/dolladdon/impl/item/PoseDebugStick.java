@@ -14,7 +14,11 @@ import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.level.Level;
+import org.jetbrains.annotations.Nullable;
+
+import java.util.List;
 import org.slf4j.Logger;
 import com.mojang.logging.LogUtils;
 
@@ -210,6 +214,26 @@ public class PoseDebugStick extends Item {
         }
         
         return InteractionResultHolder.success(stack);
+    }
+    
+    @Override
+    public void appendHoverText(ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
+        super.appendHoverText(stack, context, tooltip, flag);
+        
+        // 在工具提示中显示当前选中的姿态
+        // 注意：在工具提示中无法访问 Player，所以使用 ItemStack NBT
+        String selectedPoseName = getSelectedPose(stack);
+        if (selectedPoseName != null && !selectedPoseName.isEmpty()) {
+            var pose = PoseActionManager.getPose(selectedPoseName);
+            if (pose != null) {
+                String displayName = pose.getDisplayName();
+                tooltip.add(Component.literal("当前姿态: " + displayName));
+            } else {
+                tooltip.add(Component.literal("当前姿态: " + selectedPoseName + " (不存在)"));
+            }
+        } else {
+            tooltip.add(Component.literal("未选择姿态"));
+        }
     }
     
     @Override
