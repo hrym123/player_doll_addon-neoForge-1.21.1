@@ -16,6 +16,14 @@ public interface DollAction {
     String getName();
     
     /**
+     * 获取动作的显示名称（用于UI显示）
+     * @return 显示名称，如果没有则返回动作名称
+     */
+    default String getDisplayName() {
+        return getName();
+    }
+    
+    /**
      * 获取动作是否循环播放
      * @return 是否循环
      */

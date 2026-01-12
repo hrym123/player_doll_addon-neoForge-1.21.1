@@ -9,12 +9,18 @@ import net.minecraft.util.Mth;
  */
 public class SimpleDollAction implements DollAction {
     private final String name;
+    private final String displayName;
     private final boolean looping;
     private final ActionKeyframe[] keyframes;
     private final int duration;
     
     public SimpleDollAction(String name, boolean looping, ActionKeyframe[] keyframes) {
+        this(name, null, looping, keyframes);
+    }
+    
+    public SimpleDollAction(String name, String displayName, boolean looping, ActionKeyframe[] keyframes) {
         this.name = name;
+        this.displayName = displayName != null ? displayName : name;
         this.looping = looping;
         this.keyframes = keyframes;
         
@@ -31,6 +37,11 @@ public class SimpleDollAction implements DollAction {
     @Override
     public String getName() {
         return name;
+    }
+    
+    @Override
+    public String getDisplayName() {
+        return displayName;
     }
     
     @Override

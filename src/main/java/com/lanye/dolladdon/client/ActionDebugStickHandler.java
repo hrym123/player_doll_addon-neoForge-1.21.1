@@ -60,7 +60,7 @@ public class ActionDebugStickHandler {
         
         var action = PoseActionManager.getAction(nextActionName);
         if (action != null && client.player != null) {
-            String displayName = action.getName();
+            String displayName = action.getDisplayName();
             client.player.displayClientMessage(Component.literal("选中动作: " + displayName + " (" + (nextIndex + 1) + "/" + actionList.size() + ")"), true);
         }
     }

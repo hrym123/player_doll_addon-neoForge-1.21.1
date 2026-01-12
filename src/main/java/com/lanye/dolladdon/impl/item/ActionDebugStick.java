@@ -282,7 +282,7 @@ public class ActionDebugStick extends Item {
         }
         
         dollEntity.setAction(action);
-        String displayName = action.getName();
+        String displayName = action.getDisplayName();
         sendActionBarMessage(user, Component.literal("已应用动作: " + displayName));
         world.playSound(null, dollEntity.getX(), dollEntity.getY(), dollEntity.getZ(),
                 SoundEvents.EXPERIENCE_ORB_PICKUP, SoundSource.PLAYERS, 0.5F, 1.2F);
@@ -299,7 +299,7 @@ public class ActionDebugStick extends Item {
         if (selectedActionName != null && !selectedActionName.isEmpty()) {
             var action = PoseActionManager.getAction(selectedActionName);
             if (action != null) {
-                String displayName = action.getName();
+                String displayName = action.getDisplayName();
                 sendActionBarMessage(user, Component.literal("当前动作: " + displayName));
             } else {
                 sendActionBarMessage(user, Component.literal("当前动作: " + selectedActionName + " (不存在)"));
@@ -321,7 +321,7 @@ public class ActionDebugStick extends Item {
         if (selectedActionName != null && !selectedActionName.isEmpty()) {
             var action = PoseActionManager.getAction(selectedActionName);
             if (action != null) {
-                String displayName = action.getName();
+                String displayName = action.getDisplayName();
                 tooltip.add(Component.literal("当前动作: " + displayName));
             } else {
                 tooltip.add(Component.literal("当前动作: " + selectedActionName + " (不存在)"));

@@ -88,6 +88,7 @@ public class ActionLoader {
      */
     private static DollAction parseAction(ResourceManager resourceManager, JsonObject json) {
         String name = json.has("name") ? json.get("name").getAsString() : "unnamed";
+        String displayName = json.has("displayName") ? json.get("displayName").getAsString() : null;
         boolean looping = json.has("looping") && json.get("looping").getAsBoolean();
         
         if (!json.has("keyframes") || !json.get("keyframes").isJsonArray()) {
@@ -139,7 +140,7 @@ public class ActionLoader {
             keyframes[i] = new ActionKeyframe(tick, pose);
         }
         
-        return new SimpleDollAction(name, looping, keyframes);
+        return new SimpleDollAction(name, displayName, looping, keyframes);
     }
     
     /**
@@ -188,6 +189,7 @@ public class ActionLoader {
      */
     private static DollAction parseActionFromFileSystem(JsonObject json, Path posesDir) {
         String name = json.has("name") ? json.get("name").getAsString() : "unnamed";
+        String displayName = json.has("displayName") ? json.get("displayName").getAsString() : null;
         boolean looping = json.has("looping") && json.get("looping").getAsBoolean();
         
         if (!json.has("keyframes") || !json.get("keyframes").isJsonArray()) {
@@ -223,7 +225,7 @@ public class ActionLoader {
             keyframes[i] = new ActionKeyframe(tick, pose);
         }
         
-        return new SimpleDollAction(name, looping, keyframes);
+        return new SimpleDollAction(name, displayName, looping, keyframes);
     }
     
     /**
