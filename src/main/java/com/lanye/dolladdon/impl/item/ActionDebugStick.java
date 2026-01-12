@@ -11,6 +11,7 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.InteractionResultHolder;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -155,6 +156,19 @@ public class ActionDebugStick extends Item {
     }
     
     /**
+     * 发送消息到动作栏（物品栏上方）
+     */
+    private static void sendActionBarMessage(Player player, Component message) {
+        if (player instanceof ServerPlayer serverPlayer) {
+            // 服务端：使用数据包发送到动作栏（overlay=true 表示动作栏）
+            serverPlayer.connection.send(new net.minecraft.network.protocol.game.ClientboundSystemChatPacket(message, true));
+        } else {
+            // 客户端：直接显示（actionBar=true 表示动作栏）
+            player.displayClientMessage(message, true);
+        }
+    }
+    
+    /**
      * 应用动作到玩偶实体（由事件处理器调用）
      */
     public static InteractionResult applyActionToEntity(ItemStack stack, Player user, BaseDollEntity dollEntity, Level world) {
@@ -170,20 +184,20 @@ public class ActionDebugStick extends Item {
             customData != null ? customData.copyTag() : null, selectedActionName);
         
         if (selectedActionName == null || selectedActionName.isEmpty()) {
-            user.sendSystemMessage(Component.literal("请先选择一个动作（潜行时滑动滚轮）"));
+            sendActionBarMessage(user, Component.literal("请先选择一个动作（潜行时滑动滚轮）"));
             return InteractionResult.FAIL;
         }
         
         var action = PoseActionManager.getAction(selectedActionName);
         if (action == null) {
-            user.sendSystemMessage(Component.literal("动作不存在: " + selectedActionName));
+            sendActionBarMessage(user, Component.literal("动作不存在: " + selectedActionName));
             LOGGER.warn("动作调试棒: 动作不存在: {}", selectedActionName);
             return InteractionResult.FAIL;
         }
         
         dollEntity.setAction(action);
         String displayName = action.getName();
-        user.sendSystemMessage(Component.literal("已应用动作: " + displayName));
+        sendActionBarMessage(user, Component.literal("已应用动作: " + displayName));
         world.playSound(null, dollEntity.getX(), dollEntity.getY(), dollEntity.getZ(),
                 SoundEvents.EXPERIENCE_ORB_PICKUP, SoundSource.PLAYERS, 0.5F, 1.2F);
         LOGGER.debug("动作调试棒: 玩家 {} 对玩偶 {} 应用动作 {}", user.getName().getString(), dollEntity.getId(), selectedActionName);
@@ -201,12 +215,12 @@ public class ActionDebugStick extends Item {
             var action = PoseActionManager.getAction(selectedActionName);
             if (action != null) {
                 String displayName = action.getName();
-                user.sendSystemMessage(Component.literal("当前动作: " + displayName));
+                sendActionBarMessage(user, Component.literal("当前动作: " + displayName));
             } else {
-                user.sendSystemMessage(Component.literal("当前动作: " + selectedActionName + " (不存在)"));
+                sendActionBarMessage(user, Component.literal("当前动作: " + selectedActionName + " (不存在)"));
             }
         } else {
-            user.sendSystemMessage(Component.literal("未选择动作（潜行时滑动滚轮切换）"));
+            sendActionBarMessage(user, Component.literal("未选择动作（潜行时滑动滚轮切换）"));
         }
         
         return InteractionResultHolder.success(stack);

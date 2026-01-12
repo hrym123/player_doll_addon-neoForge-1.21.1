@@ -11,6 +11,7 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.InteractionResultHolder;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -155,6 +156,19 @@ public class PoseDebugStick extends Item {
     }
     
     /**
+     * 发送消息到动作栏（物品栏上方）
+     */
+    private static void sendActionBarMessage(Player player, Component message) {
+        if (player instanceof ServerPlayer serverPlayer) {
+            // 服务端：使用数据包发送到动作栏（overlay=true 表示动作栏）
+            serverPlayer.connection.send(new net.minecraft.network.protocol.game.ClientboundSystemChatPacket(message, true));
+        } else {
+            // 客户端：直接显示（actionBar=true 表示动作栏）
+            player.displayClientMessage(message, true);
+        }
+    }
+    
+    /**
      * 应用姿态到玩偶实体（由事件处理器调用）
      */
     public static InteractionResult applyPoseToEntity(ItemStack stack, Player user, BaseDollEntity dollEntity, Level world) {
@@ -170,14 +184,14 @@ public class PoseDebugStick extends Item {
             customData != null ? customData.copyTag() : null, selectedPoseName);
         
         if (selectedPoseName == null || selectedPoseName.isEmpty()) {
-            user.sendSystemMessage(Component.literal("请先选择一个姿态（潜行时滑动滚轮）"));
+            sendActionBarMessage(user, Component.literal("请先选择一个姿态（潜行时滑动滚轮）"));
             return InteractionResult.FAIL;
         }
         
         // 使用 setPoseByName 方法设置姿态并更新索引
         boolean success = dollEntity.setPoseByName(selectedPoseName);
         if (!success) {
-            user.sendSystemMessage(Component.literal("姿态不存在或设置失败: " + selectedPoseName));
+            sendActionBarMessage(user, Component.literal("姿态不存在或设置失败: " + selectedPoseName));
             LOGGER.warn("姿态调试棒: 姿态不存在或设置失败: {}", selectedPoseName);
             return InteractionResult.FAIL;
         }
@@ -186,7 +200,7 @@ public class PoseDebugStick extends Item {
         var pose = PoseActionManager.getPose(selectedPoseName);
         String displayName = pose != null && pose.getDisplayName() != null ? pose.getDisplayName() : selectedPoseName;
         
-        user.sendSystemMessage(Component.literal("已应用姿态: " + displayName));
+        sendActionBarMessage(user, Component.literal("已应用姿态: " + displayName));
         world.playSound(null, dollEntity.getX(), dollEntity.getY(), dollEntity.getZ(),
                 SoundEvents.EXPERIENCE_ORB_PICKUP, SoundSource.PLAYERS, 0.5F, 1.2F);
         LOGGER.debug("姿态调试棒: 玩家 {} 对玩偶 {} 应用姿态 {}", 
@@ -205,12 +219,12 @@ public class PoseDebugStick extends Item {
             var pose = PoseActionManager.getPose(selectedPoseName);
             if (pose != null) {
                 String displayName = pose.getDisplayName();
-                user.sendSystemMessage(Component.literal("当前姿态: " + displayName));
+                sendActionBarMessage(user, Component.literal("当前姿态: " + displayName));
             } else {
-                user.sendSystemMessage(Component.literal("当前姿态: " + selectedPoseName + " (不存在)"));
+                sendActionBarMessage(user, Component.literal("当前姿态: " + selectedPoseName + " (不存在)"));
             }
         } else {
-            user.sendSystemMessage(Component.literal("未选择姿态（潜行时滑动滚轮切换）"));
+            sendActionBarMessage(user, Component.literal("未选择姿态（潜行时滑动滚轮切换）"));
         }
         
         return InteractionResultHolder.success(stack);
