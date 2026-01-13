@@ -39,7 +39,8 @@ public abstract class BaseDollEntity extends Entity {
     private static final EntityDataAccessor<Integer> DATA_ACTION_TICK = SynchedEntityData.defineId(BaseDollEntity.class, EntityDataSerializers.INT);
     
     // 姿态和动作相关字段
-    private DollPose currentPose;
+    private DollPose currentPose; // 当前显示的姿态（动作优先级更高）
+    private DollPose savedPose; // 保存的姿态（动作播放前的姿态，用于动作完成后恢复）
     private DollAction currentAction;
     private int actionTick = 0;
     
@@ -51,7 +52,9 @@ public abstract class BaseDollEntity extends Entity {
         this.noPhysics = false; // 有物理碰撞
         // 默认使用standing姿态
         DollPose standingPose = PoseActionManager.getPose("standing");
-        this.currentPose = standingPose != null ? standingPose : SimpleDollPose.createDefaultStandingPose();
+        DollPose defaultPose = standingPose != null ? standingPose : SimpleDollPose.createDefaultStandingPose();
+        this.currentPose = defaultPose;
+        this.savedPose = defaultPose; // 初始化时保存的姿态也是默认姿态
         // 初始化时设置为255（默认姿态）
         if (!level.isClientSide) {
             this.entityData.set(DATA_POSE_INDEX, (byte) 255);
@@ -137,7 +140,9 @@ public abstract class BaseDollEntity extends Entity {
             this.currentPoseIndex = -1;
             this.entityData.set(DATA_POSE_INDEX, (byte) 255);
             DollPose standingPose = PoseActionManager.getPose("standing");
-            this.currentPose = standingPose != null ? standingPose : SimpleDollPose.createDefaultStandingPose();
+            DollPose defaultPose = standingPose != null ? standingPose : SimpleDollPose.createDefaultStandingPose();
+            this.currentPose = defaultPose;
+            this.savedPose = defaultPose; // 同时初始化保存的姿态
         }
     }
     
@@ -203,7 +208,9 @@ public abstract class BaseDollEntity extends Entity {
                     // 如果同步值为255，使用standing姿态
                     currentPoseIndex = -1;
                     DollPose standingPose = PoseActionManager.getPose("standing");
-                    currentPose = standingPose != null ? standingPose : SimpleDollPose.createDefaultStandingPose();
+                    DollPose defaultPose = standingPose != null ? standingPose : SimpleDollPose.createDefaultStandingPose();
+                    currentPose = defaultPose;
+                    savedPose = defaultPose; // 同时更新保存的姿态
                     // 姿态改变时更新碰撞箱
                     updateBoundingBox();
                 }
@@ -230,15 +237,27 @@ public abstract class BaseDollEntity extends Entity {
             }
             
             // 如果动作不循环且播放完成，停止动作
-            if (!currentAction.isLooping() && actionTick >= currentAction.getDuration()) {
+            // 使用 > 而不是 >=，确保当actionTick == duration时能先显示最后一个关键帧
+            if (!currentAction.isLooping() && actionTick > currentAction.getDuration()) {
+                // 根据动作模式决定恢复行为
+                if (currentAction.getMode() == com.lanye.dolladdon.api.action.ActionMode.ONCE) {
+                    // ONCE模式：恢复到动作播放前的姿态
+                    currentPose = savedPose != null ? savedPose : (PoseActionManager.getPose("standing") != null ? 
+                        PoseActionManager.getPose("standing") : SimpleDollPose.createDefaultStandingPose());
+                } else if (currentAction.getMode() == com.lanye.dolladdon.api.action.ActionMode.HOLD) {
+                    // HOLD模式：保持最后一个关键帧的姿态（已经在currentPose中）
+                    // 不需要改变currentPose
+                } else {
+                    // 默认行为：恢复到standing姿态
+                    DollPose standingPose = PoseActionManager.getPose("standing");
+                    currentPose = standingPose != null ? standingPose : SimpleDollPose.createDefaultStandingPose();
+                }
+                
                 currentAction = null;
                 actionTick = 0;
                 // 同步到客户端：清空动作名称和tick
                 this.entityData.set(DATA_ACTION_NAME, "");
                 this.entityData.set(DATA_ACTION_TICK, 0);
-                // 恢复standing姿态
-                DollPose standingPose = PoseActionManager.getPose("standing");
-                currentPose = standingPose != null ? standingPose : SimpleDollPose.createDefaultStandingPose();
                 // 姿态改变时更新碰撞箱
                 updateBoundingBox();
             } else if (currentAction.isLooping()) {
@@ -683,15 +702,20 @@ public abstract class BaseDollEntity extends Entity {
             DollPose pose = PoseActionManager.getPose(poseName);
             if (pose != null) {
                 this.currentPose = pose;
+                this.savedPose = pose; // 同时更新保存的姿态
             } else {
                 // 如果找不到姿态，使用standing姿态
                 DollPose standingPose = PoseActionManager.getPose("standing");
-                this.currentPose = standingPose != null ? standingPose : SimpleDollPose.createDefaultStandingPose();
+                DollPose defaultPose = standingPose != null ? standingPose : SimpleDollPose.createDefaultStandingPose();
+                this.currentPose = defaultPose;
+                this.savedPose = defaultPose;
             }
         } else {
             // 索引无效，使用standing姿态
             DollPose standingPose = PoseActionManager.getPose("standing");
-            this.currentPose = standingPose != null ? standingPose : SimpleDollPose.createDefaultStandingPose();
+            DollPose defaultPose = standingPose != null ? standingPose : SimpleDollPose.createDefaultStandingPose();
+            this.currentPose = defaultPose;
+            this.savedPose = defaultPose;
         }
     }
     
@@ -720,8 +744,22 @@ public abstract class BaseDollEntity extends Entity {
                     this.entityData.set(DATA_ACTION_TICK, 0);
                 }
             }
-            this.currentPose = pose;
+            // 只有在没有动作时才更新currentPose（动作优先级更高）
+            if (this.currentAction == null) {
+                this.currentPose = pose;
+            }
+            // 始终更新savedPose（用于动作完成后恢复）
+            this.savedPose = pose;
             // 姿态改变时更新碰撞箱
+            updateBoundingBox();
+        } else {
+            // 如果设置为null，使用默认standing姿态
+            DollPose standingPose = PoseActionManager.getPose("standing");
+            DollPose defaultPose = standingPose != null ? standingPose : SimpleDollPose.createDefaultStandingPose();
+            if (this.currentAction == null) {
+                this.currentPose = defaultPose;
+            }
+            this.savedPose = defaultPose;
             updateBoundingBox();
         }
     }
@@ -784,6 +822,13 @@ public abstract class BaseDollEntity extends Entity {
      * @param action 要播放的动作
      */
     public void setAction(DollAction action) {
+        if (action != null && this.currentAction == null) {
+            // 开始播放新动作时，保存当前姿态（用于动作完成后恢复）
+            this.savedPose = this.currentPose != null ? this.currentPose : 
+                (PoseActionManager.getPose("standing") != null ? 
+                    PoseActionManager.getPose("standing") : SimpleDollPose.createDefaultStandingPose());
+        }
+        
         this.currentAction = action;
         this.actionTick = 0;
         
@@ -803,6 +848,11 @@ public abstract class BaseDollEntity extends Entity {
      * 停止当前动作
      */
     public void stopAction() {
+        // 恢复到保存的姿态
+        this.currentPose = this.savedPose != null ? this.savedPose : 
+            (PoseActionManager.getPose("standing") != null ? 
+                PoseActionManager.getPose("standing") : SimpleDollPose.createDefaultStandingPose());
+        
         this.currentAction = null;
         this.actionTick = 0;
         
@@ -812,9 +862,8 @@ public abstract class BaseDollEntity extends Entity {
             this.entityData.set(DATA_ACTION_TICK, 0);
         }
         
-        // 恢复standing姿态
-        DollPose standingPose = PoseActionManager.getPose("standing");
-        this.currentPose = standingPose != null ? standingPose : SimpleDollPose.createDefaultStandingPose();
+        // 姿态改变时更新碰撞箱
+        updateBoundingBox();
     }
 }
 

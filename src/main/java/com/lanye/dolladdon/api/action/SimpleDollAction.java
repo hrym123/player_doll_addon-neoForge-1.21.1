@@ -137,7 +137,13 @@ public class SimpleDollAction implements DollAction {
                 actualTick = tick;
             }
         } else {
-            actualTick = Math.min(tick, duration - 1);
+            // 非循环模式：当 tick == duration 时，返回最后一个关键帧
+            // 当 tick > duration 时，也返回最后一个关键帧（防止越界）
+            if (tick >= duration) {
+                actualTick = duration; // 使用duration来确保返回最后一个关键帧
+            } else {
+                actualTick = tick;
+            }
         }
         
         // 如果只有一个关键帧，直接返回
