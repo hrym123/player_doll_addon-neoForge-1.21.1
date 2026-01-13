@@ -1,4 +1,4 @@
-package com.lanye.dolladdon.mixin.logging;
+package com.lanye.dolladdon.util.logging;
 
 import org.slf4j.Logger;
 import com.mojang.logging.LogUtils;
@@ -19,32 +19,6 @@ import com.mojang.logging.LogUtils;
  */
 public class ModuleLogger {
     private static final Logger LOGGER = LogUtils.getLogger();
-    
-    // 静态初始化块：在类加载时执行，用于测试日志系统是否正常工作
-    static {
-        // 直接使用底层 Logger 输出测试日志（不经过模块系统，确保一定能看到）
-        LOGGER.debug("========================================");
-        LOGGER.debug("[Logging System Test] ModuleLogger class loaded successfully");
-        LOGGER.debug("[Logging System Test] Logger instance: {}", LOGGER.getClass().getName());
-        LOGGER.debug("========================================");
-        
-        // 测试模块日志系统（使用 DEBUG 级别）
-        try {
-            ModuleLogger.info(LogModuleConfig.MODULE_INIT, "Logging system test: ModuleLogger initialized successfully");
-            ModuleLogger.debug(LogModuleConfig.MODULE_INIT, "Logging system test: DEBUG level test (may not appear if module level is WARN or higher)");
-            ModuleLogger.warn(LogModuleConfig.MODULE_INIT, "Logging system test: WARN level test");
-        } catch (Exception e) {
-            LOGGER.error("[Logging System Test] Failed to test module logging system", e);
-        }
-    }
-    
-    /**
-     * 获取底层 Logger 实例（用于特殊场景）
-     * @return Logger 实例
-     */
-    public static Logger getLogger() {
-        return LOGGER;
-    }
     
     /**
      * 记录调试级别日志
@@ -105,20 +79,6 @@ public class ModuleLogger {
      * @param throwable 异常
      */
     public static void error(String moduleName, String message, Throwable throwable) {
-        if (shouldLog(moduleName, LogLevel.ERROR)) {
-            String formattedMessage = formatMessage(moduleName, message);
-            LOGGER.error(formattedMessage, throwable);
-        }
-    }
-    
-    /**
-     * 记录错误级别日志（带异常和参数）
-     * @param moduleName 模块名称
-     * @param message 日志消息
-     * @param throwable 异常
-     * @param args 参数
-     */
-    public static void error(String moduleName, String message, Throwable throwable, Object... args) {
         if (shouldLog(moduleName, LogLevel.ERROR)) {
             String formattedMessage = formatMessage(moduleName, message);
             LOGGER.error(formattedMessage, throwable);

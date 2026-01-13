@@ -1,6 +1,8 @@
 package com.lanye.dolladdon.mixin.logging;
 
 import com.lanye.dolladdon.PlayerDollAddon;
+import com.lanye.dolladdon.util.logging.LogModuleConfig;
+import com.lanye.dolladdon.util.logging.ModuleLogger;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import org.spongepowered.asm.mixin.Mixin;
@@ -35,18 +37,6 @@ public class PlayerDollAddonEventMixin {
                 event.getTarget().getClass().getName()
             );
         }
-    }
-    
-    /**
-     * 在 onEntityInteract 方法返回前注入日志（如果发生异常）
-     */
-    @Inject(
-        method = "onEntityInteract",
-        at = @At("RETURN"),
-        remap = false
-    )
-    private void onEntityInteractReturn(PlayerInteractEvent.EntityInteract event, CallbackInfo ci) {
-        // 交互结果日志已在 BaseDollEntityMixin 中处理
     }
     
     /**

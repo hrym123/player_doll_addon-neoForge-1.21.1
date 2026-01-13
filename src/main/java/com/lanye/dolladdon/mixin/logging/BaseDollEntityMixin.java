@@ -1,6 +1,8 @@
 package com.lanye.dolladdon.mixin.logging;
 
 import com.lanye.dolladdon.base.entity.BaseDollEntity;
+import com.lanye.dolladdon.util.logging.LogModuleConfig;
+import com.lanye.dolladdon.util.logging.ModuleLogger;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;

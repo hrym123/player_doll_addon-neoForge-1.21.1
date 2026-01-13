@@ -1,6 +1,8 @@
 package com.lanye.dolladdon.mixin.logging;
 
 import com.lanye.dolladdon.PlayerDollAddon;
+import com.lanye.dolladdon.util.logging.LogModuleConfig;
+import com.lanye.dolladdon.util.logging.ModuleLogger;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import org.spongepowered.asm.mixin.Mixin;
@@ -17,13 +19,14 @@ public class PlayerDollAddonMixin {
     
     /**
      * 在构造函数开始处注入日志
+     * 注意：在 super() 调用之前的注入必须是静态方法
      */
     @Inject(
         method = "<init>",
         at = @At("HEAD"),
         remap = false
     )
-    private void onInitHead(IEventBus modEventBus, ModContainer modContainer, CallbackInfo ci) {
+    private static void onInitHead(IEventBus modEventBus, ModContainer modContainer, CallbackInfo ci) {
         ModuleLogger.info(LogModuleConfig.MODULE_MAIN, "========== Player Doll Mod Initialization Started ==========");
     }
     
