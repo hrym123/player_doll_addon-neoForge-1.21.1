@@ -72,67 +72,6 @@ public class BaseDollEntityMixin {
         );
     }
     
-    /**
-     * 在 setAction 方法调用时注入日志
-     */
-    @Inject(
-        method = "setAction(Lcom/lanye/dolladdon/api/action/DollAction;)V",
-        at = @At("HEAD"),
-        cancellable = false,
-        remap = false
-    )
-    private void onSetActionHead(com.lanye.dolladdon.api.action.DollAction action, CallbackInfo ci) {
-        BaseDollEntity entity = (BaseDollEntity) (Object) this;
-        String actionName = action != null ? action.getName() : "null";
-        String actionDisplayName = null;
-        try {
-            if (action != null) {
-                actionDisplayName = action.getDisplayName();
-            }
-        } catch (Exception e) {
-            // 忽略错误
-        }
-        
-        ModuleLogger.debug(
-            LogModuleConfig.MODULE_ENTITY_ACTION,
-            "BaseDollEntity.setAction called: entityID={}, server={}, actionName={}, actionDisplayName={}, actionNull={}",
-            entity.getId(),
-            !entity.level().isClientSide(),
-            actionName,
-            actionDisplayName != null ? actionDisplayName : "null",
-            action == null
-        );
-    }
-    
-    /**
-     * 在 setAction 方法返回后注入日志（检查动作是否真的被设置）
-     */
-    @Inject(
-        method = "setAction(Lcom/lanye/dolladdon/api/action/DollAction;)V",
-        at = @At("RETURN"),
-        cancellable = false,
-        remap = false
-    )
-    private void onSetActionReturn(com.lanye.dolladdon.api.action.DollAction action, CallbackInfo ci) {
-        BaseDollEntity entity = (BaseDollEntity) (Object) this;
-        String currentActionName = null;
-        try {
-            com.lanye.dolladdon.api.action.DollAction currentAction = entity.getCurrentAction();
-            if (currentAction != null) {
-                currentActionName = currentAction.getName();
-            }
-        } catch (Exception e) {
-            // 忽略错误
-        }
-        
-        ModuleLogger.debug(
-            LogModuleConfig.MODULE_ENTITY_ACTION,
-            "BaseDollEntity.setAction returned: entityID={}, server={}, currentActionName={}, actionWasSet={}",
-            entity.getId(),
-            !entity.level().isClientSide(),
-            currentActionName != null ? currentActionName : "null",
-            currentActionName != null
-        );
-    }
+    // setAction 相关调试日志已关闭 - 问题010已修复
     
 }

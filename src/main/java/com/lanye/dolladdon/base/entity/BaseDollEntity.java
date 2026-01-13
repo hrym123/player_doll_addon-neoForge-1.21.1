@@ -709,10 +709,18 @@ public abstract class BaseDollEntity extends Entity {
      */
     public void setPose(DollPose pose) {
         if (pose != null) {
+            // 设置姿态时先停止当前动作（确保同步到客户端）
+            if (this.currentAction != null) {
+                // 只清空动作状态，不恢复standing姿态（因为即将设置新姿态）
+                this.currentAction = null;
+                this.actionTick = 0;
+                // 同步到客户端：清空动作名称和tick
+                if (!this.level().isClientSide) {
+                    this.entityData.set(DATA_ACTION_NAME, "");
+                    this.entityData.set(DATA_ACTION_TICK, 0);
+                }
+            }
             this.currentPose = pose;
-            // 设置姿态时停止当前动作
-            this.currentAction = null;
-            this.actionTick = 0;
             // 姿态改变时更新碰撞箱
             updateBoundingBox();
         }
