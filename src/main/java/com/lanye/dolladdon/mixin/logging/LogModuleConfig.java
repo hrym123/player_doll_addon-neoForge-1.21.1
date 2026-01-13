@@ -63,6 +63,9 @@ public class LogModuleConfig {
     /** 调试棒模块 - 姿态调试棒 */
     public static final String MODULE_DEBUG_STICK_POSE = "debug_stick.pose";
     
+    /** 初始化模块 - 用于测试日志系统 */
+    public static final String MODULE_INIT = "init";
+    
     // ==================== 默认日志级别配置 ====================
     // 注意：修改这里的级别即可控制对应模块的日志输出
     // 设置为 LogLevel.OFF 即可完全禁用该模块的日志
@@ -82,6 +85,7 @@ public class LogModuleConfig {
     private static final LogLevel LEVEL_TEXTURE_SCANNER = LogLevel.WARN;  // 纹理扫描器模块日志级别
     private static final LogLevel LEVEL_DEBUG_STICK_ACTION = LogLevel.DEBUG;  // 动作调试棒模块日志级别，当前正在调试的模块
     private static final LogLevel LEVEL_DEBUG_STICK_POSE = LogLevel.WARN;  // 姿态调试棒模块日志级别
+    private static final LogLevel LEVEL_INIT = LogLevel.INFO;  // 初始化模块日志级别，用于测试日志系统（设置为 INFO 确保能看到）
     
     // ==================== 日志模板配置 ====================
     
@@ -100,6 +104,23 @@ public class LogModuleConfig {
     private static final String TEMPLATE_TEXTURE_SCANNER = "[纹理扫描] {}";
     private static final String TEMPLATE_DEBUG_STICK_ACTION = "[动作调试棒] {}";
     private static final String TEMPLATE_DEBUG_STICK_POSE = "[姿态调试棒] {}";
+    private static final String TEMPLATE_INIT = "[初始化] {}";
+    
+    // 静态初始化块：在类加载时执行，用于测试日志系统是否正常工作
+    static {
+        // 直接使用底层 Logger 输出测试日志（不经过模块系统，确保一定能看到）
+        // 注意：这里不能使用 ModuleLogger，因为 ModuleLogger 可能还没加载
+        try {
+            org.slf4j.Logger logger = com.mojang.logging.LogUtils.getLogger();
+            logger.info("========================================");
+            logger.info("[Logging System Test] LogModuleConfig class loaded successfully");
+            logger.info("[Logging System Test] All module constants initialized");
+            logger.info("========================================");
+        } catch (Exception e) {
+            // 如果 LogUtils 还没加载，忽略错误（这种情况很少见）
+            System.err.println("[Logging System Test] Failed to initialize test log in LogModuleConfig: " + e.getMessage());
+        }
+    }
     
     // ==================== 配置读取方法 ====================
     
@@ -125,6 +146,7 @@ public class LogModuleConfig {
             case MODULE_TEXTURE_SCANNER -> LEVEL_TEXTURE_SCANNER;
             case MODULE_DEBUG_STICK_ACTION -> LEVEL_DEBUG_STICK_ACTION;
             case MODULE_DEBUG_STICK_POSE -> LEVEL_DEBUG_STICK_POSE;
+            case MODULE_INIT -> LEVEL_INIT;
             default -> LogLevel.WARN;  // 默认返回 WARN
         };
     }
@@ -151,6 +173,7 @@ public class LogModuleConfig {
             case MODULE_TEXTURE_SCANNER -> TEMPLATE_TEXTURE_SCANNER;
             case MODULE_DEBUG_STICK_ACTION -> TEMPLATE_DEBUG_STICK_ACTION;
             case MODULE_DEBUG_STICK_POSE -> TEMPLATE_DEBUG_STICK_POSE;
+            case MODULE_INIT -> TEMPLATE_INIT;
             default -> "[{}] {}";  // 默认模板
         };
     }
