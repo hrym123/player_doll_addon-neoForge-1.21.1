@@ -33,6 +33,10 @@ public abstract class BaseDollEntity extends Entity {
     private static final EntityDataAccessor<Byte> DATA_CLIENT_FLAGS = SynchedEntityData.defineId(BaseDollEntity.class, EntityDataSerializers.BYTE);
     // 同步姿态索引到客户端（使用Byte，支持0-255个姿态，足够使用）
     private static final EntityDataAccessor<Byte> DATA_POSE_INDEX = SynchedEntityData.defineId(BaseDollEntity.class, EntityDataSerializers.BYTE);
+    // 同步动作名称到客户端（空字符串表示没有动作）
+    private static final EntityDataAccessor<String> DATA_ACTION_NAME = SynchedEntityData.defineId(BaseDollEntity.class, EntityDataSerializers.STRING);
+    // 同步动作tick到客户端（用于计算当前姿态）
+    private static final EntityDataAccessor<Integer> DATA_ACTION_TICK = SynchedEntityData.defineId(BaseDollEntity.class, EntityDataSerializers.INT);
     
     // 姿态和动作相关字段
     private DollPose currentPose;
@@ -51,6 +55,8 @@ public abstract class BaseDollEntity extends Entity {
         // 初始化时设置为255（默认姿态）
         if (!level.isClientSide) {
             this.entityData.set(DATA_POSE_INDEX, (byte) 255);
+            this.entityData.set(DATA_ACTION_NAME, "");
+            this.entityData.set(DATA_ACTION_TICK, 0);
         }
         // 初始化碰撞箱
         updateBoundingBox();
@@ -65,6 +71,8 @@ public abstract class BaseDollEntity extends Entity {
     protected void defineSynchedData(SynchedEntityData.Builder builder) {
         builder.define(DATA_CLIENT_FLAGS, (byte) 0);
         builder.define(DATA_POSE_INDEX, (byte) 255); // 255 表示未设置（默认姿态）
+        builder.define(DATA_ACTION_NAME, ""); // 空字符串表示没有动作
+        builder.define(DATA_ACTION_TICK, 0); // 动作tick从0开始
     }
     
     @Override
@@ -161,30 +169,53 @@ public abstract class BaseDollEntity extends Entity {
     public void tick() {
         super.tick();
         
-        // 在客户端，根据同步的索引更新姿态
+        // 在客户端，根据同步的数据更新姿态
         if (this.level().isClientSide) {
-            byte syncedIndex = this.entityData.get(DATA_POSE_INDEX);
-            if (syncedIndex != 255) {
-                int index = syncedIndex & 0xFF; // 转换为无符号整数
-                if (index != currentPoseIndex) {
-                    currentPoseIndex = index;
-                    loadPoseByIndex();
+            // 优先处理动作（如果有）
+            String syncedActionName = this.entityData.get(DATA_ACTION_NAME);
+            if (syncedActionName != null && !syncedActionName.isEmpty()) {
+                int syncedActionTick = this.entityData.get(DATA_ACTION_TICK);
+                DollAction action = PoseActionManager.getAction(syncedActionName);
+                if (action != null) {
+                    // 根据动作和tick计算当前姿态
+                    DollPose actionPose = action.getPoseAt(syncedActionTick);
+                    if (actionPose != null) {
+                        boolean poseChanged = currentPose != actionPose;
+                        currentPose = actionPose;
+                        // 如果姿态改变，更新碰撞箱
+                        if (poseChanged) {
+                            updateBoundingBox();
+                        }
+                    }
+                }
+            } else {
+                // 没有动作，根据同步的索引更新姿态
+                byte syncedIndex = this.entityData.get(DATA_POSE_INDEX);
+                if (syncedIndex != 255) {
+                    int index = syncedIndex & 0xFF; // 转换为无符号整数
+                    if (index != currentPoseIndex) {
+                        currentPoseIndex = index;
+                        loadPoseByIndex();
+                        // 姿态改变时更新碰撞箱
+                        updateBoundingBox();
+                    }
+                } else if (currentPoseIndex != -1) {
+                    // 如果同步值为255，使用standing姿态
+                    currentPoseIndex = -1;
+                    DollPose standingPose = PoseActionManager.getPose("standing");
+                    currentPose = standingPose != null ? standingPose : SimpleDollPose.createDefaultStandingPose();
                     // 姿态改变时更新碰撞箱
                     updateBoundingBox();
                 }
-            } else if (currentPoseIndex != -1) {
-                // 如果同步值为255，使用standing姿态
-                currentPoseIndex = -1;
-                DollPose standingPose = PoseActionManager.getPose("standing");
-                currentPose = standingPose != null ? standingPose : SimpleDollPose.createDefaultStandingPose();
-                // 姿态改变时更新碰撞箱
-                updateBoundingBox();
             }
         }
         
-        // 更新动作
-        if (currentAction != null) {
+        // 更新动作（仅在服务端）
+        if (!this.level().isClientSide && currentAction != null) {
             actionTick++;
+            
+            // 同步 actionTick 到客户端
+            this.entityData.set(DATA_ACTION_TICK, actionTick);
             
             // 获取当前tick对应的姿态
             DollPose actionPose = currentAction.getPoseAt(actionTick);
@@ -202,6 +233,9 @@ public abstract class BaseDollEntity extends Entity {
             if (!currentAction.isLooping() && actionTick >= currentAction.getDuration()) {
                 currentAction = null;
                 actionTick = 0;
+                // 同步到客户端：清空动作名称和tick
+                this.entityData.set(DATA_ACTION_NAME, "");
+                this.entityData.set(DATA_ACTION_TICK, 0);
                 // 恢复standing姿态
                 DollPose standingPose = PoseActionManager.getPose("standing");
                 currentPose = standingPose != null ? standingPose : SimpleDollPose.createDefaultStandingPose();
@@ -211,6 +245,8 @@ public abstract class BaseDollEntity extends Entity {
                 // 循环动作，重置tick
                 if (actionTick >= currentAction.getDuration()) {
                     actionTick = 0;
+                    // 同步重置后的 tick 到客户端
+                    this.entityData.set(DATA_ACTION_TICK, 0);
                 }
             }
         }
@@ -742,6 +778,17 @@ public abstract class BaseDollEntity extends Entity {
     public void setAction(DollAction action) {
         this.currentAction = action;
         this.actionTick = 0;
+        
+        // 同步动作名称和tick到客户端
+        if (!this.level().isClientSide) {
+            if (action != null) {
+                this.entityData.set(DATA_ACTION_NAME, action.getName());
+                this.entityData.set(DATA_ACTION_TICK, 0);
+            } else {
+                this.entityData.set(DATA_ACTION_NAME, "");
+                this.entityData.set(DATA_ACTION_TICK, 0);
+            }
+        }
     }
     
     /**
@@ -750,6 +797,13 @@ public abstract class BaseDollEntity extends Entity {
     public void stopAction() {
         this.currentAction = null;
         this.actionTick = 0;
+        
+        // 同步到客户端：清空动作名称和tick
+        if (!this.level().isClientSide) {
+            this.entityData.set(DATA_ACTION_NAME, "");
+            this.entityData.set(DATA_ACTION_TICK, 0);
+        }
+        
         // 恢复standing姿态
         DollPose standingPose = PoseActionManager.getPose("standing");
         this.currentPose = standingPose != null ? standingPose : SimpleDollPose.createDefaultStandingPose();

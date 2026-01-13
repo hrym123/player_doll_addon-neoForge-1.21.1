@@ -71,7 +71,7 @@ public class LogModuleConfig {
     private static final LogLevel LEVEL_ENTITY = LogLevel.WARN;  // 实体基础模块日志级别
     private static final LogLevel LEVEL_ENTITY_INTERACT = LogLevel.DEBUG;  // 实体交互模块日志级别，当前正在调试交互问题
     private static final LogLevel LEVEL_ENTITY_POSE = LogLevel.WARN;  // 实体姿态模块日志级别
-    private static final LogLevel LEVEL_ENTITY_ACTION = LogLevel.WARN;  // 实体动作模块日志级别，改为 OFF 可一键关闭所有动作相关日志
+    private static final LogLevel LEVEL_ENTITY_ACTION = LogLevel.DEBUG;  // 实体动作模块日志级别，当前正在调试动作问题
     private static final LogLevel LEVEL_ENTITY_NBT = LogLevel.WARN;  // 实体NBT模块日志级别
     private static final LogLevel LEVEL_RENDER = LogLevel.WARN;  // 渲染模块日志级别
     private static final LogLevel LEVEL_3D_SKIN_LAYERS = LogLevel.WARN;  // 3D皮肤层模块日志级别

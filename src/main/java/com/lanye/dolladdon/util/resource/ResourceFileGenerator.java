@@ -48,7 +48,7 @@ public class ResourceFileGenerator {
         int maxDepth = 10; // 最多向上查找 10 层，防止无限循环
         int depth = 0;
         
-        while (depth < maxDepth && currentDir != null) {
+        while (depth < maxDepth) {
             Path buildGradle = currentDir.resolve("build.gradle");
             Path settingsGradle = currentDir.resolve("settings.gradle");
             

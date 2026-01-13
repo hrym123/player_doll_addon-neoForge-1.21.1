@@ -7,6 +7,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.lanye.dolladdon.PlayerDollAddon;
 import com.lanye.dolladdon.api.action.ActionKeyframe;
+import com.lanye.dolladdon.api.action.ActionMode;
 import com.lanye.dolladdon.api.action.DollAction;
 import com.lanye.dolladdon.api.action.SimpleDollAction;
 import com.lanye.dolladdon.api.pose.DollPose;
@@ -83,12 +84,35 @@ public class ActionLoader {
     }
     
     /**
+     * 从JSON对象解析动作模式
+     * 优先读取 "mode" 字段，如果没有则从 "looping" 字段推断
+     */
+    private static ActionMode parseActionMode(JsonObject json) {
+        if (json.has("mode")) {
+            String modeStr = json.get("mode").getAsString().toUpperCase();
+            try {
+                return ActionMode.valueOf(modeStr);
+            } catch (IllegalArgumentException e) {
+                // 无效的mode值，使用默认值
+                return ActionMode.ONCE;
+            }
+        } else if (json.has("looping")) {
+            // 向后兼容：从 looping 字段推断模式
+            boolean looping = json.get("looping").getAsBoolean();
+            return looping ? ActionMode.LOOP : ActionMode.ONCE;
+        } else {
+            // 默认模式
+            return ActionMode.ONCE;
+        }
+    }
+    
+    /**
      * 从JSON对象解析动作
      */
     private static DollAction parseAction(ResourceManager resourceManager, JsonObject json) {
         String name = json.has("name") ? json.get("name").getAsString() : "unnamed";
         String displayName = json.has("displayName") ? json.get("displayName").getAsString() : null;
-        boolean looping = json.has("looping") && json.get("looping").getAsBoolean();
+        ActionMode mode = parseActionMode(json);
         
         if (!json.has("keyframes") || !json.get("keyframes").isJsonArray()) {
             // Error logging handled by Mixin
@@ -139,7 +163,7 @@ public class ActionLoader {
             keyframes[i] = new ActionKeyframe(tick, pose);
         }
         
-        return new SimpleDollAction(name, displayName, looping, keyframes);
+        return new SimpleDollAction(name, displayName, mode, keyframes);
     }
     
     /**
@@ -187,9 +211,10 @@ public class ActionLoader {
      * 从文件系统解析动作（用于处理姿态引用）
      */
     private static DollAction parseActionFromFileSystem(JsonObject json, Path posesDir) {
-        String name = json.has("name") ? json.get("name").getAsString() : "unnamed";
-        String displayName = json.has("displayName") ? json.get("displayName").getAsString() : null;
-        boolean looping = json.has("looping") && json.get("looping").getAsBoolean();
+        try {
+            String name = json.has("name") ? json.get("name").getAsString() : "unnamed";
+            String displayName = json.has("displayName") ? json.get("displayName").getAsString() : null;
+            ActionMode mode = parseActionMode(json);
         
         if (!json.has("keyframes") || !json.get("keyframes").isJsonArray()) {
             // Error logging handled by Mixin
@@ -200,31 +225,47 @@ public class ActionLoader {
         ActionKeyframe[] keyframes = new ActionKeyframe[keyframesArray.size()];
         
         for (int i = 0; i < keyframesArray.size(); i++) {
-            JsonObject keyframeObj = keyframesArray.get(i).getAsJsonObject();
-            
-            int tick = keyframeObj.has("tick") ? keyframeObj.get("tick").getAsInt() : 0;
-            
-            DollPose pose = null;
-            if (keyframeObj.has("pose")) {
-                JsonElement poseElement = keyframeObj.get("pose");
-                if (poseElement.isJsonObject()) {
-                    // 内联姿态定义
-                    pose = PoseLoader.parsePose(poseElement.getAsJsonObject());
-                } else if (poseElement.isJsonPrimitive()) {
-                    // 引用其他姿态文件，从文件系统加载
-                    String poseName = poseElement.getAsString();
-                    pose = PoseLoader.loadPoseFromFileSystem(posesDir.resolve(poseName + ".json"));
+            try {
+                JsonObject keyframeObj = keyframesArray.get(i).getAsJsonObject();
+                
+                int tick = keyframeObj.has("tick") ? keyframeObj.get("tick").getAsInt() : 0;
+                
+                DollPose pose = null;
+                if (keyframeObj.has("pose")) {
+                    JsonElement poseElement = keyframeObj.get("pose");
+                    if (poseElement.isJsonObject()) {
+                        // 内联姿态定义
+                        pose = PoseLoader.parsePose(poseElement.getAsJsonObject());
+                        if (pose == null) {
+                            // 内联姿态解析失败，使用默认姿态
+                        }
+                    } else if (poseElement.isJsonPrimitive()) {
+                        // 引用其他姿态文件，从文件系统加载
+                        String poseName = poseElement.getAsString();
+                        Path poseFile = posesDir.resolve(poseName + ".json");
+                        pose = PoseLoader.loadPoseFromFileSystem(poseFile);
+                        if (pose == null) {
+                            // 姿态文件不存在，使用默认姿态
+                        }
+                    }
                 }
+                
+                if (pose == null) {
+                    pose = com.lanye.dolladdon.api.pose.SimpleDollPose.createDefaultStandingPose();
+                }
+                
+                keyframes[i] = new ActionKeyframe(tick, pose);
+            } catch (Exception e) {
+                // 解析关键帧失败，使用默认姿态作为后备
+                keyframes[i] = new ActionKeyframe(0, com.lanye.dolladdon.api.pose.SimpleDollPose.createDefaultStandingPose());
             }
-            
-            if (pose == null) {
-                pose = com.lanye.dolladdon.api.pose.SimpleDollPose.createDefaultStandingPose();
-            }
-            
-            keyframes[i] = new ActionKeyframe(tick, pose);
         }
         
-        return new SimpleDollAction(name, displayName, looping, keyframes);
+        return new SimpleDollAction(name, displayName, mode, keyframes);
+        } catch (Exception e) {
+            // Error logging handled by Mixin
+            return null;
+        }
     }
     
     /**

@@ -26,15 +26,39 @@ public class PlayerDollAddonEventMixin {
     )
     private void onEntityInteractHead(PlayerInteractEvent.EntityInteract event, CallbackInfo ci) {
         if (event.getTarget() != null) {
+            net.minecraft.world.item.ItemStack heldStack = event.getEntity().getItemInHand(event.getHand());
             ModuleLogger.debug(
                 LogModuleConfig.MODULE_ENTITY_INTERACT,
-                "Player {} interacting with entity: type={}, ID={}, hand={}, server={}, entityClass={}",
+                "Player {} interacting with entity: type={}, ID={}, hand={}, server={}, entityClass={}, heldItem={}, eventCanceled={}",
                 event.getEntity().getName().getString(), 
                 event.getTarget().getType().toString(),
                 event.getTarget().getId(),
                 event.getHand(), 
                 !event.getLevel().isClientSide(),
-                event.getTarget().getClass().getName()
+                event.getTarget().getClass().getName(),
+                heldStack != null && !heldStack.isEmpty() ? heldStack.getItem().toString() : "empty",
+                event.isCanceled()
+            );
+        }
+    }
+    
+    /**
+     * 在 onEntityInteract 方法返回前注入日志（记录返回值）
+     */
+    @Inject(
+        method = "onEntityInteract",
+        at = @At("RETURN"),
+        remap = false
+    )
+    private void onEntityInteractReturn(PlayerInteractEvent.EntityInteract event, CallbackInfo ci) {
+        if (event.getTarget() != null) {
+            ModuleLogger.debug(
+                LogModuleConfig.MODULE_ENTITY_INTERACT,
+                "onEntityInteract finished: player={}, server={}, eventCanceled={}, cancellationResult={}",
+                event.getEntity().getName().getString(),
+                !event.getLevel().isClientSide(),
+                event.isCanceled(),
+                event.getCancellationResult()
             );
         }
     }

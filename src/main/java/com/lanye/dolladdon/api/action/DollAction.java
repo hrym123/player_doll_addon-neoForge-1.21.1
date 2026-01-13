@@ -24,10 +24,19 @@ public interface DollAction {
     }
     
     /**
-     * 获取动作是否循环播放
+     * 获取动作是否循环播放（向后兼容方法）
      * @return 是否循环
      */
     boolean isLooping();
+    
+    /**
+     * 获取动作播放模式（LOOP/HOLD/ONCE）
+     * @return 播放模式，默认为 ONCE
+     */
+    default ActionMode getMode() {
+        // 向后兼容：根据 isLooping() 返回模式
+        return isLooping() ? ActionMode.LOOP : ActionMode.ONCE;
+    }
     
     /**
      * 获取动作总时长（tick数）
