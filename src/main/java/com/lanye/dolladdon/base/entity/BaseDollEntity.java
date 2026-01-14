@@ -204,15 +204,18 @@ public abstract class BaseDollEntity extends Entity {
                         // 姿态改变时更新碰撞箱
                         updateBoundingBox();
                     }
-                } else if (currentPoseIndex != -1) {
+                } else {
                     // 如果同步值为255，使用standing姿态
-                    currentPoseIndex = -1;
-                    DollPose standingPose = PoseActionManager.getPose("standing");
-                    DollPose defaultPose = standingPose != null ? standingPose : SimpleDollPose.createDefaultStandingPose();
-                    currentPose = defaultPose;
-                    savedPose = defaultPose; // 同时更新保存的姿态
-                    // 姿态改变时更新碰撞箱
-                    updateBoundingBox();
+                    // 只有当currentPoseIndex不是-1时才更新（避免重复设置）
+                    if (currentPoseIndex != -1) {
+                        currentPoseIndex = -1;
+                        DollPose standingPose = PoseActionManager.getPose("standing");
+                        DollPose defaultPose = standingPose != null ? standingPose : SimpleDollPose.createDefaultStandingPose();
+                        currentPose = defaultPose;
+                        savedPose = defaultPose; // 同时更新保存的姿态
+                        // 姿态改变时更新碰撞箱
+                        updateBoundingBox();
+                    }
                 }
             }
         }
@@ -244,13 +247,19 @@ public abstract class BaseDollEntity extends Entity {
                     // ONCE模式：恢复到动作播放前的姿态
                     currentPose = savedPose != null ? savedPose : (PoseActionManager.getPose("standing") != null ? 
                         PoseActionManager.getPose("standing") : SimpleDollPose.createDefaultStandingPose());
+                    // 根据恢复的姿态更新姿态索引并同步到客户端
+                    updatePoseIndexFromPose(currentPose);
                 } else if (currentAction.getMode() == com.lanye.dolladdon.api.action.ActionMode.HOLD) {
                     // HOLD模式：保持最后一个关键帧的姿态（已经在currentPose中）
-                    // 不需要改变currentPose
+                    // 不需要改变currentPose，但需要更新姿态索引
+                    updatePoseIndexFromPose(currentPose);
                 } else {
                     // 默认行为：恢复到standing姿态
                     DollPose standingPose = PoseActionManager.getPose("standing");
                     currentPose = standingPose != null ? standingPose : SimpleDollPose.createDefaultStandingPose();
+                    // 更新姿态索引为standing（索引-1或255）
+                    currentPoseIndex = -1;
+                    this.entityData.set(DATA_POSE_INDEX, (byte) 255);
                 }
                 
                 currentAction = null;
@@ -692,6 +701,64 @@ public abstract class BaseDollEntity extends Entity {
     }
     
     /**
+     * 根据姿态更新姿态索引并同步到客户端
+     * @param pose 要更新的姿态
+     */
+    private void updatePoseIndexFromPose(DollPose pose) {
+        if (pose == null) {
+            return;
+        }
+        
+        // 重要：始终从PoseActionManager获取姿态对象，确保使用的是注册的姿态对象
+        // 这样可以避免使用内联定义的姿态对象，确保姿态名称和索引的一致性
+        String poseName = pose.getName();
+        DollPose registeredPose = PoseActionManager.getPose(poseName);
+        
+        // 如果找不到注册的姿态，使用传入的pose（可能是默认姿态）
+        DollPose poseToUse = registeredPose != null ? registeredPose : pose;
+        String finalPoseName = poseToUse.getName();
+        
+        List<String> poseNames = getAvailablePoseNames();
+        int poseIndex = poseNames.indexOf(finalPoseName);
+        
+        if (poseIndex >= 0) {
+            this.currentPoseIndex = poseIndex;
+            // 更新currentPose为注册的姿态对象，确保一致性
+            this.currentPose = poseToUse;
+            // 同步姿态索引到客户端（仅在服务端设置）
+            if (!this.level().isClientSide) {
+                if (currentPoseIndex == 0) {
+                    // standing姿态使用255表示默认姿态
+                    this.entityData.set(DATA_POSE_INDEX, (byte) 255);
+                } else if (currentPoseIndex < 255) {
+                    this.entityData.set(DATA_POSE_INDEX, (byte) (currentPoseIndex & 0xFF));
+                } else {
+                    this.entityData.set(DATA_POSE_INDEX, (byte) 255);
+                }
+            }
+        } else {
+            // 如果找不到对应的索引，但poseName是"standing"，使用255
+            if ("standing".equals(finalPoseName)) {
+                this.currentPoseIndex = -1;
+                DollPose standingPose = PoseActionManager.getPose("standing");
+                this.currentPose = standingPose != null ? standingPose : SimpleDollPose.createDefaultStandingPose();
+                if (!this.level().isClientSide) {
+                    this.entityData.set(DATA_POSE_INDEX, (byte) 255);
+                }
+            } else {
+                // 对于其他找不到索引的姿态，回退到standing姿态
+                // 这不应该发生，因为savedPose应该始终是一个在姿态列表中的姿态
+                this.currentPoseIndex = -1;
+                DollPose standingPose = PoseActionManager.getPose("standing");
+                this.currentPose = standingPose != null ? standingPose : SimpleDollPose.createDefaultStandingPose();
+                if (!this.level().isClientSide) {
+                    this.entityData.set(DATA_POSE_INDEX, (byte) 255);
+                }
+            }
+        }
+    }
+    
+    /**
      * 根据索引加载姿态（用于从NBT恢复和客户端同步）
      */
     private void loadPoseByIndex() {
@@ -744,12 +811,19 @@ public abstract class BaseDollEntity extends Entity {
                     this.entityData.set(DATA_ACTION_TICK, 0);
                 }
             }
+            
+            // 重要：始终从PoseActionManager获取注册的姿态对象，确保一致性
+            // 这样可以避免使用内联定义的姿态对象，确保姿态名称和索引的一致性
+            String poseName = pose.getName();
+            DollPose registeredPose = PoseActionManager.getPose(poseName);
+            DollPose poseToUse = registeredPose != null ? registeredPose : pose;
+            
             // 只有在没有动作时才更新currentPose（动作优先级更高）
             if (this.currentAction == null) {
-                this.currentPose = pose;
+                this.currentPose = poseToUse;
             }
-            // 始终更新savedPose（用于动作完成后恢复）
-            this.savedPose = pose;
+            // 始终更新savedPose（用于动作完成后恢复），使用注册的姿态对象
+            this.savedPose = poseToUse;
             // 姿态改变时更新碰撞箱
             updateBoundingBox();
         } else {
@@ -824,9 +898,29 @@ public abstract class BaseDollEntity extends Entity {
     public void setAction(DollAction action) {
         if (action != null && this.currentAction == null) {
             // 开始播放新动作时，保存当前姿态（用于动作完成后恢复）
-            this.savedPose = this.currentPose != null ? this.currentPose : 
-                (PoseActionManager.getPose("standing") != null ? 
-                    PoseActionManager.getPose("standing") : SimpleDollPose.createDefaultStandingPose());
+            // 重要：如果currentPose是动作的姿态，应该保存savedPose而不是currentPose
+            // 因为currentPose可能是一个内联定义的姿态，不在姿态列表中
+            DollPose poseToSave = this.savedPose != null ? this.savedPose : 
+                (this.currentPose != null ? this.currentPose : 
+                    (PoseActionManager.getPose("standing") != null ? 
+                        PoseActionManager.getPose("standing") : SimpleDollPose.createDefaultStandingPose()));
+            
+            // 确保savedPose是一个在姿态列表中的有效姿态，这样恢复时才能正确同步到客户端
+            // 重要：必须从PoseActionManager获取姿态对象，而不是直接保存poseToSave
+            // 因为poseToSave可能是内联定义的姿态对象，虽然名称相同，但对象不同
+            List<String> poseNames = getAvailablePoseNames();
+            String poseName = poseToSave.getName();
+            
+            // 始终从PoseActionManager获取姿态对象，确保使用的是注册的姿态对象
+            DollPose foundPose = PoseActionManager.getPose(poseName);
+            if (foundPose != null && poseNames.contains(foundPose.getName())) {
+                // 从PoseActionManager获取的姿态对象，确保是注册的姿态
+                this.savedPose = foundPose;
+            } else {
+                // 如果找不到，使用standing姿态作为后备
+                DollPose standingPose = PoseActionManager.getPose("standing");
+                this.savedPose = standingPose != null ? standingPose : SimpleDollPose.createDefaultStandingPose();
+            }
         }
         
         this.currentAction = action;
