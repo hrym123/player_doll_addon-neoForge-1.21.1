@@ -175,8 +175,34 @@ public abstract class BaseDollEntity extends Entity {
         super.tick();
         
         // 注意：物理模拟（重力、移动、摩擦力）由原版Entity.tick()处理
-        // 姿态更新和动作更新逻辑已移至事件处理器中处理，以提高性能
-        // 这里不再需要额外的物理模拟代码
+        
+        // 服务器端：更新动作tick（如果有动作）
+        // 这是唯一必须使用tick的功能：动作需要逐帧播放，每tick递增actionTick
+        if (!this.level().isClientSide && this.currentAction != null) {
+            updateServerAction();
+        }
+        
+        // 客户端：不需要在tick中更新姿态
+        // 姿态更新通过onSyncedDataUpdated()在数据同步时触发，更高效
+    }
+    
+    /**
+     * 当实体数据同步到客户端时调用
+     * 用于在数据变化时更新姿态
+     * 这是客户端更新姿态的主要方式，不需要每tick检查
+     */
+    @Override
+    protected void onSyncedDataUpdated(net.minecraft.network.syncher.EntityDataAccessor<?> key) {
+        super.onSyncedDataUpdated(key);
+        
+        // 客户端：当姿态或动作数据同步时，立即更新姿态
+        // 服务器端每tick都会同步DATA_ACTION_TICK，所以动作播放时这里会被每tick调用
+        // 姿态变化时DATA_POSE_INDEX会变化，也会触发这里
+        if (this.level().isClientSide) {
+            if (key == DATA_POSE_INDEX || key == DATA_ACTION_NAME || key == DATA_ACTION_TICK) {
+                updateClientPose();
+            }
+        }
     }
     
     /**

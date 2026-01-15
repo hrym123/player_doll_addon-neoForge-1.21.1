@@ -99,18 +99,19 @@ public class DollSkinCommand {
             }
             
             // 获取玩家信息
-            String targetPlayerName = targetPlayer.getName().getString();
+            final String targetPlayerName = targetPlayer.getName().getString();
+            final java.util.UUID targetPlayerUUID = targetPlayer.getUUID();
             boolean isAlexModel = com.lanye.dolladdon.util.resource.PlayerSkinUtil.isAlexModel(
-                targetPlayer.getUUID(), 
+                targetPlayerUUID, 
                 targetPlayerName
             );
             
             // 生成文件名
-            String fileName = SkinFileNamingUtil.generateFileName(targetPlayerName, isAlexModel);
+            final String fileName = SkinFileNamingUtil.generateFileName(targetPlayerName, isAlexModel);
             
             // 获取保存路径
             Path pngDir = PlayerSkinDownloader.getPngDirectory();
-            Path targetPath = pngDir.resolve(fileName);
+            final Path targetPath = pngDir.resolve(fileName);
             
             // 检查文件是否已存在
             boolean fileExists = java.nio.file.Files.exists(targetPath);
@@ -119,33 +120,29 @@ public class DollSkinCommand {
                 return 0;
             }
             
-            // 下载并保存皮肤
-            source.sendSuccess(() -> Component.literal("正在下载玩家皮肤: " + targetPlayerName), false);
+            // 异步下载并保存皮肤，避免阻塞服务器主线程
+            source.sendSuccess(() -> Component.literal("正在下载玩家皮肤: " + targetPlayerName + "（异步执行，请稍候...）"), false);
             
-            boolean success = PlayerSkinDownloader.downloadPlayerSkin(
-                targetPlayer, 
-                targetPath, 
-                false // 不覆盖已存在的文件
-            );
+            // 使用服务器的工作线程池异步执行下载任务
+            // 注意：使用 final 变量以确保 lambda 表达式可以正确捕获
+            java.util.concurrent.CompletableFuture.supplyAsync(() -> {
+                return PlayerSkinDownloader.downloadPlayerSkin(
+                    targetPlayerUUID, 
+                    targetPlayerName, 
+                    targetPath, 
+                    false // 不覆盖已存在的文件
+                );
+            }, source.getServer()).thenAcceptAsync(success -> {
+                // 在主线程中发送结果消息
+                if (success) {
+                    source.sendSuccess(() -> Component.literal("皮肤已保存: " + fileName), true);
+                    source.sendSuccess(() -> Component.literal("注意：需要重启游戏或重新加载资源包才能使用新注册的玩偶"), false);
+                } else {
+                    source.sendFailure(Component.literal("下载或保存皮肤失败: " + targetPlayerName));
+                }
+            }, source.getServer());
             
-            if (!success) {
-                source.sendFailure(Component.literal("下载或保存皮肤失败: " + targetPlayerName));
-                return 0;
-            }
-            
-            // 触发动态玩偶重新扫描
-            // 注意：由于动态玩偶是在模组初始化时注册的，我们需要重新扫描并注册
-            // 但是，在运行时动态注册新实体比较复杂，这里我们只保存文件
-            // 玩家需要重启游戏或重新加载资源包才能看到新注册的玩偶
-            // 或者，我们可以尝试在运行时注册（但这需要更复杂的实现）
-            
-            // 尝试重新扫描目录（这不会自动注册新实体，但可以更新纹理）
-            // 注意：DynamicDollLoader.scanDirectory() 只是扫描文件，不会注册实体
-            // 要在运行时注册新实体，需要更复杂的实现
-            
-            source.sendSuccess(() -> Component.literal("皮肤已保存: " + fileName), true);
-            source.sendSuccess(() -> Component.literal("注意：需要重启游戏或重新加载资源包才能使用新注册的玩偶"), false);
-            
+            // 立即返回，不等待下载完成
             return 1;
             
         } catch (Exception e) {

@@ -307,59 +307,23 @@ public class PlayerDollAddon {
 
     /**
      * Handle server tick event to update doll entity actions
+     * 注意：动作更新现在在实体自己的tick()中处理，这里不再需要
+     * 保留此方法以防需要全局处理逻辑
      */
     private void onServerTick(ServerTickEvent.Post event) {
-        try {
-            // Update actions for all doll entities in all loaded levels
-            for (var level : net.neoforged.neoforge.server.ServerLifecycleHooks.getCurrentServer().getAllLevels()) {
-                for (var entity : level.getAllEntities()) {
-                    if (entity instanceof BaseDollEntity dollEntity && dollEntity.getCurrentAction() != null) {
-                        dollEntity.updateServerAction();
-                    }
-                }
-            }
-        } catch (Exception e) {
-            // Error logging handled by Mixin
-        }
+        // 动作更新现在在BaseDollEntity.tick()中处理，不需要外部搜索
+        // 这样可以避免每tick搜索所有实体，提高性能
     }
 
     /**
      * Handle level tick event to update doll entity client poses
+     * 注意：姿态更新现在在实体自己的tick()和onSyncedDataUpdated()中处理，这里不再需要
+     * 保留此方法以防需要全局处理逻辑
      */
     private void onLevelTick(LevelTickEvent.Post event) {
-        try {
-            // Only process on client side
-            if (event.getLevel().isClientSide) {
-                // Update client poses for all doll entities in the level
-                // Use Minecraft world boundary limits (approximately -30000000 to 30000000)
-                // This ensures we cover all loaded entities
-                net.minecraft.world.phys.AABB searchArea = new net.minecraft.world.phys.AABB(
-                    -30000000, -320, -30000000,
-                    30000000, 320, 30000000
-                );
-                
-                // Get all entities and filter for BaseDollEntity
-                // Note: getEntitiesOfClass returns an iterable, we need to iterate it
-                java.util.List<net.minecraft.world.entity.Entity> entities = new java.util.ArrayList<>();
-                event.getLevel().getEntitiesOfClass(
-                    net.minecraft.world.entity.Entity.class,
-                    searchArea,
-                    entity -> entity instanceof BaseDollEntity
-                ).forEach(entities::add);
-                
-                // Update poses for all found doll entities
-                for (net.minecraft.world.entity.Entity entity : entities) {
-                    if (entity instanceof BaseDollEntity dollEntity) {
-                        dollEntity.updateClientPose();
-                    }
-                }
-            }
-        } catch (Exception e) {
-            // Print error for debugging
-            System.err.println("[PlayerDoll] Error in onLevelTick: " + e.getMessage());
-            e.printStackTrace();
-            // Error logging handled by Mixin
-        }
+        // 姿态更新现在在BaseDollEntity.tick()和onSyncedDataUpdated()中处理
+        // 这样可以避免每tick搜索所有实体，提高性能
+        // 数据同步时通过onSyncedDataUpdated()立即更新，tick时也更新以确保同步
     }
     
     /**
