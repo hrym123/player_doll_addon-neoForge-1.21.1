@@ -326,13 +326,33 @@ public class PlayerDollAddon {
             // Only process on client side
             if (event.getLevel().isClientSide) {
                 // Update client poses for all doll entities in the level
-                for (var entity : event.getLevel().getAllEntities()) {
+                // Use Minecraft world boundary limits (approximately -30000000 to 30000000)
+                // This ensures we cover all loaded entities
+                net.minecraft.world.phys.AABB searchArea = new net.minecraft.world.phys.AABB(
+                    -30000000, -320, -30000000,
+                    30000000, 320, 30000000
+                );
+                
+                // Get all entities and filter for BaseDollEntity
+                // Note: getEntitiesOfClass returns an iterable, we need to iterate it
+                java.util.List<net.minecraft.world.entity.Entity> entities = new java.util.ArrayList<>();
+                event.getLevel().getEntitiesOfClass(
+                    net.minecraft.world.entity.Entity.class,
+                    searchArea,
+                    entity -> entity instanceof BaseDollEntity
+                ).forEach(entities::add);
+                
+                // Update poses for all found doll entities
+                for (net.minecraft.world.entity.Entity entity : entities) {
                     if (entity instanceof BaseDollEntity dollEntity) {
                         dollEntity.updateClientPose();
                     }
                 }
             }
         } catch (Exception e) {
+            // Print error for debugging
+            System.err.println("[PlayerDoll] Error in onLevelTick: " + e.getMessage());
+            e.printStackTrace();
             // Error logging handled by Mixin
         }
     }
