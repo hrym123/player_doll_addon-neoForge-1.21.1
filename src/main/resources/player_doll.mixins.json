@@ -7,10 +7,15 @@
   "mixins": [
     "logging.ActionDebugStickMixin",
     "logging.BaseDollEntityMixin",
+    "logging.BaseDollItemMixin",
+    "logging.DollSkinCommandMixin",
     "logging.PlayerDollAddonMixin",
     "logging.PlayerDollAddonEventMixin"
   ],
-  "client": [],
+  "client": [
+    "logging.BaseDollRendererMixin",
+    "logging.DynamicResourcePackMixin"
+  ],
   "server": [],
   "injectors": {
     "defaultRequire": 1

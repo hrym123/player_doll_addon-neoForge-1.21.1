@@ -63,6 +63,9 @@ public class LogModuleConfig {
     /** 调试棒模块 - 姿态调试棒 */
     public static final String MODULE_DEBUG_STICK_POSE = "debug_stick.pose";
     
+    /** 命令模块 - 玩偶皮肤指令 */
+    public static final String MODULE_COMMAND = "command";
+    
     // ==================== 默认日志级别配置 ====================
     // 注意：修改这里的级别即可控制对应模块的日志输出
     // 设置为 LogLevel.OFF 即可完全禁用该模块的日志
@@ -72,16 +75,17 @@ public class LogModuleConfig {
     private static final LogLevel LEVEL_ENTITY_INTERACT = LogLevel.DEBUG;  // 实体交互模块日志级别，当前正在调试交互问题
     private static final LogLevel LEVEL_ENTITY_POSE = LogLevel.WARN;  // 实体姿态模块日志级别
     private static final LogLevel LEVEL_ENTITY_ACTION = LogLevel.DEBUG;  // 实体动作模块日志级别，当前正在调试动作问题
-    private static final LogLevel LEVEL_ENTITY_NBT = LogLevel.WARN;  // 实体NBT模块日志级别
-    private static final LogLevel LEVEL_RENDER = LogLevel.WARN;  // 渲染模块日志级别
+    private static final LogLevel LEVEL_ENTITY_NBT = LogLevel.DEBUG;  // 实体NBT模块日志级别，当前正在调试皮肤问题
+    private static final LogLevel LEVEL_RENDER = LogLevel.DEBUG;  // 渲染模块日志级别，当前正在调试皮肤问题
     private static final LogLevel LEVEL_3D_SKIN_LAYERS = LogLevel.WARN;  // 3D皮肤层模块日志级别
-    private static final LogLevel LEVEL_RESOURCE = LogLevel.WARN;  // 资源管理模块日志级别
+    private static final LogLevel LEVEL_RESOURCE = LogLevel.DEBUG;  // 资源管理模块日志级别，当前正在调试皮肤问题
     private static final LogLevel LEVEL_POSE_LOADER = LogLevel.WARN;  // 姿态加载器模块日志级别
     private static final LogLevel LEVEL_ACTION_LOADER = LogLevel.WARN;  // 动作加载器模块日志级别，改为 OFF 可一键关闭所有动作加载日志
     private static final LogLevel LEVEL_RESOURCE_GENERATOR = LogLevel.WARN;  // 资源生成器模块日志级别
     private static final LogLevel LEVEL_TEXTURE_SCANNER = LogLevel.WARN;  // 纹理扫描器模块日志级别
     private static final LogLevel LEVEL_DEBUG_STICK_ACTION = LogLevel.DEBUG;  // 动作调试棒模块日志级别，当前正在调试的模块
     private static final LogLevel LEVEL_DEBUG_STICK_POSE = LogLevel.WARN;  // 姿态调试棒模块日志级别
+    private static final LogLevel LEVEL_COMMAND = LogLevel.DEBUG;  // 命令模块日志级别，当前正在调试皮肤问题
     
     // ==================== 日志模板配置 ====================
     
@@ -100,6 +104,7 @@ public class LogModuleConfig {
     private static final String TEMPLATE_TEXTURE_SCANNER = "[纹理扫描] {}";
     private static final String TEMPLATE_DEBUG_STICK_ACTION = "[动作调试棒] {}";
     private static final String TEMPLATE_DEBUG_STICK_POSE = "[姿态调试棒] {}";
+    private static final String TEMPLATE_COMMAND = "[命令] {}";
     
     // ==================== 配置读取方法 ====================
     
@@ -125,6 +130,7 @@ public class LogModuleConfig {
             case MODULE_TEXTURE_SCANNER -> LEVEL_TEXTURE_SCANNER;
             case MODULE_DEBUG_STICK_ACTION -> LEVEL_DEBUG_STICK_ACTION;
             case MODULE_DEBUG_STICK_POSE -> LEVEL_DEBUG_STICK_POSE;
+            case MODULE_COMMAND -> LEVEL_COMMAND;
             default -> LogLevel.WARN;  // 默认返回 WARN
         };
     }
@@ -151,6 +157,7 @@ public class LogModuleConfig {
             case MODULE_TEXTURE_SCANNER -> TEMPLATE_TEXTURE_SCANNER;
             case MODULE_DEBUG_STICK_ACTION -> TEMPLATE_DEBUG_STICK_ACTION;
             case MODULE_DEBUG_STICK_POSE -> TEMPLATE_DEBUG_STICK_POSE;
+            case MODULE_COMMAND -> TEMPLATE_COMMAND;
             default -> "[{}] {}";  // 默认模板
         };
     }

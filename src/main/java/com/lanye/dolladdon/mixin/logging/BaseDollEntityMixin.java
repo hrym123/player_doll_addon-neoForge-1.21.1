@@ -74,4 +74,56 @@ public class BaseDollEntityMixin {
     
     // setAction 相关调试日志已关闭 - 问题010已修复
     
+    /**
+     * 在 restoreFromNBT 方法中，在调用 setSkinFromNBT 后注入日志
+     */
+    @Inject(
+        method = "restoreFromNBT(Lnet/minecraft/nbt/CompoundTag;)V",
+        at = @At(
+            value = "INVOKE",
+            target = "Lcom/lanye/dolladdon/base/entity/BaseDollEntity;setSkinFromNBT(Lnet/minecraft/nbt/CompoundTag;)V",
+            shift = At.Shift.AFTER
+        )
+    )
+    private void onAfterSetSkinFromNBT(net.minecraft.nbt.CompoundTag tag, CallbackInfo ci) {
+        BaseDollEntity entity = (BaseDollEntity) (Object) this;
+        String skinPath = entity.getSkinPath();
+        boolean isAlexModel = entity.isAlexModel();
+        
+        ModuleLogger.debug(
+            LogModuleConfig.MODULE_ENTITY_NBT,
+            "restoreFromNBT: 已设置皮肤 - SkinPath={}, IsAlexModel={}, entityID={}",
+            skinPath != null ? skinPath : "null",
+            isAlexModel,
+            entity.getId()
+        );
+    }
+    
+    /**
+     * 在 setSkinFromNBT 方法中注入日志
+     */
+    @Inject(
+        method = "setSkinFromNBT(Lnet/minecraft/nbt/CompoundTag;)V",
+        at = @At("RETURN")
+    )
+    private void onSetSkinFromNBTReturn(net.minecraft.nbt.CompoundTag nbt, CallbackInfo ci) {
+        BaseDollEntity entity = (BaseDollEntity) (Object) this;
+        String skinPath = entity.getSkinPath();
+        boolean isAlexModel = entity.isAlexModel();
+        
+        // 检查 persistentData 是否已同步
+        var persistentData = entity.getPersistentData();
+        String persistentSkinPath = persistentData.contains("SkinPath", net.minecraft.nbt.Tag.TAG_STRING)
+            ? persistentData.getString("SkinPath") : "null";
+        
+        ModuleLogger.debug(
+            LogModuleConfig.MODULE_ENTITY_NBT,
+            "setSkinFromNBT完成: SkinPath={}, IsAlexModel={}, persistentData.SkinPath={}, entityID={}",
+            skinPath != null ? skinPath : "null",
+            isAlexModel,
+            persistentSkinPath,
+            entity.getId()
+        );
+    }
+    
 }
