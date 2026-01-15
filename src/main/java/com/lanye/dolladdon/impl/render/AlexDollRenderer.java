@@ -19,7 +19,7 @@ public class AlexDollRenderer extends BaseDollRenderer<AlexDollEntity> {
     }
     
     @Override
-    protected ResourceLocation getSkinLocation(AlexDollEntity entity) {
+    protected ResourceLocation getDefaultTexture(AlexDollEntity entity) {
         return PlayerSkinUtil.getAlexSkin();
     }
     

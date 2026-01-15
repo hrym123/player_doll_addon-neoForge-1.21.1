@@ -1,6 +1,6 @@
 package com.lanye.dolladdon.util.neoForge;
 
-import com.lanye.dolladdon.PlayerDollAddon;
+import com.lanye.dolladdon.PlayerDoll;
 import net.minecraft.resources.ResourceLocation;
 
 import java.nio.file.Path;

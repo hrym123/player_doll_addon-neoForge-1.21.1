@@ -19,7 +19,7 @@ public class SteveDollRenderer extends BaseDollRenderer<SteveDollEntity> {
     }
     
     @Override
-    protected ResourceLocation getSkinLocation(SteveDollEntity entity) {
+    protected ResourceLocation getDefaultTexture(SteveDollEntity entity) {
         return PlayerSkinUtil.getSteveSkin();
     }
     

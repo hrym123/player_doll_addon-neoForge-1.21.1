@@ -4,7 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.lanye.dolladdon.PlayerDollAddon;
+import com.lanye.dolladdon.PlayerDoll;
 import com.lanye.dolladdon.api.pose.DollPose;
 import com.lanye.dolladdon.api.pose.SimpleDollPose;
 import net.minecraft.resources.ResourceLocation;
@@ -69,7 +69,7 @@ public class PoseLoader {
      */
     public static DollPose loadPose(ResourceManager resourceManager, String name) {
         ResourceLocation location = ResourceLocation.fromNamespaceAndPath(
-            PlayerDollAddon.MODID, 
+            PlayerDoll.MODID, 
             "poses/" + name + ".json"
         );
         
@@ -291,7 +291,7 @@ public class PoseLoader {
                 gameDir = Paths.get(".").toAbsolutePath().normalize();
             }
             
-            Path posesDir = gameDir.resolve(PlayerDollAddon.POSES_DIR);
+            Path posesDir = gameDir.resolve(PlayerDoll.POSES_DIR);
             Map<String, DollPose> fileSystemPoses = loadPosesFromFileSystem(posesDir);
             poses.putAll(fileSystemPoses); // 文件系统的姿态会覆盖资源包中的同名姿态
         } catch (Exception e) {

@@ -26,7 +26,7 @@ public class DynamicDollItemRenderer extends BaseDollItemRenderer {
     }
     
     @Override
-    protected ResourceLocation getSkinLocation() {
+    protected ResourceLocation getDefaultTexture(net.minecraft.world.item.ItemStack stack) {
         return textureLocation;
     }
 }

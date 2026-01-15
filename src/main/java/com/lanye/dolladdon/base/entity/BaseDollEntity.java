@@ -47,6 +47,11 @@ public abstract class BaseDollEntity extends Entity {
     // 当前姿态索引（用于循环切换）
     private int currentPoseIndex = -1;
     
+    // 皮肤相关字段（用于NBT动态切换皮肤）
+    private String skinPath; // 皮肤纹理路径（ResourceLocation字符串）
+    private boolean isAlexModel; // 是否为Alex模型（细手臂）
+    private String playerName; // 玩家名称（用于显示）
+    
     protected BaseDollEntity(EntityType<? extends BaseDollEntity> entityType, Level level) {
         super(entityType, level);
         this.noPhysics = false; // 有物理碰撞
@@ -88,6 +93,11 @@ public abstract class BaseDollEntity extends Entity {
      * @param tag NBT标签
      */
     public void restoreFromNBT(net.minecraft.nbt.CompoundTag tag) {
+        // 优先恢复皮肤信息（如果有）
+        if (tag.contains("SkinPath", net.minecraft.nbt.Tag.TAG_STRING)) {
+            setSkinFromNBT(tag);
+        }
+        
         // 优先恢复动作（如果有）
         if (tag.contains("ActionName", net.minecraft.nbt.Tag.TAG_STRING)) {
             String actionName = tag.getString("ActionName");
@@ -144,10 +154,63 @@ public abstract class BaseDollEntity extends Entity {
             this.currentPose = defaultPose;
             this.savedPose = defaultPose; // 同时初始化保存的姿态
         }
+        
+        // 从NBT加载皮肤信息（在readAdditionalSaveData中处理，因为这是从世界文件加载）
+        if (tag.contains("SkinPath", net.minecraft.nbt.Tag.TAG_STRING)) {
+            setSkinFromNBT(tag);
+        }
+    }
+    
+    /**
+     * 从物品NBT设置皮肤信息
+     * 在创建实体时从物品NBT读取并设置皮肤路径
+     * 
+     * @param nbt NBT标签（包含SkinPath、IsAlexModel、PlayerName等）
+     */
+    public void setSkinFromNBT(net.minecraft.nbt.CompoundTag nbt) {
+        if (nbt.contains("SkinPath", net.minecraft.nbt.Tag.TAG_STRING)) {
+            this.skinPath = nbt.getString("SkinPath");
+            this.isAlexModel = nbt.getBoolean("IsAlexModel");
+            if (nbt.contains("PlayerName", net.minecraft.nbt.Tag.TAG_STRING)) {
+                this.playerName = nbt.getString("PlayerName");
+            }
+            
+            // 同步到persistentData（用于渲染器访问）
+            this.getPersistentData().putString("SkinPath", this.skinPath);
+            this.getPersistentData().putBoolean("IsAlexModel", this.isAlexModel);
+            if (this.playerName != null) {
+                this.getPersistentData().putString("PlayerName", this.playerName);
+            }
+        }
+    }
+    
+    /**
+     * 获取皮肤路径（用于渲染器）
+     * @return 皮肤路径，如果未设置返回null
+     */
+    public String getSkinPath() {
+        return this.skinPath;
+    }
+    
+    /**
+     * 是否为Alex模型（用于渲染器）
+     * @return 是否为Alex模型
+     */
+    public boolean isAlexModel() {
+        return this.isAlexModel;
     }
     
     @Override
     protected void addAdditionalSaveData(net.minecraft.nbt.CompoundTag tag) {
+        // 保存皮肤信息（如果有）
+        if (this.skinPath != null) {
+            tag.putString("SkinPath", this.skinPath);
+            tag.putBoolean("IsAlexModel", this.isAlexModel);
+            if (this.playerName != null) {
+                tag.putString("PlayerName", this.playerName);
+            }
+        }
+        
         // 如果当前有动作，保存动作名称
         if (currentAction != null) {
             tag.putString("ActionName", currentAction.getName());

@@ -1,6 +1,6 @@
 package com.lanye.dolladdon.util.neoForge;
 
-import com.lanye.dolladdon.PlayerDollAddon;
+import com.lanye.dolladdon.PlayerDoll;
 import net.minecraft.resources.ResourceLocation;
 
 import java.io.IOException;
@@ -165,7 +165,7 @@ public class DynamicDollLoader {
         ResourceLocation textureLocation;
         try {
             textureLocation = ResourceLocation.fromNamespaceAndPath(
-                PlayerDollAddon.MODID, 
+                PlayerDoll.MODID, 
                 resourcePath
             );
         } catch (Exception e) {

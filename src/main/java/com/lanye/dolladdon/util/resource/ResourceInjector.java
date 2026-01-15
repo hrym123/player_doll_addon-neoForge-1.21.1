@@ -1,6 +1,6 @@
 package com.lanye.dolladdon.util.resource;
 
-import com.lanye.dolladdon.PlayerDollAddon;
+import com.lanye.dolladdon.PlayerDoll;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.ResourceManager;
 
@@ -40,7 +40,7 @@ public class ResourceInjector {
                 String registryName = pngInfo.getRegistryName();
                 String itemId = "custom_doll_" + registryName;
                 ResourceLocation modelId = ResourceLocation.fromNamespaceAndPath(
-                    PlayerDollAddon.MODID, 
+                    PlayerDoll.MODID, 
                     "models/item/" + itemId + ".json"
                 );
                 

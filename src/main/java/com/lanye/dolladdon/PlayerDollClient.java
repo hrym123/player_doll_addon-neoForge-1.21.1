@@ -41,8 +41,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collections;
 
-@EventBusSubscriber(modid = PlayerDollAddon.MODID, value = Dist.CLIENT)
-public class PlayerDollAddonClient {
+@EventBusSubscriber(modid = PlayerDoll.MODID, value = Dist.CLIENT)
+public class PlayerDollClient {
     
     /**
      * 客户端初始化方法
@@ -76,7 +76,7 @@ public class PlayerDollAddonClient {
         
         // 注册动态玩偶实体渲染器
         // 需要先扫描目录获取信息
-        var dollInfos = DynamicDollLoader.scanDirectory(PlayerDollAddon.PNG_DIR);
+        var dollInfos = DynamicDollLoader.scanDirectory(PlayerDoll.PNG_DIR);
         for (var dollInfo : dollInfos) {
             var entityHolder = ModEntities.DYNAMIC_DOLLS.get(dollInfo.getFileName());
             if (entityHolder != null) {

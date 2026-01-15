@@ -1,6 +1,6 @@
 package com.lanye.dolladdon.mixin.logging;
 
-import com.lanye.dolladdon.PlayerDollAddon;
+import com.lanye.dolladdon.PlayerDoll;
 import com.lanye.dolladdon.util.logging.LogModuleConfig;
 import com.lanye.dolladdon.util.logging.ModuleLogger;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
@@ -11,9 +11,9 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * 为 PlayerDollAddon 的事件处理方法添加日志的 Mixin
+ * 为 PlayerDoll 的事件处理方法添加日志的 Mixin
  */
-@Mixin(PlayerDollAddon.class)
+@Mixin(PlayerDoll.class)
 public class PlayerDollAddonEventMixin {
     
     /**

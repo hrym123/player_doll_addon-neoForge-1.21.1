@@ -1,6 +1,6 @@
 package com.lanye.dolladdon.util.neoForge;
 
-import com.lanye.dolladdon.PlayerDollAddon;
+import com.lanye.dolladdon.PlayerDoll;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.PackLocationInfo;
@@ -40,14 +40,25 @@ public class DynamicResourcePack implements PackResources {
         String path = location.getPath();
         
         // 只处理我们mod的资源
-        if (!PlayerDollAddon.MODID.equals(namespace)) {
+        if (!PlayerDoll.MODID.equals(namespace)) {
             return null;
         }
         
         // 如果是纹理，从 player_doll/png 目录加载
+        // 支持两种路径格式：
+        // 1. textures/entity/... (动态注册的玩偶，使用哈希值)
+        // 2. png/... (通过指令获取的玩家皮肤，使用文件名)
         if (path.startsWith("textures/entity/")) {
             Path texturePath = DynamicTextureManager.getTexturePath(location);
             if (texturePath != null && Files.exists(texturePath) && Files.isRegularFile(texturePath)) {
+                return () -> Files.newInputStream(texturePath);
+            }
+        } else if (path.startsWith("png/")) {
+            // 从 player_doll/png 目录加载纹理
+            String fileName = path.substring(4); // 移除 "png/" 前缀
+            Path pngDir = gameDir.resolve("player_doll/png");
+            Path texturePath = pngDir.resolve(fileName);
+            if (Files.exists(texturePath) && Files.isRegularFile(texturePath)) {
                 return () -> Files.newInputStream(texturePath);
             }
         }
@@ -65,12 +76,13 @@ public class DynamicResourcePack implements PackResources {
     @Override
     public void listResources(PackType type, String namespace, String path, ResourceOutput output) {
         // 只处理我们mod的资源
-        if (!PlayerDollAddon.MODID.equals(namespace)) {
+        if (!PlayerDoll.MODID.equals(namespace)) {
             return;
         }
         
         // 列出纹理资源
         if (path.equals("textures/entity")) {
+            // 列出动态注册的纹理（使用哈希值）
             for (var entry : DynamicTextureManager.TEXTURE_PATHS.entrySet()) {
                 ResourceLocation location = entry.getKey();
                 if (location.getNamespace().equals(namespace) && location.getPath().startsWith("textures/entity/")) {
@@ -82,6 +94,28 @@ public class DynamicResourcePack implements PackResources {
                             // Error logging handled by Mixin
                         }
                     }
+                }
+            }
+        } else if (path.equals("png")) {
+            // 列出 player_doll/png 目录下的所有PNG文件
+            Path pngDir = gameDir.resolve("player_doll/png");
+            if (Files.exists(pngDir) && Files.isDirectory(pngDir)) {
+                try (var stream = Files.list(pngDir)) {
+                    stream.filter(Files::isRegularFile)
+                          .filter(p -> p.toString().toLowerCase().endsWith(".png"))
+                          .forEach(pngFile -> {
+                              try {
+                                  String fileName = pngFile.getFileName().toString();
+                                  ResourceLocation location = ResourceLocation.fromNamespaceAndPath(
+                                      namespace, "png/" + fileName
+                                  );
+                                  output.accept(location, () -> Files.newInputStream(pngFile));
+                              } catch (Exception e) {
+                                  // Error logging handled by Mixin
+                              }
+                          });
+                } catch (Exception e) {
+                    // Error logging handled by Mixin
                 }
             }
         }
@@ -97,7 +131,7 @@ public class DynamicResourcePack implements PackResources {
     @Override
     public Set<String> getNamespaces(PackType type) {
         Set<String> namespaces = new HashSet<>();
-        namespaces.add(PlayerDollAddon.MODID);
+        namespaces.add(PlayerDoll.MODID);
         return namespaces;
     }
     
@@ -108,7 +142,7 @@ public class DynamicResourcePack implements PackResources {
     
     @Override
     public String packId() {
-        return PlayerDollAddon.MODID + "_dynamic";
+        return PlayerDoll.MODID + "_dynamic";
     }
     
     public boolean isBuiltin() {
@@ -123,7 +157,7 @@ public class DynamicResourcePack implements PackResources {
     @Override
     public PackLocationInfo location() {
         return new PackLocationInfo(
-            PlayerDollAddon.MODID + "_dynamic",
+            PlayerDoll.MODID + "_dynamic",
             Component.literal("Dynamic Doll Resources"),
             PackSource.BUILT_IN,
             Optional.empty()

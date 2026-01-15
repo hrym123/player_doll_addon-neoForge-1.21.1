@@ -1,6 +1,6 @@
 package com.lanye.dolladdon.util.pose;
 
-import com.lanye.dolladdon.PlayerDollAddon;
+import com.lanye.dolladdon.PlayerDoll;
 import com.lanye.dolladdon.api.action.DollAction;
 import com.lanye.dolladdon.api.pose.DollPose;
 import net.minecraft.server.packs.resources.ResourceManager;
@@ -105,7 +105,7 @@ public class PoseActionManager {
                 gameDir = Paths.get(".").toAbsolutePath().normalize();
             }
             
-            Path posesDir = gameDir.resolve(PlayerDollAddon.POSES_DIR);
+            Path posesDir = gameDir.resolve(PlayerDoll.POSES_DIR);
             Map<String, DollPose> fileSystemPoses = PoseLoader.loadPosesFromFileSystem(posesDir);
             
             // 更新姿态映射（保留资源包中的姿态，但用文件系统中的姿态覆盖同名姿态）

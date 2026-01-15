@@ -1,6 +1,6 @@
 package com.lanye.dolladdon.init;
 
-import com.lanye.dolladdon.PlayerDollAddon;
+import com.lanye.dolladdon.PlayerDoll;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -23,8 +23,8 @@ public class DefaultFileInitializer {
         try {
             // 创建目录
             Path playerDollDir = gameDir.resolve("player_doll");
-            Path posesDir = gameDir.resolve(PlayerDollAddon.POSES_DIR);
-            Path actionsDir = gameDir.resolve(PlayerDollAddon.ACTIONS_DIR);
+            Path posesDir = gameDir.resolve(PlayerDoll.POSES_DIR);
+            Path actionsDir = gameDir.resolve(PlayerDoll.ACTIONS_DIR);
             
             Files.createDirectories(posesDir);
             Files.createDirectories(actionsDir);

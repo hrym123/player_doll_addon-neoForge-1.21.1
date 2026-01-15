@@ -1,6 +1,6 @@
 package com.lanye.dolladdon.util.neoForge;
 
-import com.lanye.dolladdon.PlayerDollAddon;
+import com.lanye.dolladdon.PlayerDoll;
 import net.minecraft.resources.ResourceLocation;
 
 import java.io.IOException;
@@ -270,7 +270,7 @@ public class DynamicModelGenerator {
                     .resolve("resources")
                     .resolve("main")
                     .resolve("assets")
-                    .resolve(PlayerDollAddon.MODID)
+                    .resolve(PlayerDoll.MODID)
                     .resolve("models");
             
             // 检查 build/resources/main 目录是否存在或可以创建
@@ -314,7 +314,7 @@ public class DynamicModelGenerator {
                     .resolve("main")
                     .resolve("resources")
                     .resolve("assets")
-                    .resolve(PlayerDollAddon.MODID)
+                    .resolve(PlayerDoll.MODID)
                     .resolve("models");
             
             // 检查 src/main/resources 目录是否存在

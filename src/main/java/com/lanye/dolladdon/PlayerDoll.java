@@ -28,8 +28,8 @@ import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
 import java.nio.file.Path;
 
-@Mod(PlayerDollAddon.MODID)
-public class PlayerDollAddon {
+@Mod(PlayerDoll.MODID)
+public class PlayerDoll {
     public static final String MODID = "player_doll";
     
     // 玩偶图片目录路径（相对于游戏目录）
@@ -42,7 +42,7 @@ public class PlayerDollAddon {
     // 创建创造模式物品栏注册器
     public static final DeferredRegister<CreativeModeTab> CREATIVE_MODE_TABS = DeferredRegister.create(Registries.CREATIVE_MODE_TAB, MODID);
 
-    public PlayerDollAddon(IEventBus modEventBus, ModContainer modContainer) {
+    public PlayerDoll(IEventBus modEventBus, ModContainer modContainer) {
         try {
             // Step 1/6: Initialize default files (copy from resource pack to file system)
             initializeDefaultFiles();
@@ -80,7 +80,7 @@ public class PlayerDollAddon {
             
             // Client initialization (if on client)
             if (net.neoforged.fml.loading.FMLEnvironment.dist == net.neoforged.api.distmarker.Dist.CLIENT) {
-                PlayerDollAddonClient.init();
+                PlayerDollClient.init();
             }
         } catch (Exception e) {
             throw new RuntimeException("Player Doll Mod initialization failed", e);

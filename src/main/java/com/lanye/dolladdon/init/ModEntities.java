@@ -1,6 +1,6 @@
 package com.lanye.dolladdon.init;
 
-import com.lanye.dolladdon.PlayerDollAddon;
+import com.lanye.dolladdon.PlayerDoll;
 import com.lanye.dolladdon.util.factory.DollEntityFactory;
 import com.lanye.dolladdon.dynamic.DynamicDollEntity;
 import com.lanye.dolladdon.impl.entity.AlexDollEntity;
@@ -17,7 +17,7 @@ import java.util.Map;
 
 public class ModEntities {
     // Logger removed - logging handled by Mixin
-    public static final DeferredRegister<EntityType<?>> ENTITIES = DeferredRegister.create(Registries.ENTITY_TYPE, PlayerDollAddon.MODID);
+    public static final DeferredRegister<EntityType<?>> ENTITIES = DeferredRegister.create(Registries.ENTITY_TYPE, PlayerDoll.MODID);
     
     // 史蒂夫玩偶实体（固定模型：粗手臂 + Steve默认皮肤）
     public static final DeferredHolder<EntityType<?>, EntityType<SteveDollEntity>> STEVE_DOLL = ENTITIES.register(

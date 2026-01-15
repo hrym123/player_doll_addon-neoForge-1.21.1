@@ -3,16 +3,22 @@ package com.lanye.dolladdon.base.item;
 import com.lanye.dolladdon.base.entity.BaseDollEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.gameevent.GameEvent;
 import net.minecraft.world.phys.Vec3;
+import org.jetbrains.annotations.Nullable;
+
+import java.util.List;
 
 /**
  * 玩偶物品基类
@@ -55,13 +61,14 @@ public abstract class BaseDollItem extends Item {
         
         dollEntity.setYRot(player.getYRot() - 180); // 设置朝向
         
-        // 如果物品有NBT标签，恢复实体的状态（包括姿态）
+        // 如果物品有NBT标签，恢复实体的状态（包括姿态和皮肤）
         // 从custom_data组件读取NBT
         var customData = stack.get(net.minecraft.core.component.DataComponents.CUSTOM_DATA);
         if (customData != null) {
             var dataTag = customData.copyTag();
             if (dataTag != null && dataTag.contains("EntityData")) {
                 net.minecraft.nbt.CompoundTag entityTag = dataTag.getCompound("EntityData");
+                // restoreFromNBT会处理所有NBT数据，包括皮肤路径
                 dollEntity.restoreFromNBT(entityTag);
             }
         }
@@ -85,6 +92,36 @@ public abstract class BaseDollItem extends Item {
         }
         
         return InteractionResult.sidedSuccess(level.isClientSide);
+    }
+    
+    /**
+     * 添加物品Tooltip，显示玩家信息（如果NBT中有）
+     */
+    @Override
+    public void appendHoverText(ItemStack stack, Item.TooltipContext context,
+                                List<Component> tooltip, TooltipFlag flag) {
+        super.appendHoverText(stack, context, tooltip, flag);
+        
+        // 显示玩家名称（如果NBT中有）
+        var customData = stack.get(net.minecraft.core.component.DataComponents.CUSTOM_DATA);
+        if (customData != null) {
+            var dataTag = customData.copyTag();
+            if (dataTag != null && dataTag.contains("EntityData")) {
+                net.minecraft.nbt.CompoundTag entityTag = dataTag.getCompound("EntityData");
+                
+                if (entityTag.contains("PlayerName", net.minecraft.nbt.Tag.TAG_STRING)) {
+                    String playerName = entityTag.getString("PlayerName");
+                    tooltip.add(Component.literal("玩家: " + playerName).withStyle(ChatFormatting.GRAY));
+                }
+                
+                // 显示模型类型
+                if (entityTag.contains("IsAlexModel", net.minecraft.nbt.Tag.TAG_BYTE)) {
+                    boolean isAlex = entityTag.getBoolean("IsAlexModel");
+                    String modelType = isAlex ? "细手臂 (Alex)" : "粗手臂 (Steve)";
+                    tooltip.add(Component.literal("模型: " + modelType).withStyle(ChatFormatting.GRAY));
+                }
+            }
+        }
     }
 }
 

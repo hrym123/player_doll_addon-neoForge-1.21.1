@@ -1,6 +1,6 @@
 package com.lanye.dolladdon.mixin.logging;
 
-import com.lanye.dolladdon.PlayerDollAddon;
+import com.lanye.dolladdon.PlayerDoll;
 import com.lanye.dolladdon.util.logging.LogModuleConfig;
 import com.lanye.dolladdon.util.logging.ModuleLogger;
 import net.neoforged.bus.api.IEventBus;
@@ -11,10 +11,10 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * 为 PlayerDollAddon 添加日志的 Mixin
+ * 为 PlayerDoll 添加日志的 Mixin
  * 在不修改原始类的情况下注入日志代码
  */
-@Mixin(PlayerDollAddon.class)
+@Mixin(PlayerDoll.class)
 public class PlayerDollAddonMixin {
     
     /**

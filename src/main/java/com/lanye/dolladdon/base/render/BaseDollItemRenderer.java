@@ -30,9 +30,69 @@ public abstract class BaseDollItemRenderer extends BlockEntityWithoutLevelRender
     
     /**
      * 获取皮肤资源位置
+     * 优先从物品NBT读取，如果不存在则使用默认纹理
+     * @param stack 物品堆
      * @return 皮肤资源位置
      */
-    protected abstract ResourceLocation getSkinLocation();
+    protected ResourceLocation getSkinLocation(ItemStack stack) {
+        // 检查物品NBT数据
+        var customData = stack.get(net.minecraft.core.component.DataComponents.CUSTOM_DATA);
+        if (customData != null) {
+            var dataTag = customData.copyTag();
+            if (dataTag != null && dataTag.contains("EntityData")) {
+                net.minecraft.nbt.CompoundTag entityTag = dataTag.getCompound("EntityData");
+                if (entityTag.contains("SkinPath", net.minecraft.nbt.Tag.TAG_STRING)) {
+                    String skinPath = entityTag.getString("SkinPath");
+                    // 解析 ResourceLocation 字符串（格式：namespace:path）
+                    ResourceLocation texture;
+                    try {
+                        if (skinPath.contains(":")) {
+                            String[] parts = skinPath.split(":", 2);
+                            texture = ResourceLocation.fromNamespaceAndPath(parts[0], parts[1]);
+                        } else {
+                            texture = ResourceLocation.fromNamespaceAndPath("player_doll", skinPath);
+                        }
+                    } catch (Exception e) {
+                        return getDefaultTexture(stack);
+                    }
+                    
+                    // 验证纹理是否存在
+                    if (textureExists(texture)) {
+                        return texture;
+                    }
+                }
+            }
+        }
+        
+        // 回退到默认纹理（由子类实现）
+        return getDefaultTexture(stack);
+    }
+    
+    /**
+     * 获取默认纹理（由子类实现）
+     * @param stack 物品堆
+     * @return 默认纹理位置
+     */
+    protected abstract ResourceLocation getDefaultTexture(ItemStack stack);
+    
+    /**
+     * 验证纹理是否存在
+     * @param texture 纹理位置
+     * @return 是否存在
+     */
+    private boolean textureExists(ResourceLocation texture) {
+        try {
+            // 检查纹理是否可以通过资源管理器访问
+            var minecraft = net.minecraft.client.Minecraft.getInstance();
+            if (minecraft != null && minecraft.getResourceManager() != null) {
+                var resourceManager = minecraft.getResourceManager();
+                return resourceManager.getResource(texture).isPresent();
+            }
+        } catch (Exception e) {
+            // 忽略异常，返回false
+        }
+        return false;
+    }
     
     @Override
     public void renderByItem(ItemStack stack, ItemDisplayContext transformType, PoseStack poseStack,
@@ -42,8 +102,8 @@ public abstract class BaseDollItemRenderer extends BlockEntityWithoutLevelRender
         // 根据显示上下文调整模型的位置、缩放和旋转
         applyPlayerModelTransform(poseStack, transformType);
         
-        // 获取皮肤位置（由子类实现）
-        ResourceLocation skinLocation = getSkinLocation();
+        // 获取皮肤位置（从NBT读取或使用默认纹理）
+        ResourceLocation skinLocation = getSkinLocation(stack);
         
         // 从NBT读取动作或姿态
         DollPose pose = getPoseFromNBT(stack);

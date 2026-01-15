@@ -110,4 +110,82 @@ public class SkinFileNamingUtil {
         
         return sanitized;
     }
+    
+    /**
+     * 从文件名中提取玩家名（忽略UUID部分）
+     * 文件名格式：[S|A]<玩家名>_<UUID短版本>.png
+     * 
+     * @param fileName 文件名（可能包含路径）
+     * @return 提取的玩家名，如果无法提取则返回null
+     */
+    public static String extractPlayerNameFromFileName(String fileName) {
+        if (fileName == null || fileName.isEmpty()) {
+            return null;
+        }
+        
+        // 移除路径，只保留文件名
+        String name = fileName;
+        int lastSlash = Math.max(name.lastIndexOf('/'), name.lastIndexOf('\\'));
+        if (lastSlash >= 0 && lastSlash < name.length() - 1) {
+            name = name.substring(lastSlash + 1);
+        }
+        
+        // 移除扩展名
+        if (name.endsWith(".png")) {
+            name = name.substring(0, name.length() - 4);
+        }
+        
+        // 移除开头的模型类型标识符（S或A）
+        if (name.length() > 0 && (name.charAt(0) == 'S' || name.charAt(0) == 'A')) {
+            name = name.substring(1);
+        }
+        
+        // 查找最后一个下划线的位置（玩家名和UUID之间的分隔符）
+        int lastUnderscore = name.lastIndexOf('_');
+        if (lastUnderscore > 0) {
+            // 提取下划线之前的部分作为玩家名
+            String playerName = name.substring(0, lastUnderscore);
+            // 验证下划线之后的部分是否是UUID（8位十六进制）
+            String uuidPart = name.substring(lastUnderscore + 1);
+            if (uuidPart.length() == 8 && uuidPart.matches("[0-9a-fA-F]{8}")) {
+                // 确认是UUID格式，返回玩家名
+                return playerName.isEmpty() ? null : playerName;
+            }
+        }
+        
+        // 如果没有找到UUID部分，返回整个名称（向后兼容旧格式）
+        return name.isEmpty() ? null : name;
+    }
+    
+    /**
+     * 从文件名中提取模型类型
+     * 文件名格式：[S|A]<玩家名>_<UUID短版本>.png
+     * 
+     * @param fileName 文件名（可能包含路径）
+     * @return true表示Alex模型（细手臂），false表示Steve模型（粗手臂）
+     */
+    public static boolean extractModelTypeFromFileName(String fileName) {
+        if (fileName == null || fileName.isEmpty()) {
+            return false; // 默认Steve模型
+        }
+        
+        // 移除路径，只保留文件名
+        String name = fileName;
+        int lastSlash = Math.max(name.lastIndexOf('/'), name.lastIndexOf('\\'));
+        if (lastSlash >= 0 && lastSlash < name.length() - 1) {
+            name = name.substring(lastSlash + 1);
+        }
+        
+        // 移除扩展名
+        if (name.endsWith(".png")) {
+            name = name.substring(0, name.length() - 4);
+        }
+        
+        // 检查开头的模型类型标识符
+        if (name.length() > 0 && name.charAt(0) == 'A') {
+            return true; // Alex模型（细手臂）
+        }
+        
+        return false; // 默认Steve模型（粗手臂）
+    }
 }

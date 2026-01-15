@@ -5,7 +5,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.lanye.dolladdon.PlayerDollAddon;
+import com.lanye.dolladdon.PlayerDoll;
 import com.lanye.dolladdon.api.action.ActionKeyframe;
 import com.lanye.dolladdon.api.action.ActionMode;
 import com.lanye.dolladdon.api.action.DollAction;
@@ -60,7 +60,7 @@ public class ActionLoader {
      */
     public static DollAction loadAction(ResourceManager resourceManager, String name) {
         ResourceLocation location = ResourceLocation.fromNamespaceAndPath(
-            PlayerDollAddon.MODID, 
+            PlayerDoll.MODID, 
             "actions/" + name + ".json"
         );
         
@@ -146,7 +146,7 @@ public class ActionLoader {
                         } catch (Exception e) {
                             gameDir = java.nio.file.Paths.get(".").toAbsolutePath().normalize();
                         }
-                        Path posesDir = gameDir.resolve(PlayerDollAddon.POSES_DIR);
+                        Path posesDir = gameDir.resolve(PlayerDoll.POSES_DIR);
                         Path poseFile = posesDir.resolve(poseName + ".json");
                         pose = PoseLoader.loadPoseFromFileSystem(poseFile);
                     } catch (Exception e) {
@@ -306,7 +306,7 @@ public class ActionLoader {
                 gameDir = java.nio.file.Paths.get(".").toAbsolutePath().normalize();
             }
             
-            Path actionsDir = gameDir.resolve(PlayerDollAddon.ACTIONS_DIR);
+            Path actionsDir = gameDir.resolve(PlayerDoll.ACTIONS_DIR);
             Map<String, DollAction> fileSystemActions = loadActionsFromFileSystem(actionsDir);
             actions.putAll(fileSystemActions); // 文件系统的动作会覆盖资源包中的同名动作
         } catch (Exception e) {

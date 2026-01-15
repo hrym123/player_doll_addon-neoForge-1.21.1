@@ -1,6 +1,6 @@
 package com.lanye.dolladdon.util.resource;
 
-import com.lanye.dolladdon.PlayerDollAddon;
+import com.lanye.dolladdon.PlayerDoll;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 
@@ -459,9 +459,9 @@ public class PlayerSkinDownloader {
                 gameDir = Paths.get(".").toAbsolutePath().normalize();
             }
             
-            return gameDir.resolve(PlayerDollAddon.PNG_DIR).normalize();
+            return gameDir.resolve(PlayerDoll.PNG_DIR).normalize();
         } catch (Exception e) {
-            return Paths.get(PlayerDollAddon.PNG_DIR);
+            return Paths.get(PlayerDoll.PNG_DIR);
         }
     }
 }

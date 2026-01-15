@@ -1,6 +1,6 @@
 package com.lanye.dolladdon.util.resource;
 
-import com.lanye.dolladdon.PlayerDollAddon;
+import com.lanye.dolladdon.PlayerDoll;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -103,7 +103,7 @@ public class ResourceFileGenerator {
             Path buildDir = projectRoot.resolve("build");
             Path buildResourcesDir = buildDir.resolve("resources");
             Path buildResourcesMainDir = buildResourcesDir.resolve("main");
-            Path buildModelsDir = buildResourcesMainDir.resolve("assets").resolve(PlayerDollAddon.MODID).resolve("models").resolve("item");
+            Path buildModelsDir = buildResourcesMainDir.resolve("assets").resolve(PlayerDoll.MODID).resolve("models").resolve("item");
             
             // 转换为绝对路径
             Path buildModelsDirAbs = buildModelsDir.toAbsolutePath();
@@ -198,7 +198,7 @@ public class ResourceFileGenerator {
             Path buildDir = projectRoot.resolve("build");
             Path buildResourcesDir = buildDir.resolve("resources");
             Path buildResourcesMainDir = buildResourcesDir.resolve("main");
-            Path buildLangDir = buildResourcesMainDir.resolve("assets").resolve(PlayerDollAddon.MODID).resolve("lang");
+            Path buildLangDir = buildResourcesMainDir.resolve("assets").resolve(PlayerDoll.MODID).resolve("lang");
             
             // 转换为绝对路径
             Path buildLangDirAbs = buildLangDir.toAbsolutePath();
@@ -238,7 +238,7 @@ public class ResourceFileGenerator {
             Map<String, String> enUsEntries = new HashMap<>();
             
             // 添加固定的翻译
-            String modId = PlayerDollAddon.MODID;
+            String modId = PlayerDoll.MODID;
             // Debug logging handled by Mixin
             
             zhCnEntries.put("item." + modId + ".steve_doll", "史蒂夫玩偶");

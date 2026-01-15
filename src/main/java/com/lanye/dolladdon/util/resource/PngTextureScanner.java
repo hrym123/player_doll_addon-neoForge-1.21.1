@@ -1,6 +1,6 @@
 package com.lanye.dolladdon.util.resource;
 
-import com.lanye.dolladdon.PlayerDollAddon;
+import com.lanye.dolladdon.PlayerDoll;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -158,7 +158,7 @@ public class PngTextureScanner {
          */
         public net.minecraft.resources.ResourceLocation getTextureIdentifier() {
             return net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(
-                PlayerDollAddon.MODID, 
+                PlayerDoll.MODID, 
                 "textures/entity/custom_doll/" + registryName
             );
         }

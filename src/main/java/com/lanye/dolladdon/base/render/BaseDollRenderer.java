@@ -43,10 +43,64 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
     
     /**
      * 获取皮肤资源位置
+     * 优先从实体NBT读取，如果不存在则使用默认纹理
      * @param entity 实体
      * @return 皮肤资源位置
      */
-    protected abstract ResourceLocation getSkinLocation(T entity);
+    protected ResourceLocation getSkinLocation(T entity) {
+        // 检查实体NBT数据（优先从persistentData读取，因为这是客户端可访问的）
+        net.minecraft.nbt.CompoundTag nbt = entity.getPersistentData();
+        if (nbt.contains("SkinPath", net.minecraft.nbt.Tag.TAG_STRING)) {
+            String skinPath = nbt.getString("SkinPath");
+            // 解析 ResourceLocation 字符串（格式：namespace:path）
+            ResourceLocation texture;
+            try {
+                if (skinPath.contains(":")) {
+                    String[] parts = skinPath.split(":", 2);
+                    texture = ResourceLocation.fromNamespaceAndPath(parts[0], parts[1]);
+                } else {
+                    texture = ResourceLocation.fromNamespaceAndPath("player_doll", skinPath);
+                }
+            } catch (Exception e) {
+                return getDefaultTexture(entity);
+            }
+            
+            // 验证纹理是否存在（可选，但推荐）
+            if (textureExists(texture)) {
+                return texture;
+            }
+            // 如果纹理不存在，记录警告并回退
+        }
+        
+        // 回退到默认纹理（由子类实现）
+        return getDefaultTexture(entity);
+    }
+    
+    /**
+     * 获取默认纹理（由子类实现）
+     * @param entity 实体
+     * @return 默认纹理位置
+     */
+    protected abstract ResourceLocation getDefaultTexture(T entity);
+    
+    /**
+     * 验证纹理是否存在
+     * @param texture 纹理位置
+     * @return 是否存在
+     */
+    private boolean textureExists(ResourceLocation texture) {
+        try {
+            // 检查纹理是否可以通过资源管理器访问
+            var minecraft = net.minecraft.client.Minecraft.getInstance();
+            if (minecraft != null && minecraft.getResourceManager() != null) {
+                var resourceManager = minecraft.getResourceManager();
+                return resourceManager.getResource(texture).isPresent();
+            }
+        } catch (Exception e) {
+            // 忽略异常，返回false
+        }
+        return false;
+    }
     
     @Override
     public void render(T entity, float entityYaw, float partialTick, 

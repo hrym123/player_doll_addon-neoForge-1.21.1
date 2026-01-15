@@ -93,7 +93,7 @@ public class CustomTextureDollRenderer extends BaseDollRenderer<CustomTextureDol
     }
     
     @Override
-    protected ResourceLocation getSkinLocation(CustomTextureDollEntity entity) {
+    protected ResourceLocation getDefaultTexture(CustomTextureDollEntity entity) {
         ResourceLocation textureId = entity.getTextureIdentifier();
         
         // 确保纹理已加载

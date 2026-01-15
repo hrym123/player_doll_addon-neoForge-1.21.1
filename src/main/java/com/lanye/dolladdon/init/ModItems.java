@@ -1,6 +1,6 @@
 package com.lanye.dolladdon.init;
 
-import com.lanye.dolladdon.PlayerDollAddon;
+import com.lanye.dolladdon.PlayerDoll;
 import com.lanye.dolladdon.dynamic.DynamicDollItem;
 import com.lanye.dolladdon.impl.item.ActionDebugStick;
 import com.lanye.dolladdon.impl.item.AlexDollItem;
@@ -20,7 +20,7 @@ import java.util.Map;
 
 public class ModItems {
     // Logger removed - logging handled by Mixin
-    public static final DeferredRegister.Items ITEMS = DeferredRegister.createItems(PlayerDollAddon.MODID);
+    public static final DeferredRegister.Items ITEMS = DeferredRegister.createItems(PlayerDoll.MODID);
     
     // 史蒂夫玩偶物品（固定模型：粗手臂 + Steve默认皮肤）
     public static final DeferredItem<SteveDollItem> STEVE_DOLL = ITEMS.register("steve_doll", SteveDollItem::new);
@@ -112,7 +112,7 @@ public class ModItems {
             try {
                 String registryName = pngInfo.getRegistryName();
                 ResourceLocation textureId = pngInfo.getTextureIdentifier();
-                ResourceLocation itemId = ResourceLocation.fromNamespaceAndPath(PlayerDollAddon.MODID, "custom_doll_" + registryName);
+                ResourceLocation itemId = ResourceLocation.fromNamespaceAndPath(PlayerDoll.MODID, "custom_doll_" + registryName);
                 
                 // 注册物品
                 DeferredItem<CustomTextureDollItem> registeredHolder = registerCustomTextureDollItem(registryName, textureId);

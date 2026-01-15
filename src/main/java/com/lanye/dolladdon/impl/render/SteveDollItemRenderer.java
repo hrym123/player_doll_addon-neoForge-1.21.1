@@ -19,7 +19,7 @@ public class SteveDollItemRenderer extends BaseDollItemRenderer {
     }
     
     @Override
-    protected ResourceLocation getSkinLocation() {
+    protected ResourceLocation getDefaultTexture(net.minecraft.world.item.ItemStack stack) {
         return PlayerSkinUtil.getSteveSkin();
     }
 }

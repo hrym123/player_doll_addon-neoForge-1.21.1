@@ -26,7 +26,7 @@ public class DynamicDollRenderer extends BaseDollRenderer<DynamicDollEntity> {
     }
     
     @Override
-    protected ResourceLocation getSkinLocation(DynamicDollEntity entity) {
+    protected ResourceLocation getDefaultTexture(DynamicDollEntity entity) {
         return skinLocation;
     }
     
