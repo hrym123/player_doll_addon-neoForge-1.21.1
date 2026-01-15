@@ -20,6 +20,8 @@ import net.neoforged.fml.common.Mod;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.BuildCreativeModeTabContentsEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
+import net.neoforged.neoforge.event.tick.LevelTickEvent;
+import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
 import java.nio.file.Path;
@@ -46,11 +48,10 @@ public class PlayerDollAddon {
             // Step 2/6: Generate resource files (item models and language files)
             generateResourceFiles();
             
-            // Step 3/6: Register custom texture dolls (must be before registry registration)
-            ModItems.registerCustomTextureDollItems();
-            ModEntities.registerCustomTextureDollEntities();
-            
-            // Scan directory and register dynamic dolls (must be before registry registration)
+            // Step 3/6: Scan directory and register dynamic dolls (must be before registry registration)
+            // 注意：不再注册 CustomTextureDoll，因为 DynamicDoll 已经处理了所有 PNG 文件
+            // ModItems.registerCustomTextureDollItems();
+            // ModEntities.registerCustomTextureDollEntities();
             registerDynamicDolls();
             
             // Step 4/6: Register items and entities (using DeferredRegister)
@@ -67,6 +68,10 @@ public class PlayerDollAddon {
             // Register player login and logout events to restore and save debug stick data
             NeoForge.EVENT_BUS.addListener(this::onPlayerLoggedIn);
             NeoForge.EVENT_BUS.addListener(this::onPlayerLoggedOut);
+
+            // Register tick events for doll entity updates
+            NeoForge.EVENT_BUS.addListener(this::onServerTick);
+            NeoForge.EVENT_BUS.addListener(this::onLevelTick);
             
             // Client initialization (if on client)
             if (net.neoforged.fml.loading.FMLEnvironment.dist == net.neoforged.api.distmarker.Dist.CLIENT) {
@@ -231,6 +236,9 @@ public class PlayerDollAddon {
                             }
                         }
                         
+                        // 注意：不再添加 CustomTextureDoll 物品，因为已经不再注册这些物品
+                        // 所有玩偶都通过 DynamicDoll 方式注册
+                        /*
                         // Add all custom texture doll items
                         for (var entry : ModItems.CUSTOM_TEXTURE_DOLL_ITEMS.entrySet()) {
                             try {
@@ -240,6 +248,7 @@ public class PlayerDollAddon {
                                 // Error logging handled by Mixin
                             }
                         }
+                        */
                         
                         // Add debug sticks
                         try {
@@ -290,6 +299,43 @@ public class PlayerDollAddon {
             // Error logging handled by Mixin
         }
     }
-    
+
+    /**
+     * Handle server tick event to update doll entity actions
+     */
+    private void onServerTick(ServerTickEvent.Post event) {
+        try {
+            // Update actions for all doll entities in all loaded levels
+            for (var level : net.neoforged.neoforge.server.ServerLifecycleHooks.getCurrentServer().getAllLevels()) {
+                for (var entity : level.getAllEntities()) {
+                    if (entity instanceof BaseDollEntity dollEntity && dollEntity.getCurrentAction() != null) {
+                        dollEntity.updateServerAction();
+                    }
+                }
+            }
+        } catch (Exception e) {
+            // Error logging handled by Mixin
+        }
+    }
+
+    /**
+     * Handle level tick event to update doll entity client poses
+     */
+    private void onLevelTick(LevelTickEvent.Post event) {
+        try {
+            // Only process on client side
+            if (event.getLevel().isClientSide) {
+                // Update client poses for all doll entities in the level
+                for (var entity : event.getLevel().getAllEntities()) {
+                    if (entity instanceof BaseDollEntity dollEntity) {
+                        dollEntity.updateClientPose();
+                    }
+                }
+            }
+        } catch (Exception e) {
+            // Error logging handled by Mixin
+        }
+    }
+
 }
 

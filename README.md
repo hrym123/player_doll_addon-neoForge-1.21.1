@@ -1,8 +1,8 @@
-# Player Doll Addon (玩家玩偶附属模组)
+# Player Doll (玩家玩偶模组)
 
 ## 📖 简介
 
-Player Doll Addon 是一个功能丰富的玩家玩偶模组，支持创建和放置自定义玩家玩偶实体。模组提供了 Steve 和 Alex 的默认玩偶，并支持从游戏目录动态加载自定义皮肤材质玩偶。此外，模组还提供了强大的姿态（Poses）和动作（Actions）系统，让您可以为玩偶设置各种静态姿势和动态动画。
+Player Doll 是一个功能丰富的玩家玩偶模组，支持创建和放置自定义玩家玩偶实体。模组提供了 Steve 和 Alex 的默认玩偶，并支持从游戏目录动态加载自定义皮肤材质玩偶。此外，模组还提供了强大的姿态（Poses）和动作（Actions）系统，让您可以为玩偶设置各种静态姿势和动态动画。
 
 ## ✨ 功能特性
 
@@ -134,7 +134,7 @@ Player Doll Addon 是一个功能丰富的玩家玩偶模组，支持创建和�
 ### 技术信息
 
 - **模组ID**: `player_doll_addon`
-- **模组名称**: Player Doll Addon
+- **模组名称**: Player Doll
 - **Minecraft 版本**: 1.21.1
 - **NeoForge 版本**: 21.1.217
 - **Java 版本**: 21

@@ -71,9 +71,9 @@ public class DefaultFileInitializer {
      */
     private static String generateReadmeContent() {
         return """ 
-            # Player Doll Addon 配置指南
+            # Player Doll 配置指南
 
-            欢迎使用 Player Doll Addon！本目录用于存放玩偶相关的配置文件。
+            欢迎使用 Player Doll！本目录用于存放玩偶相关的配置文件。
 
             ## 目录结构
 
@@ -382,7 +382,7 @@ public class DefaultFileInitializer {
 
             ---
 
-            *本文档由 Player Doll Addon 模组自动生成*
+            *本文档由 Player Doll 模组自动生成*
             """;
     }
     

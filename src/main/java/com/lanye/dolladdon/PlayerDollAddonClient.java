@@ -91,6 +91,9 @@ public class PlayerDollAddonClient {
             }
         }
         
+        // 注意：不再注册 CustomTextureDoll 渲染器，因为已经不再注册 CustomTextureDoll 实体
+        // 所有玩偶都通过 DynamicDoll 方式注册和渲染
+        /*
         // 注册所有自定义纹理玩偶实体渲染器
         java.util.Map<String, net.minecraft.world.entity.EntityType<CustomTextureDollEntity>> customEntities = 
                 ModEntities.getAllCustomTextureDollEntityTypes();
@@ -126,6 +129,7 @@ public class PlayerDollAddonClient {
                 // Error logging handled by Mixin
             }
         }
+        */
     }
     
     /**
