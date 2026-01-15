@@ -8,9 +8,32 @@ public class SkinFileNamingUtil {
     
     /**
      * 生成文件名
-     * 格式：[S|A]<玩家名>.png
+     * 格式：[S|A]<玩家名>_<UUID短版本>.png
      * - S = 粗手臂（Steve模型）
      * - A = 细手臂（Alex模型）
+     * - UUID短版本：UUID的前8位（不含连字符），用于避免重名
+     * 
+     * @param playerName 玩家名称
+     * @param isAlexModel 是否为Alex模型（细手臂）
+     * @param playerUUID 玩家UUID（用于避免重名）
+     * @return 生成的文件名（不含路径）
+     */
+    public static String generateFileName(String playerName, boolean isAlexModel, java.util.UUID playerUUID) {
+        // 清理玩家名中的特殊字符
+        String sanitizedName = sanitizePlayerName(playerName);
+        
+        // 获取UUID的短版本（前8位，不含连字符）
+        String uuidShort = getUuidShort(playerUUID);
+        
+        // 生成文件名：模型类型标识符 + 清理后的玩家名 + _ + UUID短版本 + .png
+        String prefix = isAlexModel ? "A" : "S";
+        return prefix + sanitizedName + "_" + uuidShort + ".png";
+    }
+    
+    /**
+     * 生成文件名（向后兼容，不包含UUID）
+     * 格式：[S|A]<玩家名>.png
+     * 注意：此方法可能产生重名，建议使用包含UUID的版本
      * 
      * @param playerName 玩家名称
      * @param isAlexModel 是否为Alex模型（细手臂）
@@ -23,6 +46,22 @@ public class SkinFileNamingUtil {
         // 生成文件名：模型类型标识符 + 清理后的玩家名 + .png
         String prefix = isAlexModel ? "A" : "S";
         return prefix + sanitizedName + ".png";
+    }
+    
+    /**
+     * 获取UUID的短版本（前8位，不含连字符）
+     * 用于文件名中避免重名
+     * 
+     * @param uuid 玩家UUID
+     * @return UUID的短版本（8位十六进制字符串）
+     */
+    private static String getUuidShort(java.util.UUID uuid) {
+        if (uuid == null) {
+            return "00000000";
+        }
+        // 获取UUID的字符串表示，去掉连字符，取前8位
+        String uuidString = uuid.toString().replace("-", "");
+        return uuidString.substring(0, Math.min(8, uuidString.length()));
     }
     
     /**

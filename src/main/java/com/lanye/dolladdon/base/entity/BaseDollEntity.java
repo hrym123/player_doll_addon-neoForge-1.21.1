@@ -192,7 +192,7 @@ public abstract class BaseDollEntity extends Entity {
      * 这是客户端更新姿态的主要方式，不需要每tick检查
      */
     @Override
-    protected void onSyncedDataUpdated(net.minecraft.network.syncher.EntityDataAccessor<?> key) {
+    public void onSyncedDataUpdated(net.minecraft.network.syncher.EntityDataAccessor<?> key) {
         super.onSyncedDataUpdated(key);
         
         // 客户端：当姿态或动作数据同步时，立即更新姿态

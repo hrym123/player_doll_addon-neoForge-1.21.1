@@ -22,16 +22,60 @@ import java.util.UUID;
 public class PlayerSkinDownloader {
     
     /**
+     * 是否允许使用回退方案
+     * 可以通过系统属性 "player_doll.allow_skin_fallback" 控制
+     * - true（默认）：允许使用回退方案（开发模式友好）
+     * - false：禁用回退方案，只使用Mojang API（用于测试真实流程）
+     */
+    private static final boolean ALLOW_FALLBACK = 
+        !"false".equalsIgnoreCase(System.getProperty("player_doll.allow_skin_fallback", "true"));
+    
+    /**
+     * 下载结果类
+     */
+    public static class DownloadResult {
+        private final boolean success;
+        private final boolean fallback; // 是否使用了回退方案
+        private final String errorMessage;
+        
+        private DownloadResult(boolean success, boolean fallback, String errorMessage) {
+            this.success = success;
+            this.fallback = fallback;
+            this.errorMessage = errorMessage;
+        }
+        
+        public static DownloadResult success(boolean fallback) {
+            return new DownloadResult(true, fallback, null);
+        }
+        
+        public static DownloadResult failure(String errorMessage) {
+            return new DownloadResult(false, false, errorMessage);
+        }
+        
+        public boolean isSuccess() {
+            return success;
+        }
+        
+        public boolean isFallback() {
+            return fallback;
+        }
+        
+        public String getErrorMessage() {
+            return errorMessage;
+        }
+    }
+    
+    /**
      * 下载指定玩家的皮肤并保存为PNG文件
      * 
      * @param player 玩家对象
      * @param targetPath 目标文件路径
      * @param overwrite 是否覆盖已存在的文件
-     * @return 是否成功下载和保存
+     * @return 下载结果
      */
-    public static boolean downloadPlayerSkin(ServerPlayer player, Path targetPath, boolean overwrite) {
+    public static DownloadResult downloadPlayerSkin(ServerPlayer player, Path targetPath, boolean overwrite) {
         if (player == null) {
-            return false;
+            return DownloadResult.failure("玩家对象为null");
         }
         
         UUID playerUUID = player.getUUID();
@@ -47,22 +91,49 @@ public class PlayerSkinDownloader {
      * @param playerName 玩家名称
      * @param targetPath 目标文件路径
      * @param overwrite 是否覆盖已存在的文件
-     * @return 是否成功下载和保存
+     * @return 下载结果
      */
-    public static boolean downloadPlayerSkin(UUID playerUUID, String playerName, Path targetPath, boolean overwrite) {
+    public static DownloadResult downloadPlayerSkin(UUID playerUUID, String playerName, Path targetPath, boolean overwrite) {
         try {
             // 检查文件是否已存在
             if (Files.exists(targetPath) && !overwrite) {
-                return false;
+                return DownloadResult.failure("文件已存在");
             }
             
             // 判断模型类型
             boolean isAlexModel = PlayerSkinUtil.isAlexModel(playerUUID, playerName);
             
-            // 从Mojang皮肤服务器下载皮肤
-            BufferedImage skinImage = downloadSkinFromMojang(playerUUID);
+            boolean usedFallback = false;
+            BufferedImage skinImage = null;
+            
+            // 方法1：尝试从Mojang皮肤服务器下载皮肤
+            skinImage = downloadSkinFromMojang(playerUUID);
+            
+            // 如果允许回退方案，尝试使用回退方法
+            if (skinImage == null && ALLOW_FALLBACK) {
+                // 方法2：如果Mojang API失败（开发模式或离线模式），尝试从本地资源获取
+                skinImage = downloadSkinFromLocal(playerUUID, playerName);
+                if (skinImage != null) {
+                    usedFallback = true;
+                }
+                
+                // 方法3：如果还是失败，使用默认皮肤作为测试（开发模式）
+                if (skinImage == null) {
+                    skinImage = getDefaultSkinImage(isAlexModel);
+                    if (skinImage != null) {
+                        usedFallback = true;
+                    }
+                }
+            }
+            
             if (skinImage == null) {
-                return false;
+                String errorMsg = "无法获取皮肤（Mojang API失败";
+                if (!ALLOW_FALLBACK) {
+                    errorMsg += "，回退方案已禁用）";
+                } else {
+                    errorMsg += "，且无法使用本地资源）";
+                }
+                return DownloadResult.failure(errorMsg);
             }
             
             // 确保目录存在
@@ -72,11 +143,16 @@ public class PlayerSkinDownloader {
             }
             
             // 保存为PNG文件
-            return saveSkinToFile(skinImage, targetPath);
+            boolean saved = saveSkinToFile(skinImage, targetPath);
+            if (!saved) {
+                return DownloadResult.failure("保存文件失败");
+            }
+            
+            return DownloadResult.success(usedFallback);
             
         } catch (Exception e) {
             // Error logging handled by Mixin
-            return false;
+            return DownloadResult.failure("异常: " + e.getMessage());
         }
     }
     
@@ -251,6 +327,120 @@ public class PlayerSkinDownloader {
         } catch (IOException e) {
             // Error logging handled by Mixin
             return false;
+        }
+    }
+    
+    /**
+     * 从本地游戏资源获取玩家皮肤（开发模式回退方案）
+     * 当无法从Mojang API获取时，尝试从游戏内的纹理资源获取
+     * 注意：此方法仅在客户端可用，服务器端会返回null
+     * 
+     * @param playerUUID 玩家UUID
+     * @param playerName 玩家名称
+     * @return 皮肤图像，如果获取失败返回null
+     */
+    private static BufferedImage downloadSkinFromLocal(UUID playerUUID, String playerName) {
+        try {
+            // 仅在客户端尝试从资源管理器获取
+            if (net.neoforged.fml.loading.FMLEnvironment.dist != net.neoforged.api.distmarker.Dist.CLIENT) {
+                // 服务器端无法访问资源管理器，返回null
+                return null;
+            }
+            
+            // 获取玩家皮肤纹理位置
+            ResourceLocation skinLocation = PlayerSkinUtil.getSkinLocation(playerUUID, playerName);
+            if (skinLocation == null) {
+                return null;
+            }
+            
+            // 尝试从资源管理器加载纹理
+            try {
+                var minecraft = net.minecraft.client.Minecraft.getInstance();
+                if (minecraft != null && minecraft.getResourceManager() != null) {
+                    var resourceManager = minecraft.getResourceManager();
+                    var resource = resourceManager.getResource(skinLocation);
+                    if (resource.isPresent()) {
+                        try (InputStream inputStream = resource.get().open()) {
+                            return ImageIO.read(inputStream);
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                // 资源获取失败，返回null（会使用默认皮肤）
+            }
+            
+            return null;
+            
+        } catch (Exception e) {
+            // Error logging handled by Mixin
+            return null;
+        }
+    }
+    
+    /**
+     * 获取默认皮肤图像（开发模式测试用）
+     * 当无法从Mojang API或本地资源获取时，生成一个测试皮肤
+     * 
+     * @param isAlexModel 是否为Alex模型
+     * @return 默认皮肤图像
+     */
+    private static BufferedImage getDefaultSkinImage(boolean isAlexModel) {
+        try {
+            // 首先尝试从资源管理器加载默认皮肤（仅在客户端）
+            if (net.neoforged.fml.loading.FMLEnvironment.dist == net.neoforged.api.distmarker.Dist.CLIENT) {
+                try {
+                    ResourceLocation skinLocation = isAlexModel ? 
+                        PlayerSkinUtil.getAlexSkin() : 
+                        PlayerSkinUtil.getSteveSkin();
+                    
+                    if (skinLocation != null) {
+                        var minecraft = net.minecraft.client.Minecraft.getInstance();
+                        if (minecraft != null && minecraft.getResourceManager() != null) {
+                            var resourceManager = minecraft.getResourceManager();
+                            var resource = resourceManager.getResource(skinLocation);
+                            if (resource.isPresent()) {
+                                try (InputStream inputStream = resource.get().open()) {
+                                    BufferedImage image = ImageIO.read(inputStream);
+                                    if (image != null) {
+                                        return image;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    // 资源获取失败，继续使用生成的测试皮肤
+                }
+            }
+            
+            // 如果无法从资源管理器获取，创建一个简单的测试皮肤图像
+            // 64x64像素，RGBA格式（标准Minecraft皮肤尺寸）
+            BufferedImage defaultSkin = new BufferedImage(64, 64, BufferedImage.TYPE_INT_ARGB);
+            java.awt.Graphics2D g = defaultSkin.createGraphics();
+            
+            // 启用抗锯齿
+            g.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, 
+                              java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
+            
+            // 填充基础颜色（浅灰色，表示测试皮肤）
+            g.setColor(new java.awt.Color(200, 200, 200, 255));
+            g.fillRect(0, 0, 64, 64);
+            
+            // 绘制简单的测试标记（表示这是测试皮肤）
+            g.setColor(new java.awt.Color(100, 100, 100, 255));
+            g.setFont(new java.awt.Font("Arial", java.awt.Font.BOLD, 16));
+            java.awt.FontMetrics fm = g.getFontMetrics();
+            String label = isAlexModel ? "A" : "S";
+            int textWidth = fm.stringWidth(label);
+            int textHeight = fm.getHeight();
+            g.drawString(label, (64 - textWidth) / 2, (64 + textHeight) / 2 - fm.getDescent());
+            
+            g.dispose();
+            return defaultSkin;
+            
+        } catch (Exception e) {
+            // Error logging handled by Mixin
+            return null;
         }
     }
     
