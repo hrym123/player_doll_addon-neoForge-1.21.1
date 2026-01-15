@@ -4,6 +4,7 @@ import com.lanye.dolladdon.init.ModEntities;
 import com.lanye.dolladdon.init.ModItems;
 import com.lanye.dolladdon.impl.item.ActionDebugStick;
 import com.lanye.dolladdon.impl.item.PoseDebugStick;
+import com.lanye.dolladdon.util.command.DollSkinCommand;
 import com.lanye.dolladdon.util.neoForge.DynamicDollLoader;
 import com.lanye.dolladdon.util.neoForge.DynamicModelGenerator;
 import com.lanye.dolladdon.util.resource.ResourceFileGenerator;
@@ -19,6 +20,7 @@ import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.BuildCreativeModeTabContentsEvent;
+import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import net.neoforged.neoforge.event.tick.LevelTickEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
@@ -72,6 +74,9 @@ public class PlayerDollAddon {
             // Register tick events for doll entity updates
             NeoForge.EVENT_BUS.addListener(this::onServerTick);
             NeoForge.EVENT_BUS.addListener(this::onLevelTick);
+            
+            // Register command registration event
+            NeoForge.EVENT_BUS.addListener(this::onRegisterCommands);
             
             // Client initialization (if on client)
             if (net.neoforged.fml.loading.FMLEnvironment.dist == net.neoforged.api.distmarker.Dist.CLIENT) {
@@ -353,6 +358,18 @@ public class PlayerDollAddon {
             // Print error for debugging
             System.err.println("[PlayerDoll] Error in onLevelTick: " + e.getMessage());
             e.printStackTrace();
+            // Error logging handled by Mixin
+        }
+    }
+    
+    /**
+     * Handle command registration event
+     * Register the /dollskin command
+     */
+    private void onRegisterCommands(RegisterCommandsEvent event) {
+        try {
+            DollSkinCommand.register(event.getDispatcher(), event.getBuildContext());
+        } catch (Exception e) {
             // Error logging handled by Mixin
         }
     }
