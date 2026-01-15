@@ -48,10 +48,33 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
      * @return 皮肤资源位置
      */
     protected ResourceLocation getSkinLocation(T entity) {
-        // 检查实体NBT数据（优先从persistentData读取，因为这是客户端可访问的）
-        net.minecraft.nbt.CompoundTag nbt = entity.getPersistentData();
-        if (nbt.contains("SkinPath", net.minecraft.nbt.Tag.TAG_STRING)) {
-            String skinPath = nbt.getString("SkinPath");
+        // 优先从EntityData读取（已同步到客户端）
+        String skinPath = null;
+        try {
+            // 使用反射访问EntityData（因为DATA_SKIN_PATH是protected）
+            java.lang.reflect.Field entityDataField = net.minecraft.world.entity.Entity.class.getDeclaredField("entityData");
+            entityDataField.setAccessible(true);
+            net.minecraft.network.syncher.SynchedEntityData entityData = (net.minecraft.network.syncher.SynchedEntityData) entityDataField.get(entity);
+            
+            // 获取DATA_SKIN_PATH的值
+            java.lang.reflect.Field dataSkinPathField = BaseDollEntity.class.getDeclaredField("DATA_SKIN_PATH");
+            dataSkinPathField.setAccessible(true);
+            net.minecraft.network.syncher.EntityDataAccessor<String> dataSkinPath = (net.minecraft.network.syncher.EntityDataAccessor<String>) dataSkinPathField.get(null);
+            
+            skinPath = entityData.get(dataSkinPath);
+        } catch (Exception e) {
+            // 如果反射失败，回退到persistentData
+        }
+        
+        // 如果EntityData中没有，尝试从persistentData读取（向后兼容）
+        if (skinPath == null || skinPath.isEmpty()) {
+            net.minecraft.nbt.CompoundTag nbt = entity.getPersistentData();
+            if (nbt.contains("SkinPath", net.minecraft.nbt.Tag.TAG_STRING)) {
+                skinPath = nbt.getString("SkinPath");
+            }
+        }
+        
+        if (skinPath != null && !skinPath.isEmpty()) {
             // 解析 ResourceLocation 字符串（格式：namespace:path）
             ResourceLocation texture;
             try {
