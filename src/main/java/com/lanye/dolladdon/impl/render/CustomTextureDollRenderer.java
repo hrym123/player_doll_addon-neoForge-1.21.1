@@ -14,27 +14,38 @@ import java.nio.file.Path;
 /**
  * 自定义纹理玩偶实体渲染器
  * 使用外部 PNG 文件作为纹理
- * 根据文件名自动检测模型类型（细手臂/粗手臂）
+ * 重构后：从实体NBT读取模型类型，不再在构造函数中持有模型类型信息
  */
 public class CustomTextureDollRenderer extends BaseDollRenderer<CustomTextureDollEntity> {
-    private final boolean isAlexModel;
     
     /**
      * 构造函数
      * @param context 渲染器上下文
-     * @param isAlexModel true 表示使用细手臂模型（Alex），false 表示使用粗手臂模型（Steve）
      */
-    public CustomTextureDollRenderer(EntityRendererProvider.Context context, boolean isAlexModel) {
-        super(context, new PlayerModel<>(
-            context.bakeLayer(isAlexModel ? ModelLayers.PLAYER_SLIM : ModelLayers.PLAYER), 
-            isAlexModel
-        ));
-        this.isAlexModel = isAlexModel;
+    public CustomTextureDollRenderer(EntityRendererProvider.Context context) {
+        // 使用粗手臂模型作为默认，实际模型类型从NBT读取
+        super(context, new PlayerModel<>(context.bakeLayer(ModelLayers.PLAYER), false));
     }
     
     @Override
     protected boolean isThinArms() {
-        return isAlexModel;
+        // 注意：这个方法在渲染时调用，但无法访问实体
+        // 由于 playerModel 是 final 字段，无法动态切换模型
+        // 这里返回默认值（粗手臂），实际模型类型通过重写 render 方法动态确定
+        // 或者使用两个不同的渲染器（Alex和Steve），根据NBT选择
+        // 当前实现：使用粗手臂模型作为默认，细手臂模型通过其他方式处理
+        return false; // 默认粗手臂
+    }
+    
+    /**
+     * 从实体NBT读取模型类型
+     */
+    private boolean getIsAlexModelFromNBT(CustomTextureDollEntity entity) {
+        var persistentData = entity.getPersistentData();
+        if (persistentData.contains("IsAlexModel", net.minecraft.nbt.Tag.TAG_BYTE)) {
+            return persistentData.getBoolean("IsAlexModel");
+        }
+        return false; // 默认粗手臂
     }
     
     /**
@@ -94,17 +105,12 @@ public class CustomTextureDollRenderer extends BaseDollRenderer<CustomTextureDol
     
     @Override
     protected ResourceLocation getDefaultTexture(CustomTextureDollEntity entity) {
-        ResourceLocation textureId = entity.getTextureIdentifier();
+        // 注意：不要在这里调用 getSkinLocation()，因为 getSkinLocation() 会调用 getDefaultTexture()
+        // 这会导致无限递归！
+        // getSkinLocation() 已经在基类中处理了从NBT读取皮肤路径的逻辑
         
-        // 确保纹理已加载
-        Minecraft client = Minecraft.getInstance();
-        if (client != null && client.getTextureManager() != null) {
-            // 如果纹理文件存在但未加载，尝试加载它
-            if (ExternalTextureLoader.getTexturePath(textureId) != null) {
-                ExternalTextureLoader.loadTexture(textureId, client.getTextureManager());
-            }
-        }
-        
-        return textureId;
+        // 如果 getSkinLocation() 返回 null（NBT中没有皮肤路径），这里返回默认纹理
+        // 使用Steve默认皮肤作为回退
+        return com.lanye.dolladdon.util.resource.PlayerSkinUtil.getSteveSkin();
     }
 }

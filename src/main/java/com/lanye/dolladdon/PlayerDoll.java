@@ -10,6 +10,7 @@ import com.lanye.dolladdon.util.neoForge.DynamicModelGenerator;
 import com.lanye.dolladdon.util.resource.ResourceFileGenerator;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.ItemStack;
 import com.lanye.dolladdon.base.entity.BaseDollEntity;
@@ -170,47 +171,73 @@ public class PlayerDoll {
     
     /**
      * 注册动态玩偶（从文件加载）
-     * 在构造函数中调用，确保在注册器注册之前完成
+     * 重构后：不再注册新的物品和实体，而是使用统一的 CustomTextureDollItem
+     * 皮肤路径通过NBT存储，在创造模式物品栏中创建带NBT的物品
      */
     private void registerDynamicDolls() {
-        // 先清理旧的动态模型文件（保留 alex_doll.json 和 steve_doll.json）
-        DynamicModelGenerator.cleanupOldModelFiles();
+        // 扫描目录（用于在创造模式物品栏中创建带NBT的物品）
+        // 不再注册新的物品和实体，而是使用统一的 CustomTextureDollItem
+        cachedDollInfos = DynamicDollLoader.scanDirectory(PNG_DIR);
         
-        // 扫描目录
-        var dollInfos = DynamicDollLoader.scanDirectory(PNG_DIR);
+        // 存储到静态变量，供创造模式物品栏使用
+        // 注意：这里不直接创建物品，而是在 displayItems 回调中创建带NBT的物品
+        // 这样可以避免在注册阶段创建 ItemStack（可能导致问题）
+    }
+    
+    /**
+     * 创建带NBT的玩偶物品（用于动态注册的玩偶）
+     * 使用统一的 CustomTextureDollItem，通过NBT存储皮肤路径
+     */
+    public static ItemStack createDynamicDollItemWithNBT(
+            String displayName,
+            ResourceLocation textureLocation,
+            boolean isAlexModel) {
+        // 使用统一的 CustomTextureDollItem
+        ItemStack dollItem = new ItemStack(ModItems.CUSTOM_TEXTURE_DOLL.get(), 1);
         
-        // 批量生成所有动态玩偶的模型文件（所有动态玩偶都使用相同的模型内容）
-        java.util.List<String> registryNames = new java.util.ArrayList<>();
-        for (var dollInfo : dollInfos) {
-            registryNames.add(dollInfo.getFileName());
+        // 设置NBT数据（使用DataComponents）
+        net.minecraft.nbt.CompoundTag customDataTag = new net.minecraft.nbt.CompoundTag();
+        net.minecraft.nbt.CompoundTag entityDataTag = new net.minecraft.nbt.CompoundTag();
+        
+        // 设置皮肤路径（ResourceLocation字符串格式）
+        entityDataTag.putString("SkinPath", textureLocation.toString());
+        entityDataTag.putBoolean("IsAlexModel", isAlexModel);
+        entityDataTag.putString("DisplayName", displayName);
+        
+        customDataTag.put("EntityData", entityDataTag);
+        
+        // 使用与 DollSkinCommand 相同的方法创建 CustomData
+        Object customData = DollSkinCommand.createCustomData(customDataTag);
+        if (customData == null) {
+            return dollItem; // 返回没有NBT的物品
         }
-        DynamicModelGenerator.generateAllItemModels(registryNames);
         
-        // 注册每个玩偶
-        int successCount = 0;
-        for (var dollInfo : dollInfos) {
+        try {
+            net.minecraft.core.component.DataComponentPatch.Builder builder = 
+                net.minecraft.core.component.DataComponentPatch.builder();
+            java.lang.reflect.Method setMethod = builder.getClass().getDeclaredMethod("set", 
+                net.minecraft.core.component.DataComponentType.class, Object.class);
+            setMethod.setAccessible(true);
+            setMethod.invoke(builder, 
+                net.minecraft.core.component.DataComponents.CUSTOM_DATA, 
+                customData);
+            dollItem.applyComponents(builder.build());
+        } catch (Exception e) {
+            // 如果失败，尝试备用方法
             try {
-                // 注册实体
-                var entityHolder = ModEntities.registerDynamicDoll(dollInfo.getFileName());
-                
-                // 模型文件已在上面批量生成，这里不需要再生成
-                
-                // 注册物品（传递 DeferredHolder，延迟获取 EntityType）
-                ModItems.registerDynamicDoll(
-                    dollInfo.getFileName(),
-                    entityHolder,
-                    dollInfo.getTextureLocation(),
-                    dollInfo.isAlexModel(),
-                    dollInfo.getDisplayName()
-                );
-                
-                successCount++;
-            } catch (Exception e) {
-                // Error logging handled by Mixin
-                e.printStackTrace();
+                java.lang.reflect.Method setMethod = ItemStack.class.getMethod("set", 
+                    net.minecraft.core.component.DataComponentType.class, Object.class);
+                setMethod.invoke(dollItem, net.minecraft.core.component.DataComponents.CUSTOM_DATA, customData);
+            } catch (Exception e2) {
+                // 如果都失败，返回没有NBT的物品
             }
         }
+        
+        return dollItem;
     }
+    
+    // 存储扫描到的玩偶信息，供创造模式物品栏使用
+    private static java.util.List<DynamicDollLoader.DollInfo> cachedDollInfos = new java.util.ArrayList<>();
     
     
     // 创建玩家玩偶物品栏
@@ -229,31 +256,20 @@ public class PlayerDoll {
                         // 添加艾利克斯玩偶物品（固定模型：细手臂 + Alex默认皮肤）
                         output.accept(new ItemStack(ModItems.ALEX_DOLL.get()));
                         
-                        // 添加动态注册的玩偶物品
-                        int dynamicCount = 0;
-                        for (var entry : ModItems.DYNAMIC_DOLLS.entrySet()) {
+                        // 添加动态注册的玩偶物品（从文件扫描，创建带NBT的物品）
+                        // 使用统一的 CustomTextureDollItem，通过NBT存储皮肤路径
+                        for (var dollInfo : cachedDollInfos) {
                             try {
-                                ItemStack stack = new ItemStack(entry.getValue().get());
-                                output.accept(stack);
-                                dynamicCount++;
-                            } catch (Exception e) {
-                                // Error logging handled by Mixin
-                            }
-                        }
-                        
-                        // 注意：不再添加 CustomTextureDoll 物品，因为已经不再注册这些物品
-                        // 所有玩偶都通过 DynamicDoll 方式注册
-                        /*
-                        // Add all custom texture doll items
-                        for (var entry : ModItems.CUSTOM_TEXTURE_DOLL_ITEMS.entrySet()) {
-                            try {
-                                ItemStack stack = new ItemStack(entry.getValue().get());
+                                ItemStack stack = createDynamicDollItemWithNBT(
+                                    dollInfo.getDisplayName(),
+                                    dollInfo.getTextureLocation(),
+                                    dollInfo.isAlexModel()
+                                );
                                 output.accept(stack);
                             } catch (Exception e) {
                                 // Error logging handled by Mixin
                             }
                         }
-                        */
                         
                         // Add debug sticks
                         try {

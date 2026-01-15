@@ -31,7 +31,14 @@ public class ModEntities {
             () -> DollEntityFactory.createDollEntityType("alex_doll", AlexDollEntity::new)
     );
     
-    // 动态注册的玩偶实体（从文件加载）
+    // 自定义纹理玩偶实体（统一实体，通过NBT存储皮肤路径）
+    public static final DeferredHolder<EntityType<?>, EntityType<CustomTextureDollEntity>> CUSTOM_TEXTURE_DOLL = ENTITIES.register(
+            "custom_texture_doll",
+            () -> DollEntityFactory.createDollEntityType("custom_texture_doll", CustomTextureDollEntity::new)
+    );
+    
+    // 动态注册的玩偶实体（从文件加载）- 已废弃，保留用于向后兼容
+    @Deprecated
     public static final Map<String, DeferredHolder<EntityType<?>, EntityType<DynamicDollEntity>>> DYNAMIC_DOLLS = new HashMap<>();
     
     // 自定义纹理玩偶实体映射表（注册名称 -> 实体类型持有者）
@@ -56,13 +63,17 @@ public class ModEntities {
      * @param registryName 注册名称
      * @param textureId 纹理标识符
      * @return 注册的实体类型持有者
+     * @deprecated 已废弃，不再为每个皮肤注册新实体，使用统一的 CUSTOM_TEXTURE_DOLL
      */
+    @Deprecated
     public static DeferredHolder<EntityType<?>, EntityType<CustomTextureDollEntity>> registerCustomTextureDollEntity(String registryName, ResourceLocation textureId) {
+        // 注意：此方法已废弃，保留用于向后兼容
+        // 现在使用统一的 CUSTOM_TEXTURE_DOLL 实体，通过NBT存储皮肤路径
         DeferredHolder<EntityType<?>, EntityType<CustomTextureDollEntity>> holder = ENTITIES.register(
                 "custom_doll_" + registryName,
                 () -> DollEntityFactory.createDollEntityType(
                         "custom_doll_" + registryName,
-                        (entityType, world) -> new CustomTextureDollEntity(entityType, world, textureId, registryName)
+                        (entityType, world) -> new CustomTextureDollEntity(entityType, world)
                 )
         );
         CUSTOM_TEXTURE_DOLL_ENTITIES.put(registryName, holder);

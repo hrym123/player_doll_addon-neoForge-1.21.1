@@ -74,8 +74,14 @@ public class PlayerDollClient {
         // 注册艾利克斯玩偶实体渲染器（固定模型）
         event.registerEntityRenderer(ModEntities.ALEX_DOLL.get(), AlexDollRenderer::new);
         
-        // 注册动态玩偶实体渲染器
-        // 需要先扫描目录获取信息
+        // 注册自定义纹理玩偶实体渲染器（统一渲染器，从NBT读取皮肤路径和模型类型）
+        event.registerEntityRenderer(ModEntities.CUSTOM_TEXTURE_DOLL.get(), CustomTextureDollRenderer::new);
+        
+        // 注意：不再注册 DynamicDoll 渲染器，因为已经不再注册 DynamicDoll 实体
+        // 所有动态玩偶都使用统一的 CustomTextureDollEntity 和 CustomTextureDollRenderer
+        // 皮肤路径和模型类型通过NBT存储
+        /*
+        // 注册动态玩偶实体渲染器（已废弃）
         var dollInfos = DynamicDollLoader.scanDirectory(PlayerDoll.PNG_DIR);
         for (var dollInfo : dollInfos) {
             var entityHolder = ModEntities.DYNAMIC_DOLLS.get(dollInfo.getFileName());
@@ -88,45 +94,6 @@ public class PlayerDollClient {
                         dollInfo.isAlexModel()
                     )
                 );
-            }
-        }
-        
-        // 注意：不再注册 CustomTextureDoll 渲染器，因为已经不再注册 CustomTextureDoll 实体
-        // 所有玩偶都通过 DynamicDoll 方式注册和渲染
-        /*
-        // 注册所有自定义纹理玩偶实体渲染器
-        java.util.Map<String, net.minecraft.world.entity.EntityType<CustomTextureDollEntity>> customEntities = 
-                ModEntities.getAllCustomTextureDollEntityTypes();
-        
-        // 获取所有自定义纹理信息，用于检测模型类型
-        java.util.List<PngTextureScanner.PngTextureInfo> pngInfos = PngTextureScanner.scanPngFiles();
-        
-        for (java.util.Map.Entry<String, net.minecraft.world.entity.EntityType<CustomTextureDollEntity>> entry : customEntities.entrySet()) {
-            try {
-                String registryName = entry.getKey();
-                
-                // 查找对应的纹理信息
-                PngTextureScanner.PngTextureInfo pngInfo = null;
-                for (PngTextureScanner.PngTextureInfo info : pngInfos) {
-                    if (info.getRegistryName().equals(registryName)) {
-                        pngInfo = info;
-                        break;
-                    }
-                }
-                
-                // 检测模型类型
-                boolean isAlexModel = false;
-                if (pngInfo != null) {
-                    isAlexModel = CustomTextureDollRenderer.detectIsAlexModel(
-                            registryName, pngInfo.getTextureIdentifier());
-                }
-                
-                // 创建渲染器工厂，传入模型类型
-                final boolean finalIsAlexModel = isAlexModel;
-                event.registerEntityRenderer(entry.getValue(), 
-                        context -> new CustomTextureDollRenderer(context, finalIsAlexModel));
-            } catch (Exception e) {
-                // Error logging handled by Mixin
             }
         }
         */

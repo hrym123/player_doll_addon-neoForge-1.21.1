@@ -34,7 +34,11 @@ public class ModItems {
     // 姿态调试棒（潜行时滑动滚轮切换姿态，右键玩偶应用当前姿态）
     public static final DeferredItem<PoseDebugStick> POSE_DEBUG_STICK = ITEMS.register("pose_debug_stick", PoseDebugStick::new);
     
-    // 动态注册的玩偶物品（从文件加载）
+    // 自定义纹理玩偶物品（统一物品，通过NBT存储皮肤路径）
+    public static final DeferredItem<CustomTextureDollItem> CUSTOM_TEXTURE_DOLL = ITEMS.register("custom_texture_doll", CustomTextureDollItem::new);
+    
+    // 动态注册的玩偶物品（从文件加载）- 已废弃，保留用于向后兼容
+    @Deprecated
     public static final Map<String, DeferredItem<DynamicDollItem>> DYNAMIC_DOLLS = new HashMap<>();
     
     // 自定义纹理玩偶物品映射表（注册名称 -> 物品持有者）
@@ -67,11 +71,15 @@ public class ModItems {
      * @param registryName 注册名称
      * @param textureId 纹理标识符
      * @return 注册的物品持有者
+     * @deprecated 已废弃，不再为每个皮肤注册新物品，使用统一的 CUSTOM_TEXTURE_DOLL
      */
+    @Deprecated
     public static DeferredItem<CustomTextureDollItem> registerCustomTextureDollItem(String registryName, ResourceLocation textureId) {
+        // 注意：此方法已废弃，保留用于向后兼容
+        // 现在使用统一的 CUSTOM_TEXTURE_DOLL 物品，通过NBT存储皮肤路径
         DeferredItem<CustomTextureDollItem> holder = ITEMS.register(
                 "custom_doll_" + registryName,
-                () -> new CustomTextureDollItem(textureId, registryName)
+                () -> new CustomTextureDollItem()
         );
         CUSTOM_TEXTURE_DOLL_ITEMS.put(registryName, holder);
         

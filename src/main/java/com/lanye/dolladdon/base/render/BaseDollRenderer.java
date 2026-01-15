@@ -48,66 +48,47 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
      * @return 皮肤资源位置
      */
     protected ResourceLocation getSkinLocation(T entity) {
-        // 优先从EntityData读取（已同步到客户端）
-        String skinPath = null;
-        try {
-            // 使用反射访问EntityData（因为DATA_SKIN_PATH是protected）
-            java.lang.reflect.Field entityDataField = net.minecraft.world.entity.Entity.class.getDeclaredField("entityData");
-            entityDataField.setAccessible(true);
-            net.minecraft.network.syncher.SynchedEntityData entityData = (net.minecraft.network.syncher.SynchedEntityData) entityDataField.get(entity);
+        // 直接从 persistentData 读取（已从NBT设置）
+        // persistentData 是客户端可访问的，通过NBT机制自动同步
+        net.minecraft.nbt.CompoundTag nbt = entity.getPersistentData();
+        if (nbt.contains("SkinPath", net.minecraft.nbt.Tag.TAG_STRING)) {
+            String skinPath = nbt.getString("SkinPath");
             
-            // 获取DATA_SKIN_PATH的值
-            java.lang.reflect.Field dataSkinPathField = BaseDollEntity.class.getDeclaredField("DATA_SKIN_PATH");
-            dataSkinPathField.setAccessible(true);
-            net.minecraft.network.syncher.EntityDataAccessor<String> dataSkinPath = (net.minecraft.network.syncher.EntityDataAccessor<String>) dataSkinPathField.get(null);
-            
-            skinPath = entityData.get(dataSkinPath);
-        } catch (Exception e) {
-            // 如果反射失败，回退到persistentData
-        }
-        
-        // 如果EntityData中没有，尝试从persistentData读取（向后兼容）
-        if (skinPath == null || skinPath.isEmpty()) {
-            net.minecraft.nbt.CompoundTag nbt = entity.getPersistentData();
-            if (nbt.contains("SkinPath", net.minecraft.nbt.Tag.TAG_STRING)) {
-                skinPath = nbt.getString("SkinPath");
-            }
-        }
-        
-        if (skinPath != null && !skinPath.isEmpty()) {
-            // 解析 ResourceLocation 字符串（格式：namespace:path）
-            ResourceLocation texture;
-            try {
-                if (skinPath.contains(":")) {
-                    String[] parts = skinPath.split(":", 2);
-                    texture = ResourceLocation.fromNamespaceAndPath(parts[0], parts[1]);
-                } else {
-                    texture = ResourceLocation.fromNamespaceAndPath("player_doll", skinPath);
+            if (skinPath != null && !skinPath.isEmpty()) {
+                // 解析 ResourceLocation 字符串（格式：namespace:path）
+                ResourceLocation texture;
+                try {
+                    if (skinPath.contains(":")) {
+                        String[] parts = skinPath.split(":", 2);
+                        texture = ResourceLocation.fromNamespaceAndPath(parts[0], parts[1]);
+                    } else {
+                        texture = ResourceLocation.fromNamespaceAndPath("player_doll", skinPath);
+                    }
+                } catch (Exception e) {
+                    // Logging handled by Mixin
+                    return getDefaultTexture(entity);
                 }
-            } catch (Exception e) {
+                
+                // 对于动态资源包中的纹理，即使textureExists返回false也尝试使用
+                // 因为动态资源包可能在某些情况下无法通过资源管理器检测到
+                // 但实际渲染时可能可以加载（通过DynamicResourcePack.getResource）
+                // 先检查是否是动态资源包路径（png/开头的路径）
+                if (texture.getPath().startsWith("png/")) {
+                    // 对于png/路径，直接返回，让渲染系统尝试加载
+                    // 如果加载失败，Minecraft会自动回退到默认纹理或显示错误纹理
+                    // Logging handled by Mixin
+                    return texture;
+                }
+                
+                // 对于其他路径，验证纹理是否存在
+                boolean exists = textureExists(texture);
+                if (exists) {
+                    // Logging handled by Mixin
+                    return texture;
+                }
+                // 如果纹理不存在，记录警告并回退
                 // Logging handled by Mixin
-                return getDefaultTexture(entity);
             }
-            
-            // 对于动态资源包中的纹理，即使textureExists返回false也尝试使用
-            // 因为动态资源包可能在某些情况下无法通过资源管理器检测到
-            // 但实际渲染时可能可以加载（通过DynamicResourcePack.getResource）
-            // 先检查是否是动态资源包路径（png/开头的路径）
-            if (texture.getPath().startsWith("png/")) {
-                // 对于png/路径，直接返回，让渲染系统尝试加载
-                // 如果加载失败，Minecraft会自动回退到默认纹理或显示错误纹理
-                // Logging handled by Mixin
-                return texture;
-            }
-            
-            // 对于其他路径，验证纹理是否存在
-            boolean exists = textureExists(texture);
-            if (exists) {
-                // Logging handled by Mixin
-                return texture;
-            }
-            // 如果纹理不存在，记录警告并回退
-            // Logging handled by Mixin
         }
         
         // 回退到默认纹理（由子类实现）

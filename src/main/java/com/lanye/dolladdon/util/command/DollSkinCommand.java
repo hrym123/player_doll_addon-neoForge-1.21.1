@@ -846,7 +846,7 @@ public class DollSkinCommand {
      * @param nbt NBT标签
      * @return CustomData对象，如果创建失败返回null
      */
-    private static Object createCustomData(net.minecraft.nbt.CompoundTag nbt) {
+    public static Object createCustomData(net.minecraft.nbt.CompoundTag nbt) {
         String[] possiblePaths = {
             "net.minecraft.core.component.types.CustomData",
             "net.minecraft.core.component.CustomData",
