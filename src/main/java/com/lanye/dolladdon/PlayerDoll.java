@@ -188,55 +188,31 @@ public class PlayerDoll {
      * 创建带NBT的玩偶物品（用于动态注册的玩偶）
      * 使用统一的 CustomTextureDollItem，通过NBT存储皮肤路径
      * 
-     * @deprecated 请使用 {@link com.lanye.dolladdon.util.factory.DollItemFactory#createCustomTextureDoll(String, boolean, String, UUID, String)} 替代
+     * @deprecated 请使用 {@link com.lanye.dolladdon.util.factory.DollItemFactory#createCustomTextureDoll(String, boolean, String)} 替代
      */
     @Deprecated(forRemoval = false)
     public static ItemStack createDynamicDollItemWithNBT(
             String displayName,
             ResourceLocation textureLocation,
             boolean isAlexModel) {
-        // 使用统一的 CustomTextureDollItem
-        ItemStack dollItem = new ItemStack(ModItems.CUSTOM_TEXTURE_DOLL.get(), 1);
+        // 使用工厂类创建，确保NBT结构标准化
+        // 从textureLocation提取skinPath
+        String skinPath = textureLocation.toString();
         
-        // 设置NBT数据（使用DataComponents）
-        net.minecraft.nbt.CompoundTag customDataTag = new net.minecraft.nbt.CompoundTag();
-        net.minecraft.nbt.CompoundTag entityDataTag = new net.minecraft.nbt.CompoundTag();
+        // 从displayName或textureLocation提取playerName
+        // 如果textureLocation是 player_doll:textures/entity/xxx 格式，需要从文件路径提取
+        String playerName = displayName; // 默认使用displayName
         
-        // 设置皮肤路径（ResourceLocation字符串格式）
-        entityDataTag.putString("SkinPath", textureLocation.toString());
-        entityDataTag.putBoolean("IsAlexModel", isAlexModel);
-        entityDataTag.putString("DisplayName", displayName);
+        // 尝试从textureLocation的路径中提取文件名
+        // 如果textureLocation是 player_doll:textures/entity/xxx，需要从文件路径获取原始文件名
+        // 但这里我们无法直接获取，所以使用displayName作为playerName
         
-        customDataTag.put("EntityData", entityDataTag);
-        
-        // 使用与 DollSkinCommand 相同的方法创建 CustomData
-        Object customData = DollSkinCommand.createCustomData(customDataTag);
-        if (customData == null) {
-            return dollItem; // 返回没有NBT的物品
-        }
-        
-        try {
-            net.minecraft.core.component.DataComponentPatch.Builder builder = 
-                net.minecraft.core.component.DataComponentPatch.builder();
-            java.lang.reflect.Method setMethod = builder.getClass().getDeclaredMethod("set", 
-                net.minecraft.core.component.DataComponentType.class, Object.class);
-            setMethod.setAccessible(true);
-            setMethod.invoke(builder, 
-                net.minecraft.core.component.DataComponents.CUSTOM_DATA, 
-                customData);
-            dollItem.applyComponents(builder.build());
-        } catch (Exception e) {
-            // 如果失败，尝试备用方法
-            try {
-                java.lang.reflect.Method setMethod = ItemStack.class.getMethod("set", 
-                    net.minecraft.core.component.DataComponentType.class, Object.class);
-                setMethod.invoke(dollItem, net.minecraft.core.component.DataComponents.CUSTOM_DATA, customData);
-            } catch (Exception e2) {
-                // 如果都失败，返回没有NBT的物品
-            }
-        }
-        
-        return dollItem;
+        // 使用工厂类创建物品，确保包含PlayerName
+        return com.lanye.dolladdon.util.factory.DollItemFactory.createCustomTextureDoll(
+            skinPath,
+            isAlexModel,
+            playerName
+        );
     }
     
     // 存储扫描到的玩偶信息，供创造模式物品栏使用
@@ -263,10 +239,24 @@ public class PlayerDoll {
                         // 使用统一的 CustomTextureDollItem，通过NBT存储皮肤路径
                         for (var dollInfo : cachedDollInfos) {
                             try {
-                                ItemStack stack = createDynamicDollItemWithNBT(
-                                    dollInfo.getDisplayName(),
-                                    dollInfo.getTextureLocation(),
-                                    dollInfo.isAlexModel()
+                                // 从文件路径提取文件名（带扩展名）
+                                String fileName = dollInfo.getFilePath().getFileName().toString();
+                                
+                                // 从文件名提取玩家名（使用工具类）
+                                String playerName = com.lanye.dolladdon.util.resource.SkinFileNamingUtil.extractPlayerNameFromFileName(fileName);
+                                if (playerName == null || playerName.isEmpty()) {
+                                    // 如果无法提取，使用displayName作为fallback
+                                    playerName = dollInfo.getDisplayName();
+                                }
+                                
+                                // 构建正确的skinPath格式：player_doll:png/xxx.png
+                                String skinPath = "player_doll:png/" + fileName;
+                                
+                                // 使用工厂类创建物品，确保包含PlayerName
+                                ItemStack stack = com.lanye.dolladdon.util.factory.DollItemFactory.createCustomTextureDoll(
+                                    skinPath,
+                                    dollInfo.isAlexModel(),
+                                    playerName
                                 );
                                 output.accept(stack);
                             } catch (Exception e) {

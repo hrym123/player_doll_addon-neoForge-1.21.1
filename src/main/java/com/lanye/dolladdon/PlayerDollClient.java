@@ -164,6 +164,19 @@ public class PlayerDollClient {
     public static void onRegisterClientReloadListeners(RegisterClientReloadListenersEvent event) {
         event.registerReloadListener((ResourceManagerReloadListener) resourceManager -> {
             try {
+                // 获取游戏目录
+                Path gameDir;
+                try {
+                    Class<?> fmlPathsClass = Class.forName("net.neoforged.fml.loading.FMLPaths");
+                    java.lang.reflect.Method gameDirMethod = fmlPathsClass.getMethod("getGamePath");
+                    gameDir = (Path) gameDirMethod.invoke(null);
+                } catch (Exception e) {
+                    gameDir = Paths.get(".").toAbsolutePath().normalize();
+                }
+                
+                // 扫描并注册所有 PNG 纹理文件（确保重启后纹理仍然可用）
+                com.lanye.dolladdon.util.neoForge.DynamicTextureManager.scanAndRegisterTextures(gameDir);
+                
                 // 加载姿态和动作资源
                 PoseActionManager.loadResources(resourceManager);
                 
@@ -207,22 +220,39 @@ public class PlayerDollClient {
             }
             
             net.minecraft.Util.ioPool().execute(() -> {
-                Minecraft minecraft = Minecraft.getInstance();
-                if (minecraft != null && minecraft.getResourceManager() != null) {
-                    PoseActionManager.loadResources(minecraft.getResourceManager());
+                try {
+                    // 获取游戏目录
+                    Path gameDir;
+                    try {
+                        Class<?> fmlPathsClass = Class.forName("net.neoforged.fml.loading.FMLPaths");
+                        java.lang.reflect.Method gameDirMethod = fmlPathsClass.getMethod("getGamePath");
+                        gameDir = (Path) gameDirMethod.invoke(null);
+                    } catch (Exception e) {
+                        gameDir = Paths.get(".").toAbsolutePath().normalize();
+                    }
                     
-                    // 加载外部纹理
-                    ExternalTextureLoader.loadExternalTextures();
+                    // 扫描并注册所有 PNG 纹理文件（确保重启后纹理仍然可用）
+                    com.lanye.dolladdon.util.neoForge.DynamicTextureManager.scanAndRegisterTextures(gameDir);
                     
-                    // 将外部纹理注册到纹理管理器
-                    net.minecraft.client.renderer.texture.TextureManager textureManager = minecraft.getTextureManager();
-                    if (textureManager != null) {
-                        java.util.Map<ResourceLocation, java.nio.file.Path> textures = 
-                                ExternalTextureLoader.getAllLoadedTextures();
-                        for (ResourceLocation textureId : textures.keySet()) {
-                            ExternalTextureLoader.loadTexture(textureId, textureManager);
+                    Minecraft minecraft = Minecraft.getInstance();
+                    if (minecraft != null && minecraft.getResourceManager() != null) {
+                        PoseActionManager.loadResources(minecraft.getResourceManager());
+                        
+                        // 加载外部纹理
+                        ExternalTextureLoader.loadExternalTextures();
+                        
+                        // 将外部纹理注册到纹理管理器
+                        net.minecraft.client.renderer.texture.TextureManager textureManager = minecraft.getTextureManager();
+                        if (textureManager != null) {
+                            java.util.Map<ResourceLocation, java.nio.file.Path> textures = 
+                                    ExternalTextureLoader.getAllLoadedTextures();
+                            for (ResourceLocation textureId : textures.keySet()) {
+                                ExternalTextureLoader.loadTexture(textureId, textureManager);
+                            }
                         }
                     }
+                } catch (Exception e) {
+                    // Error logging handled by Mixin
                 }
             });
         });

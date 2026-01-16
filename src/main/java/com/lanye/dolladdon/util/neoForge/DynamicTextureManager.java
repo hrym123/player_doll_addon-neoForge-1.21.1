@@ -87,5 +87,41 @@ public class DynamicTextureManager {
         TEXTURE_PATHS.clear();
         PATH_MAPPING.clear();
     }
+    
+    /**
+     * 扫描并注册 player_doll/png 目录下的所有 PNG 文件
+     * 在游戏启动或资源重载时调用，确保所有纹理都被注册
+     * 
+     * @param gameDir 游戏目录
+     */
+    public static void scanAndRegisterTextures(java.nio.file.Path gameDir) {
+        try {
+            java.nio.file.Path pngDir = gameDir.resolve(PlayerDoll.PNG_DIR);
+            if (!java.nio.file.Files.exists(pngDir) || !java.nio.file.Files.isDirectory(pngDir)) {
+                return;
+            }
+            
+            try (var stream = java.nio.file.Files.list(pngDir)) {
+                stream.filter(java.nio.file.Files::isRegularFile)
+                      .filter(path -> path.toString().toLowerCase().endsWith(".png"))
+                      .forEach(pngFile -> {
+                          try {
+                              String fileName = pngFile.getFileName().toString();
+                              ResourceLocation textureLocation = ResourceLocation.fromNamespaceAndPath(
+                                  PlayerDoll.MODID, 
+                                  "png/" + fileName
+                              );
+                              
+                              // 注册纹理路径
+                              registerTexture(textureLocation, pngFile);
+                          } catch (Exception e) {
+                              // Error logging handled by Mixin
+                          }
+                      });
+            }
+        } catch (Exception e) {
+            // Error logging handled by Mixin
+        }
+    }
 }
 

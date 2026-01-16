@@ -780,13 +780,18 @@ public class DollSkinCommand {
                 }
                 
                 // 保存到文件
-                java.nio.file.Path pngDir = com.lanye.dolladdon.util.resource.PlayerSkinDownloader.getPngDirectory();
-                java.nio.file.Path nbtDir = pngDir.getParent();
-                if (nbtDir == null) {
-                    nbtDir = pngDir;
+                // 获取游戏目录
+                java.nio.file.Path gameDir;
+                try {
+                    Class<?> fmlPathsClass = Class.forName("net.neoforged.fml.loading.FMLPaths");
+                    java.lang.reflect.Method gameDirMethod = fmlPathsClass.getMethod("getGamePath");
+                    gameDir = (java.nio.file.Path) gameDirMethod.invoke(null);
+                } catch (Exception e) {
+                    gameDir = java.nio.file.Paths.get(".").toAbsolutePath().normalize();
                 }
                 
-                // 创建nbt目录（如果不存在）
+                // 创建 nbt_save 目录（player_doll/nbt_save/）
+                java.nio.file.Path nbtDir = gameDir.resolve("player_doll/nbt_save");
                 if (!java.nio.file.Files.exists(nbtDir)) {
                     java.nio.file.Files.createDirectories(nbtDir);
                 }
