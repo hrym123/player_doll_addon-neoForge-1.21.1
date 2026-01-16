@@ -104,7 +104,22 @@ public class DynamicResourcePack implements PackResources {
                 }
             }
         } else if (path.equals("png")) {
-            // 列出 player_doll/png 目录下的所有PNG文件
+            // 首先列出已注册的纹理（通过DynamicTextureManager注册的，包括路径映射）
+            for (var entry : DynamicTextureManager.TEXTURE_PATHS.entrySet()) {
+                ResourceLocation location = entry.getKey();
+                if (location.getNamespace().equals(namespace) && location.getPath().startsWith("png/")) {
+                    Path filePath = entry.getValue();
+                    if (Files.exists(filePath) && Files.isRegularFile(filePath)) {
+                        try {
+                            output.accept(location, () -> Files.newInputStream(filePath));
+                        } catch (Exception e) {
+                            // Error logging handled by Mixin
+                        }
+                    }
+                }
+            }
+            
+            // 然后列出 player_doll/png 目录下的所有PNG文件（向后兼容，处理未注册的文件）
             Path pngDir = gameDir.resolve("player_doll/png");
             if (Files.exists(pngDir) && Files.isDirectory(pngDir)) {
                 try (var stream = Files.list(pngDir)) {
@@ -113,10 +128,28 @@ public class DynamicResourcePack implements PackResources {
                           .forEach(pngFile -> {
                               try {
                                   String fileName = pngFile.getFileName().toString();
-                                  ResourceLocation location = ResourceLocation.fromNamespaceAndPath(
-                                      namespace, "png/" + fileName
-                                  );
-                                  output.accept(location, () -> Files.newInputStream(pngFile));
+                                  
+                                  // 检查是否有路径映射（如果文件名包含特殊字符，可能已使用哈希文件名）
+                                  ResourceLocation mappedLocation = DynamicTextureManager.getMappedResourceLocation(fileName);
+                                  if (mappedLocation != null) {
+                                      // 如果已有映射，使用映射的ResourceLocation（已在上面列出，跳过）
+                                      return;
+                                  }
+                                  
+                                  // 如果没有映射，尝试直接使用文件名创建ResourceLocation
+                                  // 如果文件名包含特殊字符，创建ResourceLocation会失败，但我们已经尝试了
+                                  try {
+                                      ResourceLocation location = ResourceLocation.fromNamespaceAndPath(
+                                          namespace, "png/" + fileName
+                                      );
+                                      // 检查是否已经列出（避免重复）
+                                      // 由于无法直接检查output是否已接受，我们依赖上面的已注册纹理列表
+                                      // 如果纹理已注册，上面已经列出；如果未注册，这里列出
+                                      output.accept(location, () -> Files.newInputStream(pngFile));
+                                  } catch (IllegalArgumentException e) {
+                                      // 文件名包含特殊字符，无法创建ResourceLocation，跳过
+                                      // 这种情况应该通过DynamicTextureManager注册并使用路径映射
+                                  }
                               } catch (Exception e) {
                                   // Error logging handled by Mixin
                               }

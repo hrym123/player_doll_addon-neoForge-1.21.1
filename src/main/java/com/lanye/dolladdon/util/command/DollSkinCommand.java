@@ -450,30 +450,26 @@ public class DollSkinCommand {
                 return 0;
             }
             
-            // 生成用于获取皮肤的UUID（仅用于下载皮肤，不保存到物品NBT）
-            // 尝试从在线玩家中查找匹配的UUID
-            java.util.UUID playerUUID = null;
-            for (ServerPlayer player : source.getServer().getPlayerList().getPlayers()) {
-                if (player.getName().getString().equals(playerName)) {
-                    playerUUID = player.getUUID();
-                    break;
-                }
-            }
-            
-            // 如果找不到匹配的在线玩家，使用基于玩家名的UUID（用于离线模式）
-            if (playerUUID == null) {
-                playerUUID = java.util.UUID.nameUUIDFromBytes(("OfflinePlayer:" + playerName).getBytes());
-            }
-            
             // 确保变量是 final 的，以便在 lambda 中使用
             final String finalFileName = fileName;
             final String finalPlayerName = playerName;
             
             source.sendSuccess(() -> Component.literal("§a[玩偶皮肤] 正在使用皮肤文件创建玩偶: §e" + finalFileName), false);
             
-            // 注册纹理到DynamicTextureManager
+            // 检查文件名是否包含特殊字符（与玩偶注册逻辑保持一致）
+            // ResourceLocation 路径只允许 [a-z0-9/._-] 字符（注意：只允许小写字母，不允许大写字母）
+            boolean containsNonAscii = fileName.chars().anyMatch(ch -> ch > 127 || (ch < 32 && ch != 9 && ch != 10 && ch != 13));
+            boolean containsUpperCase = fileName.chars().anyMatch(ch -> ch >= 'A' && ch <= 'Z');
+            boolean containsInvalidChars = fileName.chars().anyMatch(ch -> {
+                return !((ch >= 'a' && ch <= 'z') || 
+                        (ch >= '0' && ch <= '9') || 
+                        ch == '.' || ch == '_' || ch == '-');
+            });
+            
+            String fileNameForSkinPath = fileName; // 默认使用原始文件名
+            
+            // 注册纹理到DynamicTextureManager（与玩偶注册逻辑保持一致）
             ResourceLocation registeredTextureLocation = null;
-            String safeFileName = null; // 在 try 块外部声明，以便在后续代码中使用
             try {
                 // 验证文件是否存在且可读
                 if (!java.nio.file.Files.exists(skinFile)) {
@@ -486,109 +482,58 @@ public class DollSkinCommand {
                     return 0;
                 }
                 
-                // 创建 ResourceLocation，确保路径格式正确
-                // ResourceLocation 路径只允许 [a-z0-9/._-] 字符
-                // 如果文件名包含非 ASCII 字符，需要进行编码处理
-                String texturePath = "png/" + finalFileName;
-                
-                // 验证路径格式（ResourceLocation 要求路径不能包含某些特殊字符）
-                if (texturePath.contains("..") || texturePath.contains("//")) {
-                    source.sendFailure(Component.literal("§c[玩偶皮肤] ✗ 无效的纹理路径: " + texturePath));
-                    return 0;
-                }
-                
-                // 检查文件名是否包含非 ASCII 字符（ResourceLocation 不支持）
-                // ResourceLocation 路径只允许 [a-z0-9/._-] 字符（注意：只允许小写字母，不允许大写字母）
-                // URL 编码会引入 % 字符，也不被允许，所以直接使用哈希值
-                boolean containsNonAscii = finalFileName.chars().anyMatch(ch -> ch > 127 || (ch < 32 && ch != 9 && ch != 10 && ch != 13));
-                // 检查是否包含大写字母（ResourceLocation 路径不允许大写字母）
-                boolean containsUpperCase = finalFileName.chars().anyMatch(ch -> ch >= 'A' && ch <= 'Z');
-                // 也检查是否包含不允许的字符（除了小写字母、数字、点、下划线、连字符）
-                boolean containsInvalidChars = finalFileName.chars().anyMatch(ch -> {
-                    return !((ch >= 'a' && ch <= 'z') || 
-                            (ch >= '0' && ch <= '9') || 
-                            ch == '.' || ch == '_' || ch == '-');
-                });
-                
-                // safeFileName 已在方法外部声明
                 if (containsNonAscii || containsUpperCase || containsInvalidChars) {
-                    // 如果包含非 ASCII 字符或不允许的字符，使用文件名哈希值
-                    // 使用 MD5 哈希值以确保唯一性和符合 ResourceLocation 规范
-                    try {
-                        java.security.MessageDigest md = java.security.MessageDigest.getInstance("MD5");
-                        byte[] hashBytes = md.digest(finalFileName.getBytes("UTF-8"));
-                        StringBuilder hashString = new StringBuilder();
-                        for (byte b : hashBytes) {
-                            hashString.append(String.format("%02x", b));
-                        }
-                        // 使用前16个字符作为文件名（32个字符太长）
-                        safeFileName = "skin_" + hashString.substring(0, 16) + ".png";
-                    } catch (Exception e) {
-                        // 如果 MD5 失败，使用 hashCode（可能冲突但更简单）
-                        int fileNameHash = finalFileName.hashCode();
-                        safeFileName = "skin_" + Integer.toHexString(Math.abs(fileNameHash)) + ".png";
-                    }
-                    texturePath = "png/" + safeFileName;
-                    
-                    // 使用路径映射，不需要复制文件
-                    // 原始文件路径保持不变，ResourceLocation使用哈希文件名
-                    final String finalSafeFileName = safeFileName;
-                    source.sendSuccess(() -> Component.literal("§e[玩偶皮肤] 提示: 文件名包含特殊字符，已使用路径映射: " + finalSafeFileName), false);
-                }
-                
-                ResourceLocation textureLocation;
-                try {
-                    textureLocation = ResourceLocation.fromNamespaceAndPath(
-                        "player_doll", 
-                        texturePath
-                    );
-                } catch (IllegalArgumentException e) {
-                    // 如果仍然失败，使用文件名哈希值作为后备方案
-                    // 使用 MD5 哈希值以确保唯一性和符合 ResourceLocation 规范
-                    if (safeFileName == null) {
+                    // 如果包含特殊字符，检查是否已有路径映射（与玩偶注册逻辑保持一致）
+                    var mappedLocation = com.lanye.dolladdon.util.neoForge.DynamicTextureManager.getMappedResourceLocation(fileName);
+                    if (mappedLocation != null) {
+                        // 如果已有映射，使用映射的 ResourceLocation 路径
+                        fileNameForSkinPath = mappedLocation.getPath().substring("png/".length());
+                        registeredTextureLocation = mappedLocation;
+                        source.sendSuccess(() -> Component.literal("§a[玩偶皮肤] ✓ 使用已注册的纹理: " + mappedLocation), false);
+                    } else {
+                        // 如果没有映射，生成哈希文件名（与玩偶注册逻辑保持一致）
                         try {
                             java.security.MessageDigest md = java.security.MessageDigest.getInstance("MD5");
-                            byte[] hashBytes = md.digest(finalFileName.getBytes("UTF-8"));
+                            byte[] hashBytes = md.digest(fileName.getBytes("UTF-8"));
                             StringBuilder hashString = new StringBuilder();
                             for (byte b : hashBytes) {
                                 hashString.append(String.format("%02x", b));
                             }
-                            // 使用前16个字符作为文件名（32个字符太长）
-                            safeFileName = "skin_" + hashString.substring(0, 16) + ".png";
-                        } catch (Exception ex) {
-                            // 如果 MD5 失败，使用 hashCode（确保是正数）
-                            int fileNameHash = Math.abs(finalFileName.hashCode());
-                            safeFileName = "skin_" + Integer.toHexString(fileNameHash) + ".png";
+                            fileNameForSkinPath = "skin_" + hashString.substring(0, 16) + ".png";
+                            
+                            // 注册纹理和路径映射（与玩偶注册逻辑保持一致）
+                            ResourceLocation textureLocation = ResourceLocation.fromNamespaceAndPath(
+                                "player_doll",
+                                "png/" + fileNameForSkinPath
+                            );
+                            DynamicTextureManager.registerTexture(textureLocation, skinFile);
+                            DynamicTextureManager.registerPathMapping(fileName, textureLocation);
+                            
+                            registeredTextureLocation = textureLocation;
+                            source.sendSuccess(() -> Component.literal("§a[玩偶皮肤] ✓ 纹理已注册: " + textureLocation), false);
+                            source.sendSuccess(() -> Component.literal("§7[玩偶皮肤] 提示: 文件名包含特殊字符，已使用路径映射"), false);
+                        } catch (Exception e) {
+                            source.sendFailure(Component.literal("§c[玩偶皮肤] ✗ 生成哈希文件名失败: " + e.getMessage()));
+                            return 0;
                         }
                     }
-                    texturePath = "png/" + safeFileName;
+                } else {
+                    // 文件名不包含特殊字符，直接使用原始文件名
+                    ResourceLocation textureLocation = ResourceLocation.fromNamespaceAndPath(
+                        "player_doll",
+                        "png/" + fileName
+                    );
                     
-                    // 使用路径映射，不需要复制文件
-                    textureLocation = ResourceLocation.fromNamespaceAndPath(
-                        "player_doll", 
-                        texturePath
-                    );
-                    final String finalSafeFileName = safeFileName;
-                    source.sendSuccess(() -> Component.literal("§e[玩偶皮肤] 提示: 使用路径映射作为纹理路径: " + finalSafeFileName), false);
+                    // 检查纹理是否已注册（避免重复注册）
+                    if (!DynamicTextureManager.isTextureRegistered(textureLocation)) {
+                        DynamicTextureManager.registerTexture(textureLocation, skinFile);
+                        source.sendSuccess(() -> Component.literal("§a[玩偶皮肤] ✓ 纹理已注册: " + textureLocation), false);
+                    } else {
+                        source.sendSuccess(() -> Component.literal("§a[玩偶皮肤] ✓ 纹理已存在: " + textureLocation), false);
+                    }
+                    
+                    registeredTextureLocation = textureLocation;
                 }
-                
-                // 注册纹理
-                final ResourceLocation finalTextureLocation = textureLocation; // 创建 final 副本用于 lambda
-                // 使用原始文件路径注册纹理（不复制文件）
-                DynamicTextureManager.registerTexture(textureLocation, skinFile);
-                
-                // 如果使用了哈希文件名（包含特殊字符），注册路径映射
-                if (safeFileName != null) {
-                    DynamicTextureManager.registerPathMapping(finalFileName, textureLocation);
-                    com.lanye.dolladdon.util.logging.ModuleLogger.debug(
-                        com.lanye.dolladdon.util.logging.LogModuleConfig.MODULE_COMMAND,
-                        "已注册路径映射: {} -> {}",
-                        finalFileName, textureLocation
-                    );
-                }
-                
-                registeredTextureLocation = textureLocation; // 保存注册的纹理位置
-                source.sendSuccess(() -> Component.literal("§a[玩偶皮肤] ✓ 纹理已注册: " + finalTextureLocation), false);
             } catch (IllegalArgumentException e) {
                 source.sendFailure(Component.literal("§c[玩偶皮肤] ✗ 纹理路径格式错误: " + e.getMessage()));
                 source.sendFailure(Component.literal("§7提示: 文件名可能包含无效字符，请检查文件名"));
@@ -605,23 +550,12 @@ public class DollSkinCommand {
                 return 0;
             }
             
-            // 创建带NBT的玩偶物品
-            // 如果使用了哈希文件名（包含特殊字符），SkinPath 也应该使用哈希文件名，确保能正确读取
-            // 否则使用原始文件名（因为用户指定的文件名可能已经是标准格式）
-            final String fileNameForSkinPath;
-            if (safeFileName != null) {
-                // 使用哈希文件名（因为原始文件名包含特殊字符，无法用于 ResourceLocation）
-                fileNameForSkinPath = safeFileName;
-            } else {
-                // 使用原始文件名（不包含特殊字符，可以直接使用）
-                fileNameForSkinPath = finalFileName;
-            }
-            
+            // 创建带NBT的玩偶物品（使用工厂类，与玩偶注册逻辑保持一致）
             try {
                 ItemStack dollItem = createDollItemWithNBT(
                     finalPlayerName, 
-                    playerUUID, 
-                    fileNameForSkinPath,  // 使用哈希文件名或原始文件名（不包含路径前缀，createDollItemWithNBT 会添加）
+                    null,  // playerUUID 不再需要（仅用于下载皮肤，不保存到物品NBT）
+                    fileNameForSkinPath,  // 使用处理后的文件名（不包含路径前缀，createDollItemWithNBT 会添加）
                     isAlexModel
                 );
                 

@@ -119,6 +119,10 @@ public class PlayerDollClient {
                 // 创建动态资源包
                 DynamicResourcePack resourcePack = new DynamicResourcePack(gameDir);
                 
+                // 在资源包注册时扫描并注册所有PNG纹理文件
+                // 确保纹理在资源包加载时就已经可用
+                com.lanye.dolladdon.util.neoForge.DynamicTextureManager.scanAndRegisterTextures(gameDir);
+                
                 // 注册资源包
                 PackLocationInfo packLocationInfo = resourcePack.location();
                 MutableComponent packName = Component.literal("Dynamic Doll Resources");
