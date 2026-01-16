@@ -2,6 +2,7 @@ package com.lanye.dolladdon.util.command;
 
 import com.lanye.dolladdon.PlayerDoll;
 import com.lanye.dolladdon.init.ModItems;
+import com.lanye.dolladdon.util.factory.DollItemFactory;
 import com.lanye.dolladdon.util.neoForge.DynamicDollLoader;
 import com.lanye.dolladdon.util.neoForge.DynamicModelGenerator;
 import com.lanye.dolladdon.util.neoForge.DynamicTextureManager;
@@ -102,6 +103,14 @@ public class DollSkinCommand {
                         )
                 )
                 .then(
+                    Commands.literal("nbt")
+                        .executes(ctx -> executeNBT(ctx, false)) // 显示当前手持物品的NBT数据
+                        .then(
+                            Commands.literal("save")
+                                .executes(ctx -> executeNBT(ctx, true)) // 将NBT数据保存到文件
+                        )
+                )
+                .then(
                     Commands.argument("player", StringArgumentType.word())
                         .suggests(PLAYER_SUGGESTIONS) // Tab补全：显示在线玩家列表
                         .executes(ctx -> execute(ctx, StringArgumentType.getString(ctx, "player")))
@@ -154,8 +163,8 @@ public class DollSkinCommand {
                 targetPlayerName
             );
             
-            // 生成文件名（包含UUID以避免重名）
-            final String fileName = SkinFileNamingUtil.generateFileName(targetPlayerName, isAlexModel, targetPlayerUUID);
+            // 生成文件名（仅根据玩家名和模型类型）
+            final String fileName = SkinFileNamingUtil.generateFileName(targetPlayerName, isAlexModel);
             
             // 获取保存路径
             Path pngDir = PlayerSkinDownloader.getPngDirectory();
@@ -170,41 +179,10 @@ public class DollSkinCommand {
             }
             
             // 检查文件是否已存在
-            // 在读取时忽略UUID部分，只比较玩家名和模型类型
-            // 如果存在相同玩家名和模型类型的文件，允许覆盖
             boolean fileExists = java.nio.file.Files.exists(targetPath);
-            if (!fileExists) {
-                // 检查是否存在相同玩家名和模型类型的文件（忽略UUID）
-                String sanitizedPlayerName = SkinFileNamingUtil.sanitizePlayerName(targetPlayerName);
-                String expectedNamePart = (isAlexModel ? "A" : "S") + sanitizedPlayerName;
-                
-                try {
-                    // 使用已定义的 pngDir 变量（第119行）
-                    if (java.nio.file.Files.exists(pngDir) && java.nio.file.Files.isDirectory(pngDir)) {
-                        try (Stream<Path> paths = java.nio.file.Files.list(pngDir)) {
-                            fileExists = paths
-                                .filter(java.nio.file.Files::isRegularFile)
-                                .filter(path -> path.toString().toLowerCase().endsWith(".png"))
-                                .anyMatch(path -> {
-                                    String existingFileName = path.getFileName().toString();
-                                    // 从文件名提取玩家名（忽略UUID）
-                                    String existingPlayerName = SkinFileNamingUtil.extractPlayerNameFromFileName(existingFileName);
-                                    boolean existingIsAlex = SkinFileNamingUtil.extractModelTypeFromFileName(existingFileName);
-                                    // 比较玩家名和模型类型（忽略UUID）
-                                    return existingPlayerName != null 
-                                        && existingPlayerName.equals(sanitizedPlayerName)
-                                        && existingIsAlex == isAlexModel;
-                                });
-                        }
-                    }
-                } catch (Exception e) {
-                    // 如果检查失败，继续使用原始文件存在检查
-                }
-            }
-            
             if (fileExists) {
-                // 文件已存在（或存在相同玩家名和模型类型的文件），允许覆盖
-                source.sendSuccess(() -> Component.literal("§e[玩偶皮肤] 检测到已存在的皮肤文件，将覆盖: §7" + fileName), false);
+                // 文件已存在，将备份原文件
+                source.sendSuccess(() -> Component.literal("§e[玩偶皮肤] 检测到已存在的皮肤文件，将备份后覆盖: §7" + fileName), false);
             }
             
             // 异步下载并保存皮肤，避免阻塞服务器主线程
@@ -212,13 +190,50 @@ public class DollSkinCommand {
             
             // 使用服务器的工作线程池异步执行下载任务
             // 注意：使用 final 变量以确保 lambda 表达式可以正确捕获
-            final boolean allowOverwrite = fileExists; // 如果文件已存在且是同一个玩家，允许覆盖
             java.util.concurrent.CompletableFuture.supplyAsync(() -> {
+                // 如果文件已存在，先备份原文件到备份目录
+                if (fileExists && java.nio.file.Files.exists(targetPath)) {
+                    try {
+                        // 创建备份目录（如果不存在）
+                        Path backupDir = pngDir.resolve("backup");
+                        if (!java.nio.file.Files.exists(backupDir)) {
+                            java.nio.file.Files.createDirectories(backupDir);
+                            com.lanye.dolladdon.util.logging.ModuleLogger.debug(
+                                com.lanye.dolladdon.util.logging.LogModuleConfig.MODULE_COMMAND,
+                                "execute: 已创建备份目录: {}",
+                                backupDir
+                            );
+                        }
+                        
+                        // 生成备份文件名（添加时间戳）
+                        String timestamp = java.time.LocalDateTime.now().format(
+                            java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")
+                        );
+                        String backupFileName = fileName.substring(0, fileName.length() - 4) + "_backup_" + timestamp + ".png";
+                        Path backupPath = backupDir.resolve(backupFileName);
+                        
+                        // 将原文件移动到备份目录
+                        java.nio.file.Files.move(targetPath, backupPath, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                        
+                        com.lanye.dolladdon.util.logging.ModuleLogger.debug(
+                            com.lanye.dolladdon.util.logging.LogModuleConfig.MODULE_COMMAND,
+                            "execute: 已备份原文件到备份目录: {} -> {}",
+                            fileName, backupPath
+                        );
+                    } catch (Exception e) {
+                        com.lanye.dolladdon.util.logging.ModuleLogger.warn(
+                            com.lanye.dolladdon.util.logging.LogModuleConfig.MODULE_COMMAND,
+                            "execute: 备份文件失败: {}",
+                            e.getMessage(), e
+                        );
+                    }
+                }
+                
                 return PlayerSkinDownloader.downloadPlayerSkin(
                     targetPlayerUUID, 
                     targetPlayerName, 
                     targetPath, 
-                    allowOverwrite // 如果是同一个玩家的文件，允许覆盖
+                    true // 允许覆盖（已备份原文件）
                 );
             }, source.getServer()).thenAcceptAsync(result -> {
                 // 在主线程中发送结果消息
@@ -296,183 +311,29 @@ public class DollSkinCommand {
     }
     
     /**
-     * 从文件名中提取UUID短版本
-     * 文件名格式：[S|A]<玩家名>_<UUID短版本>.png
-     * 
-     * @param fileName 文件名
-     * @return UUID短版本，如果无法提取则返回null
-     */
-    private static String extractUuidFromFileName(String fileName) {
-        if (fileName == null || fileName.isEmpty()) {
-            return null;
-        }
-        
-        // 移除扩展名
-        if (fileName.endsWith(".png")) {
-            fileName = fileName.substring(0, fileName.length() - 4);
-        }
-        
-        // 查找最后一个下划线的位置（玩家名和UUID之间的分隔符）
-        int lastUnderscore = fileName.lastIndexOf('_');
-        if (lastUnderscore == -1 || lastUnderscore == fileName.length() - 1) {
-            return null;
-        }
-        
-        // 提取UUID短版本（最后一个下划线之后的部分）
-        String uuidShort = fileName.substring(lastUnderscore + 1);
-        
-        // 验证是否是有效的UUID短版本（8位十六进制）
-        if (uuidShort.length() == 8 && uuidShort.matches("[0-9a-fA-F]{8}")) {
-            return uuidShort.toLowerCase();
-        }
-        
-        return null;
-    }
-    
-    /**
-     * 获取UUID的短版本（前8位，不含连字符）
-     * 用于文件名中避免重名
-     * 
-     * @param uuid 玩家UUID
-     * @return UUID的短版本（8位十六进制字符串）
-     */
-    private static String getUuidShort(java.util.UUID uuid) {
-        if (uuid == null) {
-            return "00000000";
-        }
-        // 获取UUID的字符串表示，去掉连字符，取前8位
-        String uuidString = uuid.toString().replace("-", "");
-        return uuidString.substring(0, Math.min(8, uuidString.length())).toLowerCase();
-    }
-    
-    /**
      * 创建带NBT的玩偶物品
-     * 根据模型类型选择Steve或Alex玩偶，并在NBT中保存皮肤路径
+     * 使用工厂类统一创建，确保NBT结构标准化，从而可以叠加
      * 
      * @param playerName 玩家名称
-     * @param playerUUID 玩家UUID
+     * @param playerUUID 玩家UUID（用于生成文件名，不保存到NBT）
      * @param fileName 皮肤文件名
      * @param isAlexModel 是否为Alex模型
      * @return 带NBT的玩偶物品
      */
     private static ItemStack createDollItemWithNBT(String playerName, java.util.UUID playerUUID, 
                                                    String fileName, boolean isAlexModel) {
-        // 使用统一的 CUSTOM_TEXTURE_DOLL 物品，通过NBT存储皮肤路径和模型类型
-        ItemStack dollItem = new ItemStack(ModItems.CUSTOM_TEXTURE_DOLL.get(), 1);
-        
-        // 设置NBT数据（使用DataComponents）
-        // 在1.21.1中，NBT数据存储在DataComponents.CUSTOM_DATA中
-        net.minecraft.nbt.CompoundTag customDataTag = new net.minecraft.nbt.CompoundTag();
-        
-        // 创建EntityData子标签（用于存储实体相关的NBT数据）
-        net.minecraft.nbt.CompoundTag entityDataTag = new net.minecraft.nbt.CompoundTag();
         // 如果 fileName 已经是完整的 ResourceLocation 格式（包含 :），直接使用
         // 否则添加前缀
         String skinPath = fileName.contains(":") ? fileName : "player_doll:png/" + fileName;
-        entityDataTag.putString("SkinPath", skinPath);
-        entityDataTag.putBoolean("IsAlexModel", isAlexModel);
-        // 注意：PlayerName 使用原始玩家名，不包含UUID（文件名中包含UUID用于避免重名，但显示名称不包含）
-        entityDataTag.putString("PlayerName", playerName);
-        entityDataTag.putString("PlayerUUID", playerUUID.toString());
-        // 保存显示名称到NBT，确保名称持久化（用于实体破坏后恢复）
-        String displayName = playerName + " 的玩偶";
-        entityDataTag.putString("DisplayName", displayName);
         
-        // 将EntityData放入customData
-        customDataTag.put("EntityData", entityDataTag);
-        
-        // 设置到ItemStack的DataComponents
-        // 使用applyComponents方法设置CUSTOM_DATA组件
-        // 在NeoForge 1.21.1中，使用反射创建CustomData对象（使用of()静态方法）
-        Object customData = createCustomData(customDataTag);
-        if (customData == null) {
-            com.lanye.dolladdon.util.logging.ModuleLogger.error(
-                com.lanye.dolladdon.util.logging.LogModuleConfig.MODULE_COMMAND,
-                "createDollItemWithNBT: 无法创建CustomData对象"
-            );
-            return dollItem; // 返回没有NBT的物品
-        }
-        
-        try {
-            // 使用applyComponents设置组件
-            // 使用反射调用builder的set方法，避免类型推断问题
-            net.minecraft.core.component.DataComponentPatch.Builder builder = 
-                net.minecraft.core.component.DataComponentPatch.builder();
-            // 使用反射调用set方法，避免泛型类型检查
-            java.lang.reflect.Method setMethod = builder.getClass().getDeclaredMethod("set", 
-                net.minecraft.core.component.DataComponentType.class, Object.class);
-            setMethod.setAccessible(true);
-            setMethod.invoke(builder, 
-                net.minecraft.core.component.DataComponents.CUSTOM_DATA, 
-                customData);
-            
-            // 注意：不设置 CUSTOM_NAME，名称由 CustomTextureDollItem.getName() 从NBT读取
-            // DisplayName 已保存到 NBT 的 EntityData.DisplayName 中
-            
-            dollItem.applyComponents(builder.build());
-            
-            // 验证 NBT 是否成功设置
-            var verifyCustomData = dollItem.get(net.minecraft.core.component.DataComponents.CUSTOM_DATA);
-            if (verifyCustomData == null) {
-                com.lanye.dolladdon.util.logging.ModuleLogger.error(
-                    com.lanye.dolladdon.util.logging.LogModuleConfig.MODULE_COMMAND,
-                    "createDollItemWithNBT: applyComponents后验证失败 - customData为null"
-                );
-            } else {
-                var verifyDataTag = verifyCustomData.copyTag();
-                if (verifyDataTag == null || !verifyDataTag.contains("EntityData")) {
-                    com.lanye.dolladdon.util.logging.ModuleLogger.error(
-                        com.lanye.dolladdon.util.logging.LogModuleConfig.MODULE_COMMAND,
-                        "createDollItemWithNBT: applyComponents后验证失败 - EntityData标签缺失, dataTag={}",
-                        verifyDataTag
-                    );
-                } else {
-                    com.lanye.dolladdon.util.logging.ModuleLogger.debug(
-                        com.lanye.dolladdon.util.logging.LogModuleConfig.MODULE_COMMAND,
-                        "createDollItemWithNBT: NBT设置成功 - SkinPath={}",
-                        verifyDataTag.getCompound("EntityData").getString("SkinPath")
-                    );
-                }
-            }
-        } catch (Exception e) {
-            // 如果applyComponents失败，尝试使用ItemStack的set方法（如果可用）
-            com.lanye.dolladdon.util.logging.ModuleLogger.warn(
-                com.lanye.dolladdon.util.logging.LogModuleConfig.MODULE_COMMAND,
-                "createDollItemWithNBT: applyComponents失败，尝试备用方法 - 错误: {}",
-                e.getMessage()
-            );
-            try {
-                java.lang.reflect.Method setMethod = ItemStack.class.getMethod("set", 
-                    net.minecraft.core.component.DataComponentType.class, Object.class);
-                setMethod.invoke(dollItem, net.minecraft.core.component.DataComponents.CUSTOM_DATA, customData);
-                
-                // 注意：不设置 CUSTOM_NAME，名称由 CustomTextureDollItem.getName() 从NBT读取
-                // DisplayName 已保存到 NBT 的 EntityData.DisplayName 中
-                
-                // 验证备用方法是否成功
-                var verifyCustomData = dollItem.get(net.minecraft.core.component.DataComponents.CUSTOM_DATA);
-                if (verifyCustomData == null) {
-                    com.lanye.dolladdon.util.logging.ModuleLogger.error(
-                        com.lanye.dolladdon.util.logging.LogModuleConfig.MODULE_COMMAND,
-                        "createDollItemWithNBT: 备用方法也失败 - customData为null"
-                    );
-                } else {
-                    com.lanye.dolladdon.util.logging.ModuleLogger.debug(
-                        com.lanye.dolladdon.util.logging.LogModuleConfig.MODULE_COMMAND,
-                        "createDollItemWithNBT: 备用方法成功设置NBT"
-                    );
-                }
-            } catch (Exception e2) {
-                // 如果都失败，记录错误但不抛出异常（让游戏继续运行）
-                com.lanye.dolladdon.util.logging.ModuleLogger.error(
-                    com.lanye.dolladdon.util.logging.LogModuleConfig.MODULE_COMMAND,
-                    "createDollItemWithNBT: 所有方法都失败 - 第一次错误: {}, 第二次错误: {}",
-                    e.getMessage(), e2.getMessage(), e2
-                );
-            }
-        }
-        
-        return dollItem;
+        // 使用工厂类创建物品，确保NBT结构标准化
+        // 注意：playerUUID 仅用于生成文件名，不保存到物品NBT中
+        // 不再使用 DisplayName，直接使用 PlayerName 显示
+        return DollItemFactory.createCustomTextureDoll(
+            skinPath,
+            isAlexModel,
+            playerName
+        );
     }
     
     /**
@@ -580,7 +441,7 @@ public class DollSkinCommand {
                 return 0;
             }
             
-            // 从文件名提取信息
+            // 从文件名提取信息（支持新格式和旧格式）
             String playerName = SkinFileNamingUtil.extractPlayerNameFromFileName(fileName);
             boolean isAlexModel = SkinFileNamingUtil.extractModelTypeFromFileName(fileName);
             
@@ -589,24 +450,18 @@ public class DollSkinCommand {
                 return 0;
             }
             
-            // 尝试从文件名提取UUID（如果存在）
-            String uuidShort = extractUuidFromFileName(fileName);
+            // 生成用于获取皮肤的UUID（仅用于下载皮肤，不保存到物品NBT）
+            // 尝试从在线玩家中查找匹配的UUID
             java.util.UUID playerUUID = null;
-            if (uuidShort != null && uuidShort.length() == 8) {
-                // 尝试从在线玩家中查找匹配的UUID（仅用于获取UUID，不改变playerName）
-                for (ServerPlayer player : source.getServer().getPlayerList().getPlayers()) {
-                    String playerUuidShort = getUuidShort(player.getUUID());
-                    if (playerUuidShort.equals(uuidShort)) {
-                        playerUUID = player.getUUID();
-                        // 注意：不更新playerName，保持使用从文件名提取的名称（与注册物品时一致）
-                        break;
-                    }
+            for (ServerPlayer player : source.getServer().getPlayerList().getPlayers()) {
+                if (player.getName().getString().equals(playerName)) {
+                    playerUUID = player.getUUID();
+                    break;
                 }
             }
             
-            // 如果找不到匹配的在线玩家，使用默认UUID或从文件名生成
+            // 如果找不到匹配的在线玩家，使用基于玩家名的UUID（用于离线模式）
             if (playerUUID == null) {
-                // 使用一个基于玩家名的固定UUID（用于离线模式）
                 playerUUID = java.util.UUID.nameUUIDFromBytes(("OfflinePlayer:" + playerName).getBytes());
             }
             
@@ -812,12 +667,198 @@ public class DollSkinCommand {
     }
     
     /**
+     * 执行 nbt 子命令
+     * 显示当前手持物品的NBT数据，格式化输出便于复制
+     * 可以将NBT数据保存到文件以便复制
+     * 
+     * @param context 指令上下文
+     * @param saveToFile 是否保存到文件
+     * @return 执行结果（1表示成功，0表示失败）
+     */
+    private static int executeNBT(CommandContext<CommandSourceStack> context, boolean saveToFile) {
+        CommandSourceStack source = context.getSource();
+        
+        if (!(source.getEntity() instanceof ServerPlayer player)) {
+            source.sendFailure(Component.literal("§c[玩偶皮肤] 此指令只能由玩家执行"));
+            return 0;
+        }
+        
+        ItemStack stack = player.getMainHandItem();
+        
+        if (stack.isEmpty()) {
+            source.sendFailure(Component.literal("§c[玩偶皮肤] 您的手中没有物品"));
+            source.sendSuccess(() -> Component.literal("§7提示: 请手持要查看NBT的物品"), false);
+            return 0;
+        }
+        
+        // 获取物品的NBT数据
+        var customData = stack.get(net.minecraft.core.component.DataComponents.CUSTOM_DATA);
+        
+        source.sendSuccess(() -> Component.literal("§a[玩偶皮肤] 物品NBT数据:"), false);
+        source.sendSuccess(() -> Component.literal("§7━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"), false);
+        
+        // 显示物品基本信息
+        source.sendSuccess(() -> Component.literal("§7物品ID: §e" + net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(stack.getItem())), false);
+        source.sendSuccess(() -> Component.literal("§7数量: §e" + stack.getCount()), false);
+        
+        if (customData != null) {
+            var dataTag = customData.copyTag();
+            if (dataTag != null) {
+                // 格式化为多行显示，便于阅读和复制
+                String nbtString = dataTag.toString();
+                
+                // 如果NBT太长，分段显示
+                if (nbtString.length() > 300) {
+                    source.sendSuccess(() -> Component.literal("§7NBT数据（点击下方文本可复制）:"), false);
+                    
+                    // 将NBT字符串按行分割显示
+                    String[] lines = nbtString.split("(?<=\\{)|(?=\\{)|(?<=\\})|(?=\\})|(?<=,)|(?=,)|(?<=\\[)|(?=\\[)|(?<=\\])|(?=\\])");
+                    StringBuilder currentLine = new StringBuilder("§7");
+                    int lineLength = 0;
+                    
+                    for (String segment : lines) {
+                        if (currentLine.length() + segment.length() > 100 && lineLength > 0) {
+                            // 创建 final 变量供 lambda 使用
+                            final String lineToSend = currentLine.toString();
+                            source.sendSuccess(() -> Component.literal(lineToSend), false);
+                            currentLine = new StringBuilder("§7").append(segment);
+                            lineLength = segment.length();
+                        } else {
+                            currentLine.append(segment);
+                            lineLength += segment.length();
+                        }
+                    }
+                    
+                    if (currentLine.length() > 2) {
+                        // 创建 final 变量供 lambda 使用
+                        final String finalLine = currentLine.toString();
+                        source.sendSuccess(() -> Component.literal(finalLine), false);
+                    }
+                } else {
+                    source.sendSuccess(() -> Component.literal("§7NBT数据: §e" + nbtString), false);
+                }
+                
+                // 如果包含EntityData，显示结构化信息
+                if (dataTag.contains("EntityData")) {
+                    var entityTag = dataTag.getCompound("EntityData");
+                    source.sendSuccess(() -> Component.literal("§7━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"), false);
+                    source.sendSuccess(() -> Component.literal("§7实体数据 (EntityData):"), false);
+                    
+                    if (entityTag.contains("SkinPath", net.minecraft.nbt.Tag.TAG_STRING)) {
+                        source.sendSuccess(() -> Component.literal("§7  SkinPath: §e" + entityTag.getString("SkinPath")), false);
+                    }
+                    if (entityTag.contains("IsAlexModel", net.minecraft.nbt.Tag.TAG_BYTE)) {
+                        boolean isAlex = entityTag.getBoolean("IsAlexModel");
+                        source.sendSuccess(() -> Component.literal("§7  IsAlexModel: §e" + isAlex), false);
+                    }
+                    if (entityTag.contains("PlayerName", net.minecraft.nbt.Tag.TAG_STRING)) {
+                        source.sendSuccess(() -> Component.literal("§7  PlayerName: §e" + entityTag.getString("PlayerName")), false);
+                    }
+                    if (entityTag.contains("DisplayName", net.minecraft.nbt.Tag.TAG_STRING)) {
+                        source.sendSuccess(() -> Component.literal("§7  DisplayName: §e" + entityTag.getString("DisplayName")), false);
+                    }
+                }
+            } else {
+                source.sendSuccess(() -> Component.literal("§7NBT数据: §e(null)"), false);
+            }
+        } else {
+            source.sendSuccess(() -> Component.literal("§7NBT数据: §e(无)"), false);
+        }
+        
+        source.sendSuccess(() -> Component.literal("§7━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"), false);
+        
+        // 如果请求保存到文件
+        if (saveToFile) {
+            try {
+                // 获取NBT数据字符串
+                String nbtString = "";
+                if (customData != null) {
+                    var dataTag = customData.copyTag();
+                    if (dataTag != null) {
+                        nbtString = dataTag.toString();
+                    }
+                }
+                
+                // 保存到文件
+                java.nio.file.Path pngDir = com.lanye.dolladdon.util.resource.PlayerSkinDownloader.getPngDirectory();
+                java.nio.file.Path nbtDir = pngDir.getParent();
+                if (nbtDir == null) {
+                    nbtDir = pngDir;
+                }
+                
+                // 创建nbt目录（如果不存在）
+                if (!java.nio.file.Files.exists(nbtDir)) {
+                    java.nio.file.Files.createDirectories(nbtDir);
+                }
+                
+                // 生成文件名（使用时间戳）
+                String fileName = "item_nbt_" + java.time.LocalDateTime.now().format(
+                    java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")
+                ) + ".txt";
+                java.nio.file.Path nbtFile = nbtDir.resolve(fileName);
+                
+                // 构建完整的NBT数据文本
+                StringBuilder fileContent = new StringBuilder();
+                fileContent.append("物品NBT数据\n");
+                fileContent.append("==========\n\n");
+                fileContent.append("物品ID: ").append(net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(stack.getItem())).append("\n");
+                fileContent.append("数量: ").append(stack.getCount()).append("\n\n");
+                fileContent.append("完整NBT数据:\n");
+                fileContent.append(nbtString).append("\n\n");
+                
+                // 如果包含EntityData，添加结构化信息
+                if (customData != null) {
+                    var dataTag = customData.copyTag();
+                    if (dataTag != null && dataTag.contains("EntityData")) {
+                        var entityTag = dataTag.getCompound("EntityData");
+                        fileContent.append("实体数据 (EntityData):\n");
+                        if (entityTag.contains("SkinPath", net.minecraft.nbt.Tag.TAG_STRING)) {
+                            fileContent.append("  SkinPath: ").append(entityTag.getString("SkinPath")).append("\n");
+                        }
+                        if (entityTag.contains("IsAlexModel", net.minecraft.nbt.Tag.TAG_BYTE)) {
+                            fileContent.append("  IsAlexModel: ").append(entityTag.getBoolean("IsAlexModel")).append("\n");
+                        }
+                        if (entityTag.contains("PlayerName", net.minecraft.nbt.Tag.TAG_STRING)) {
+                            fileContent.append("  PlayerName: ").append(entityTag.getString("PlayerName")).append("\n");
+                        }
+                        if (entityTag.contains("DisplayName", net.minecraft.nbt.Tag.TAG_STRING)) {
+                            fileContent.append("  DisplayName: ").append(entityTag.getString("DisplayName")).append("\n");
+                        }
+                    }
+                }
+                
+                // 写入文件
+                java.nio.file.Files.writeString(nbtFile, fileContent.toString(), java.nio.charset.StandardCharsets.UTF_8);
+                
+                source.sendSuccess(() -> Component.literal("§a[玩偶皮肤] ✓ NBT数据已保存到文件"), true);
+                source.sendSuccess(() -> Component.literal("§7文件路径: §e" + nbtFile.toString()), false);
+                source.sendSuccess(() -> Component.literal("§7提示: 可以打开文件复制NBT数据"), false);
+                
+            } catch (Exception e) {
+                source.sendFailure(Component.literal("§c[玩偶皮肤] ✗ 保存NBT文件失败: " + e.getMessage()));
+                com.lanye.dolladdon.util.logging.ModuleLogger.error(
+                    com.lanye.dolladdon.util.logging.LogModuleConfig.MODULE_COMMAND,
+                    "executeNBT: 保存NBT文件失败",
+                    e
+                );
+            }
+        } else {
+            source.sendSuccess(() -> Component.literal("§7提示: 使用 §e/dollskin nbt save §7将NBT数据保存到文件以便复制"), false);
+            source.sendSuccess(() -> Component.literal("§7或者使用原版命令: §e/data get entity @s SelectedItem"), false);
+        }
+        
+        return 1;
+    }
+    
+    /**
      * 创建CustomData对象
      * 使用反射调用CustomData.of()静态方法，支持多个可能的类路径
      * 
      * @param nbt NBT标签
      * @return CustomData对象，如果创建失败返回null
+     * @deprecated 请使用 {@link com.lanye.dolladdon.util.factory.DollItemFactory#createCustomData(net.minecraft.nbt.CompoundTag)} 替代
      */
+    @Deprecated(forRemoval = false)
     public static Object createCustomData(net.minecraft.nbt.CompoundTag nbt) {
         String[] possiblePaths = {
             "net.minecraft.core.component.types.CustomData",

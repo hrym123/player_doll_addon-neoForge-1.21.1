@@ -186,13 +186,9 @@ public abstract class BaseDollEntity extends Entity {
                 this.playerName = nbt.getString("PlayerName");
             }
             
-            // 读取DisplayName（如果存在）
-            if (nbt.contains("DisplayName", net.minecraft.nbt.Tag.TAG_STRING)) {
-                this.getPersistentData().putString("DisplayName", nbt.getString("DisplayName"));
-            } else if (this.playerName != null) {
-                // 如果没有DisplayName，从PlayerName生成
-                this.getPersistentData().putString("DisplayName", this.playerName + " 的玩偶");
-            }
+            // 注意：不再读取和保存DisplayName，直接使用PlayerName显示
+            // 注意：不再读取和保存PlayerUUID，因为UUID不保存到物品NBT中
+            // UUID仅用于生成文件名等临时用途
             
             // 同步到EntityData（用于客户端实时访问，确保同步）
             if (!this.level().isClientSide) {
@@ -232,13 +228,7 @@ public abstract class BaseDollEntity extends Entity {
             tag.putBoolean("IsAlexModel", this.isAlexModel);
             if (this.playerName != null) {
                 tag.putString("PlayerName", this.playerName);
-                // 保存显示名称（如果NBT中有，使用NBT中的；否则从PlayerName生成）
-                if (this.getPersistentData().contains("DisplayName", net.minecraft.nbt.Tag.TAG_STRING)) {
-                    tag.putString("DisplayName", this.getPersistentData().getString("DisplayName"));
-                } else {
-                    // 从PlayerName生成DisplayName
-                    tag.putString("DisplayName", this.playerName + " 的玩偶");
-                }
+                // 注意：不再保存DisplayName，直接使用PlayerName显示
             }
         }
         
@@ -432,132 +422,90 @@ public abstract class BaseDollEntity extends Entity {
      */
     private InteractionResult handleBreakAndDrop(Player player) {
         // 创建物品堆
+        // 注意：getDollItemStack() 应该已经通过工厂类创建了标准化的物品
+        // 如果子类（如 CustomTextureDollEntity）使用了工厂类，它会只包含核心信息（不包含临时状态）
+        // 因此我们直接使用这个物品，不再添加额外的NBT，以确保物品可以叠加
         ItemStack itemStack = getDollItemStack();
         
-        // 保存NBT标签到物品
-        net.minecraft.nbt.CompoundTag entityTag = new net.minecraft.nbt.CompoundTag();
-        this.addAdditionalSaveData(entityTag);
-        
-        // 只有当entityTag不为空时才保存custom_data，否则清除EntityData标签（允许物品叠加）
+        // 检查物品是否已经有custom_data（通过工厂类创建的物品应该已经有）
         var existingData = itemStack.get(net.minecraft.core.component.DataComponents.CUSTOM_DATA);
-        if (!entityTag.isEmpty()) {
-            // 使用数据组件API保存NBT到custom_data组件
-            net.minecraft.nbt.CompoundTag customDataTag = new net.minecraft.nbt.CompoundTag();
-            customDataTag.put("EntityData", entityTag);
+        
+        // 如果物品已经有custom_data（说明是使用工厂类创建的），直接使用
+        // 否则，为了向后兼容其他实体类型，尝试保存核心信息
+        if (existingData == null) {
+            // 只保存核心信息，不保存临时状态（ActionName、PoseName、PoseIndex）
+            // 这样可以确保物品可以叠加
+            net.minecraft.nbt.CompoundTag entityTag = new net.minecraft.nbt.CompoundTag();
             
-            // 设置custom_data组件（合并现有的custom_data，如果有的话）
-            net.minecraft.nbt.CompoundTag finalData;
-            if (existingData != null) {
-                var existingTag = existingData.copyTag();
-                if (existingTag != null) {
-                    finalData = existingTag;
-                    finalData.put("EntityData", entityTag);
-                } else {
-                    finalData = customDataTag;
+            // 只保存核心信息
+            if (this.skinPath != null) {
+                entityTag.putString("SkinPath", this.skinPath);
+                entityTag.putBoolean("IsAlexModel", this.isAlexModel);
+                if (this.playerName != null) {
+                    entityTag.putString("PlayerName", this.playerName);
+                    // 注意：不再保存DisplayName，直接使用PlayerName显示
                 }
-            } else {
-                finalData = customDataTag;
             }
             
-            // 直接使用 DataComponents.CUSTOM_DATA API 设置 custom_data 组件
-            // 在 Minecraft 1.21.1 中，需要使用 CustomData 对象包装 CompoundTag
-            boolean saved = false;
-            try {
-                // 尝试使用 CustomData.of() 创建（尝试不同的包路径）
-                String[] possiblePaths = {
-                    "net.minecraft.core.component.types.CustomData",
-                    "net.minecraft.core.component.CustomData",
-                    "net.minecraft.world.item.component.CustomData"
-                };
+            if (!entityTag.isEmpty()) {
+                // 使用数据组件API保存NBT到custom_data组件
+                net.minecraft.nbt.CompoundTag customDataTag = new net.minecraft.nbt.CompoundTag();
+                customDataTag.put("EntityData", entityTag);
                 
-                Object customDataComponent = null;
-                for (String className : possiblePaths) {
-                    try {
-                        Class<?> customDataClass = Class.forName(className);
-                        java.lang.reflect.Method ofMethod = customDataClass.getMethod("of", net.minecraft.nbt.CompoundTag.class);
-                        customDataComponent = ofMethod.invoke(null, finalData);
-                        break;
-                    } catch (ClassNotFoundException e2) {
-                        // 继续尝试下一个路径
-                        continue;
-                    } catch (Exception e3) {
-                        // 继续尝试下一个路径
-                    }
-                }
+                // 由于 existingData == null（在这个分支内），我们直接使用 customDataTag
+                net.minecraft.nbt.CompoundTag finalData = customDataTag;
                 
-                if (customDataComponent != null) {
-                    // 使用反射调用 set 方法，因为类型可能不匹配
-                    try {
-                        java.lang.reflect.Method setMethod = ItemStack.class.getMethod("set", 
-                            net.minecraft.core.component.DataComponentType.class, Object.class);
-                        setMethod.invoke(itemStack, net.minecraft.core.component.DataComponents.CUSTOM_DATA, customDataComponent);
-                        saved = true;
-                    } catch (Exception e) {
-                        // Error logging handled by Mixin
-                    }
-                } else {
-                    // 如果所有反射方法都失败，无法创建CustomData对象
-                    // Error logging handled by Mixin
-                }
-            } catch (Exception e) {
-                // Error logging handled by Mixin
-            }
-            
-            if (!saved) {
-                // Error logging handled by Mixin
-            }
-        } else {
-            // entityTag为空，需要清除EntityData标签以确保物品可以叠加
-            if (existingData != null) {
-                var existingTag = existingData.copyTag();
-                if (existingTag != null && existingTag.contains("EntityData")) {
-                    // 移除EntityData标签
-                    existingTag.remove("EntityData");
+                // 直接使用 DataComponents.CUSTOM_DATA API 设置 custom_data 组件
+                // 在 Minecraft 1.21.1 中，需要使用 CustomData 对象包装 CompoundTag
+                boolean saved = false;
+                try {
+                    // 尝试使用 CustomData.of() 创建（尝试不同的包路径）
+                    String[] possiblePaths = {
+                        "net.minecraft.core.component.types.CustomData",
+                        "net.minecraft.core.component.CustomData",
+                        "net.minecraft.world.item.component.CustomData"
+                    };
                     
-                    // 如果移除后tag为空，完全移除custom_data组件
-                    if (existingTag.isEmpty()) {
+                    Object customDataComponent = null;
+                    for (String className : possiblePaths) {
                         try {
-                            java.lang.reflect.Method removeMethod = ItemStack.class.getMethod("remove", 
-                                net.minecraft.core.component.DataComponentType.class);
-                            removeMethod.invoke(itemStack, net.minecraft.core.component.DataComponents.CUSTOM_DATA);
+                            Class<?> customDataClass = Class.forName(className);
+                            java.lang.reflect.Method ofMethod = customDataClass.getMethod("of", net.minecraft.nbt.CompoundTag.class);
+                            customDataComponent = ofMethod.invoke(null, finalData);
+                            break;
+                        } catch (ClassNotFoundException e2) {
+                            // 继续尝试下一个路径
+                            continue;
+                        } catch (Exception e3) {
+                            // 继续尝试下一个路径
+                        }
+                    }
+                    
+                    if (customDataComponent != null) {
+                        // 使用反射调用 set 方法，因为类型可能不匹配
+                        try {
+                            java.lang.reflect.Method setMethod = ItemStack.class.getMethod("set", 
+                                net.minecraft.core.component.DataComponentType.class, Object.class);
+                            setMethod.invoke(itemStack, net.minecraft.core.component.DataComponents.CUSTOM_DATA, customDataComponent);
+                            saved = true;
                         } catch (Exception e) {
                             // Error logging handled by Mixin
                         }
                     } else {
-                        // 还有其他的标签，保留custom_data但移除EntityData
-                        try {
-                            String[] possiblePaths = {
-                                "net.minecraft.core.component.types.CustomData",
-                                "net.minecraft.core.component.CustomData",
-                                "net.minecraft.world.item.component.CustomData"
-                            };
-                            
-                            Object customDataComponent = null;
-                            for (String className : possiblePaths) {
-                                try {
-                                    Class<?> customDataClass = Class.forName(className);
-                                    java.lang.reflect.Method ofMethod = customDataClass.getMethod("of", net.minecraft.nbt.CompoundTag.class);
-                                    customDataComponent = ofMethod.invoke(null, existingTag);
-                                    break;
-                                } catch (ClassNotFoundException e2) {
-                                    continue;
-                                } catch (Exception e3) {
-                                    // 继续尝试下一个路径
-                                }
-                            }
-                            
-                            if (customDataComponent != null) {
-                                java.lang.reflect.Method setMethod = ItemStack.class.getMethod("set", 
-                                    net.minecraft.core.component.DataComponentType.class, Object.class);
-                                setMethod.invoke(itemStack, net.minecraft.core.component.DataComponents.CUSTOM_DATA, customDataComponent);
-                            }
-                        } catch (Exception e) {
-                            // Error logging handled by Mixin
-                        }
+                        // 如果所有反射方法都失败，无法创建CustomData对象
+                        // Error logging handled by Mixin
                     }
+                } catch (Exception e) {
+                    // Error logging handled by Mixin
+                }
+                
+                if (!saved) {
+                    // Error logging handled by Mixin
                 }
             }
         }
+        // 如果 existingData != null，说明物品已经有custom_data（通过工厂类创建的）
+        // 直接使用，不需要添加额外的NBT，这样可以确保物品可以叠加
         
         // 掉落物品
         net.minecraft.world.entity.item.ItemEntity itemEntity = new net.minecraft.world.entity.item.ItemEntity(

@@ -6,6 +6,7 @@ import com.lanye.dolladdon.impl.entity.CustomTextureDollEntity;
 import com.lanye.dolladdon.impl.render.CustomTextureDollItemRenderer;
 import com.lanye.dolladdon.init.ModEntities;
 import net.minecraft.client.Minecraft;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
@@ -38,16 +39,12 @@ public class CustomTextureDollItem extends BaseDollItem {
             return customName;
         }
         
-        // 如果没有 CUSTOM_NAME，从NBT读取显示名称
+        // 如果没有 CUSTOM_NAME，从NBT读取 PlayerName 作为显示名称
         var customData = stack.get(net.minecraft.core.component.DataComponents.CUSTOM_DATA);
         if (customData != null) {
             var dataTag = customData.copyTag();
             if (dataTag != null && dataTag.contains("EntityData")) {
                 var entityTag = dataTag.getCompound("EntityData");
-                if (entityTag.contains("DisplayName", net.minecraft.nbt.Tag.TAG_STRING)) {
-                    return Component.literal(entityTag.getString("DisplayName"));
-                }
-                // 如果没有DisplayName，尝试使用PlayerName
                 if (entityTag.contains("PlayerName", net.minecraft.nbt.Tag.TAG_STRING)) {
                     return Component.literal(entityTag.getString("PlayerName"));
                 }
@@ -55,6 +52,11 @@ public class CustomTextureDollItem extends BaseDollItem {
         }
         return super.getName(stack);
     }
+    
+    // 注意：在 Minecraft 1.21.1 NeoForge 中，Item 类没有 canCombine 方法可以重写
+    // 物品叠加的判断由 ItemStack.areItemsAndComponentsEqual() 方法处理
+    // 由于我们已经通过 DollItemFactory 统一创建物品，确保相同材质的物品NBT结构完全一致
+    // 因此相同材质的物品会自动叠加，无需额外处理
     
     @Override
     @SuppressWarnings("removal")

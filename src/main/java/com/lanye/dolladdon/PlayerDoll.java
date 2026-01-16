@@ -187,7 +187,10 @@ public class PlayerDoll {
     /**
      * 创建带NBT的玩偶物品（用于动态注册的玩偶）
      * 使用统一的 CustomTextureDollItem，通过NBT存储皮肤路径
+     * 
+     * @deprecated 请使用 {@link com.lanye.dolladdon.util.factory.DollItemFactory#createCustomTextureDoll(String, boolean, String, UUID, String)} 替代
      */
+    @Deprecated(forRemoval = false)
     public static ItemStack createDynamicDollItemWithNBT(
             String displayName,
             ResourceLocation textureLocation,

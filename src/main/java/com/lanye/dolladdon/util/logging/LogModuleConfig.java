@@ -66,6 +66,9 @@ public class LogModuleConfig {
     /** 命令模块 - 玩偶皮肤指令 */
     public static final String MODULE_COMMAND = "command";
     
+    /** 工厂模块 - 玩偶物品工厂 */
+    public static final String MODULE_FACTORY = "factory";
+    
     // ==================== 默认日志级别配置 ====================
     // 注意：修改这里的级别即可控制对应模块的日志输出
     // 设置为 LogLevel.OFF 即可完全禁用该模块的日志
@@ -86,6 +89,7 @@ public class LogModuleConfig {
     private static final LogLevel LEVEL_DEBUG_STICK_ACTION = LogLevel.DEBUG;  // 动作调试棒模块日志级别，当前正在调试的模块
     private static final LogLevel LEVEL_DEBUG_STICK_POSE = LogLevel.WARN;  // 姿态调试棒模块日志级别
     private static final LogLevel LEVEL_COMMAND = LogLevel.DEBUG;  // 命令模块日志级别，当前正在调试皮肤问题
+    private static final LogLevel LEVEL_FACTORY = LogLevel.WARN;  // 工厂模块日志级别
     
     // ==================== 日志模板配置 ====================
     
@@ -105,6 +109,7 @@ public class LogModuleConfig {
     private static final String TEMPLATE_DEBUG_STICK_ACTION = "[动作调试棒] {}";
     private static final String TEMPLATE_DEBUG_STICK_POSE = "[姿态调试棒] {}";
     private static final String TEMPLATE_COMMAND = "[命令] {}";
+    private static final String TEMPLATE_FACTORY = "[工厂] {}";
     
     // ==================== 配置读取方法 ====================
     
@@ -131,6 +136,7 @@ public class LogModuleConfig {
             case MODULE_DEBUG_STICK_ACTION -> LEVEL_DEBUG_STICK_ACTION;
             case MODULE_DEBUG_STICK_POSE -> LEVEL_DEBUG_STICK_POSE;
             case MODULE_COMMAND -> LEVEL_COMMAND;
+            case MODULE_FACTORY -> LEVEL_FACTORY;
             default -> LogLevel.WARN;  // 默认返回 WARN
         };
     }
@@ -158,6 +164,7 @@ public class LogModuleConfig {
             case MODULE_DEBUG_STICK_ACTION -> TEMPLATE_DEBUG_STICK_ACTION;
             case MODULE_DEBUG_STICK_POSE -> TEMPLATE_DEBUG_STICK_POSE;
             case MODULE_COMMAND -> TEMPLATE_COMMAND;
+            case MODULE_FACTORY -> TEMPLATE_FACTORY;
             default -> "[{}] {}";  // 默认模板
         };
     }
