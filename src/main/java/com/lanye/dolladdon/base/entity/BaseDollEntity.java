@@ -37,6 +37,8 @@ public abstract class BaseDollEntity extends Entity {
     private static final EntityDataAccessor<String> DATA_ACTION_NAME = SynchedEntityData.defineId(BaseDollEntity.class, EntityDataSerializers.STRING);
     // 同步动作tick到客户端（用于计算当前姿态）
     private static final EntityDataAccessor<Integer> DATA_ACTION_TICK = SynchedEntityData.defineId(BaseDollEntity.class, EntityDataSerializers.INT);
+    // 同步皮肤路径到客户端（用于渲染器访问，确保实时同步）
+    private static final EntityDataAccessor<String> DATA_SKIN_PATH = SynchedEntityData.defineId(BaseDollEntity.class, EntityDataSerializers.STRING);
     
     // 姿态和动作相关字段
     private DollPose currentPose; // 当前显示的姿态（动作优先级更高）
@@ -65,6 +67,7 @@ public abstract class BaseDollEntity extends Entity {
             this.entityData.set(DATA_POSE_INDEX, (byte) 255);
             this.entityData.set(DATA_ACTION_NAME, "");
             this.entityData.set(DATA_ACTION_TICK, 0);
+            this.entityData.set(DATA_SKIN_PATH, "");
         }
         // 初始化碰撞箱
         updateBoundingBox();
@@ -81,6 +84,7 @@ public abstract class BaseDollEntity extends Entity {
         builder.define(DATA_POSE_INDEX, (byte) 255); // 255 表示未设置（默认姿态）
         builder.define(DATA_ACTION_NAME, ""); // 空字符串表示没有动作
         builder.define(DATA_ACTION_TICK, 0); // 动作tick从0开始
+        builder.define(DATA_SKIN_PATH, ""); // 空字符串表示使用默认皮肤
     }
     
     @Override
@@ -182,8 +186,12 @@ public abstract class BaseDollEntity extends Entity {
                 this.playerName = nbt.getString("PlayerName");
             }
             
-            // 同步到persistentData（用于客户端渲染器访问）
-            // persistentData 是客户端可访问的，通过NBT机制自动同步
+            // 同步到EntityData（用于客户端实时访问，确保同步）
+            if (!this.level().isClientSide) {
+                this.entityData.set(DATA_SKIN_PATH, this.skinPath);
+            }
+            
+            // 同步到persistentData（用于持久化和向后兼容）
             this.getPersistentData().putString("SkinPath", this.skinPath);
             this.getPersistentData().putBoolean("IsAlexModel", this.isAlexModel);
             if (this.playerName != null) {
