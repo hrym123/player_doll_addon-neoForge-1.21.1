@@ -74,22 +74,20 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
             // 对于动态资源包中的纹理，即使textureExists返回false也尝试使用
             // 因为动态资源包可能在某些情况下无法通过资源管理器检测到
             // 但实际渲染时可能可以加载（通过DynamicResourcePack.getResource）
-            // 先检查是否是动态资源包路径（png/开头的路径）
-            if (texture.getPath().startsWith("png/")) {
-                // 对于png/路径，直接返回，让渲染系统尝试加载
+            // 先检查是否是动态资源包路径（png/或textures/entity/开头的路径）
+            if (texture.getPath().startsWith("png/") || texture.getPath().startsWith("textures/entity/")) {
+                // 对于动态资源包路径，直接返回，让渲染系统尝试加载
                 // 如果加载失败，Minecraft会自动回退到默认纹理或显示错误纹理
-                // Logging handled by Mixin
+                // 不检查textureExists，因为动态资源包可能无法通过资源管理器检测到
                 return texture;
             }
             
-            // 对于其他路径，验证纹理是否存在
+            // 对于其他路径（如默认纹理），验证纹理是否存在
             boolean exists = textureExists(texture);
             if (exists) {
-                // Logging handled by Mixin
                 return texture;
             }
-            // 如果纹理不存在，记录警告并回退
-            // Logging handled by Mixin
+            // 如果纹理不存在，回退到默认纹理
         }
         
         // 回退到默认纹理（由子类实现）

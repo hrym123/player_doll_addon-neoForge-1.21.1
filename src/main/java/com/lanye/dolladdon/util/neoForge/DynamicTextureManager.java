@@ -106,6 +106,11 @@ public class DynamicTextureManager {
             try (var stream = java.nio.file.Files.list(pngDir)) {
                 stream.filter(java.nio.file.Files::isRegularFile)
                       .filter(path -> path.toString().toLowerCase().endsWith(".png"))
+                      // 排除 backup 目录下的文件（检查父目录名称）
+                      .filter(path -> {
+                          Path parent = path.getParent();
+                          return parent == null || !parent.getFileName().toString().equalsIgnoreCase("backup");
+                      })
                       .forEach(pngFile -> {
                           try {
                               String fileName = pngFile.getFileName().toString();

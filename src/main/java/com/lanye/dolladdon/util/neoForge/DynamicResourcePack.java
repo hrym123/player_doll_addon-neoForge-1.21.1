@@ -61,12 +61,26 @@ public class DynamicResourcePack implements PackResources {
                 return () -> Files.newInputStream(registeredTexturePath);
             }
             
-            // 如果 DynamicTextureManager 中没有，从 player_doll/png 目录加载纹理（向后兼容）
+            // 如果 DynamicTextureManager 中没有，尝试从 player_doll/png 目录加载纹理（向后兼容）
+            // 注意：如果文件名包含特殊字符，这个路径可能不存在，因为实际文件名可能不同
             String fileName = path.substring(4); // 移除 "png/" 前缀
             Path pngDir = gameDir.resolve("player_doll/png");
             Path fileTexturePath = pngDir.resolve(fileName);
             if (Files.exists(fileTexturePath) && Files.isRegularFile(fileTexturePath)) {
                 return () -> Files.newInputStream(fileTexturePath);
+            }
+            
+            // 如果直接路径不存在，尝试通过路径映射查找（处理包含特殊字符的文件名）
+            // 遍历所有已注册的纹理，查找匹配的 ResourceLocation
+            // 这主要用于处理启动时扫描注册的纹理
+            for (var entry : DynamicTextureManager.TEXTURE_PATHS.entrySet()) {
+                ResourceLocation registeredLocation = entry.getKey();
+                if (registeredLocation.equals(location)) {
+                    Path mappedPath = entry.getValue();
+                    if (Files.exists(mappedPath) && Files.isRegularFile(mappedPath)) {
+                        return () -> Files.newInputStream(mappedPath);
+                    }
+                }
             }
         }
         
@@ -125,6 +139,11 @@ public class DynamicResourcePack implements PackResources {
                 try (var stream = Files.list(pngDir)) {
                     stream.filter(Files::isRegularFile)
                           .filter(p -> p.toString().toLowerCase().endsWith(".png"))
+                          // 排除 backup 目录下的文件（检查父目录名称）
+                          .filter(p -> {
+                              Path parent = p.getParent();
+                              return parent == null || !parent.getFileName().toString().equalsIgnoreCase("backup");
+                          })
                           .forEach(pngFile -> {
                               try {
                                   String fileName = pngFile.getFileName().toString();

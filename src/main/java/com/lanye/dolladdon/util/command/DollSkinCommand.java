@@ -66,6 +66,11 @@ public class DollSkinCommand {
                             paths
                                 .filter(java.nio.file.Files::isRegularFile)
                                 .filter(path -> path.toString().toLowerCase().endsWith(".png"))
+                                // 排除 backup 目录下的文件（检查父目录名称）
+                                .filter(path -> {
+                                    Path parent = path.getParent();
+                                    return parent == null || !parent.getFileName().toString().equalsIgnoreCase("backup");
+                                })
                                 .map(path -> path.getFileName().toString())
                                 .sorted(),
                             builder
@@ -361,6 +366,11 @@ public class DollSkinCommand {
                 java.util.List<Path> pngFiles = paths
                     .filter(java.nio.file.Files::isRegularFile)
                     .filter(path -> path.toString().toLowerCase().endsWith(".png"))
+                    // 排除 backup 目录下的文件（检查父目录名称）
+                    .filter(path -> {
+                        Path parent = path.getParent();
+                        return parent == null || !parent.getFileName().toString().equalsIgnoreCase("backup");
+                    })
                     .sorted()
                     .collect(java.util.stream.Collectors.toList());
                 
