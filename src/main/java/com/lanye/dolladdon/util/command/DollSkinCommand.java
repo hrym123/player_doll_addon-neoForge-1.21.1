@@ -836,6 +836,17 @@ public class DollSkinCommand {
                         if (entityTag.contains("DisplayName", net.minecraft.nbt.Tag.TAG_STRING)) {
                             fileContent.append("  DisplayName: ").append(entityTag.getString("DisplayName")).append("\n");
                         }
+                        // 保存动作信息
+                        if (entityTag.contains("ActionName", net.minecraft.nbt.Tag.TAG_STRING)) {
+                            fileContent.append("  ActionName: ").append(entityTag.getString("ActionName")).append("\n");
+                        }
+                        // 保存姿态信息
+                        if (entityTag.contains("PoseName", net.minecraft.nbt.Tag.TAG_STRING)) {
+                            fileContent.append("  PoseName: ").append(entityTag.getString("PoseName")).append("\n");
+                        }
+                        if (entityTag.contains("PoseIndex", net.minecraft.nbt.Tag.TAG_INT)) {
+                            fileContent.append("  PoseIndex: ").append(entityTag.getInt("PoseIndex")).append("\n");
+                        }
                     }
                 }
                 
