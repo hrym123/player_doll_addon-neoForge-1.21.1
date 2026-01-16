@@ -16,12 +16,50 @@ public class DynamicTextureManager {
     public static final Map<ResourceLocation, Path> TEXTURE_PATHS = new HashMap<>();
     
     /**
+     * 路径映射表：原始文件名 -> ResourceLocation路径
+     * 用于处理包含特殊字符的文件名，避免复制文件
+     */
+    private static final Map<String, ResourceLocation> PATH_MAPPING = new HashMap<>();
+    
+    /**
      * 注册纹理文件路径
      * @param resourceLocation 资源位置
      * @param filePath 文件路径
      */
     public static void registerTexture(ResourceLocation resourceLocation, Path filePath) {
         TEXTURE_PATHS.put(resourceLocation, filePath);
+    }
+    
+    /**
+     * 注册路径映射（原始文件名 -> ResourceLocation路径）
+     * 用于处理包含特殊字符的文件名，避免复制文件
+     * 
+     * @param originalFileName 原始文件名（可能包含特殊字符）
+     * @param resourceLocation ResourceLocation路径（符合规范）
+     */
+    public static void registerPathMapping(String originalFileName, ResourceLocation resourceLocation) {
+        PATH_MAPPING.put(originalFileName, resourceLocation);
+    }
+    
+    /**
+     * 获取路径映射的ResourceLocation
+     * 如果原始文件名有映射，返回映射的ResourceLocation；否则返回null
+     * 
+     * @param originalFileName 原始文件名
+     * @return 映射的ResourceLocation，如果不存在返回null
+     */
+    public static ResourceLocation getMappedResourceLocation(String originalFileName) {
+        return PATH_MAPPING.get(originalFileName);
+    }
+    
+    /**
+     * 检查原始文件名是否有路径映射
+     * 
+     * @param originalFileName 原始文件名
+     * @return 是否有映射
+     */
+    public static boolean hasPathMapping(String originalFileName) {
+        return PATH_MAPPING.containsKey(originalFileName);
     }
     
     /**
@@ -47,6 +85,7 @@ public class DynamicTextureManager {
      */
     public static void clear() {
         TEXTURE_PATHS.clear();
+        PATH_MAPPING.clear();
     }
 }
 

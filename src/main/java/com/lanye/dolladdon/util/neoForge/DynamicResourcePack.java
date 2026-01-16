@@ -54,12 +54,19 @@ public class DynamicResourcePack implements PackResources {
                 return () -> Files.newInputStream(texturePath);
             }
         } else if (path.startsWith("png/")) {
-            // 从 player_doll/png 目录加载纹理
+            // 优先从 DynamicTextureManager 获取文件路径（指令注册的纹理）
+            // 这样可以处理包含特殊字符的文件名（使用哈希文件名）
+            Path registeredTexturePath = DynamicTextureManager.getTexturePath(location);
+            if (registeredTexturePath != null && Files.exists(registeredTexturePath) && Files.isRegularFile(registeredTexturePath)) {
+                return () -> Files.newInputStream(registeredTexturePath);
+            }
+            
+            // 如果 DynamicTextureManager 中没有，从 player_doll/png 目录加载纹理（向后兼容）
             String fileName = path.substring(4); // 移除 "png/" 前缀
             Path pngDir = gameDir.resolve("player_doll/png");
-            Path texturePath = pngDir.resolve(fileName);
-            if (Files.exists(texturePath) && Files.isRegularFile(texturePath)) {
-                return () -> Files.newInputStream(texturePath);
+            Path fileTexturePath = pngDir.resolve(fileName);
+            if (Files.exists(fileTexturePath) && Files.isRegularFile(fileTexturePath)) {
+                return () -> Files.newInputStream(fileTexturePath);
             }
         }
         

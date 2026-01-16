@@ -672,32 +672,10 @@ public class DollSkinCommand {
                     }
                     texturePath = "png/" + safeFileName;
                     
-                    // 如果生成了哈希文件名，需要将文件复制到哈希文件名，确保文件路径和NBT路径一致
-                    Path safeFile = pngDir.resolve(safeFileName);
-                    if (!java.nio.file.Files.exists(safeFile)) {
-                        // 复制原始文件到哈希文件名
-                        try {
-                            java.nio.file.Files.copy(skinFile, safeFile, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-                            com.lanye.dolladdon.util.logging.ModuleLogger.debug(
-                                com.lanye.dolladdon.util.logging.LogModuleConfig.MODULE_COMMAND,
-                                "文件已复制到哈希文件名: {} -> {}",
-                                skinFile.getFileName(), safeFileName
-                            );
-                        } catch (Exception e) {
-                            com.lanye.dolladdon.util.logging.ModuleLogger.error(
-                                com.lanye.dolladdon.util.logging.LogModuleConfig.MODULE_COMMAND,
-                                "复制文件到哈希文件名失败: {} -> {}, 错误: {}",
-                                skinFile.getFileName(), safeFileName, e.getMessage(), e
-                            );
-                            source.sendFailure(Component.literal("§c[玩偶皮肤] ✗ 无法创建哈希文件名副本: " + e.getMessage()));
-                            return 0;
-                        }
-                    }
-                    // 更新 skinFile 为哈希文件名路径，确保后续使用正确的文件路径
-                    skinFile = safeFile;
-                    
+                    // 使用路径映射，不需要复制文件
+                    // 原始文件路径保持不变，ResourceLocation使用哈希文件名
                     final String finalSafeFileName = safeFileName;
-                    source.sendSuccess(() -> Component.literal("§e[玩偶皮肤] 提示: 文件名包含特殊字符，已使用哈希值: " + finalSafeFileName), false);
+                    source.sendSuccess(() -> Component.literal("§e[玩偶皮肤] 提示: 文件名包含特殊字符，已使用路径映射: " + finalSafeFileName), false);
                 }
                 
                 ResourceLocation textureLocation;
@@ -727,38 +705,30 @@ public class DollSkinCommand {
                     }
                     texturePath = "png/" + safeFileName;
                     
-                    // 如果生成了哈希文件名，需要将文件复制到哈希文件名
-                    Path safeFile = pngDir.resolve(safeFileName);
-                    if (!java.nio.file.Files.exists(safeFile)) {
-                        try {
-                            java.nio.file.Files.copy(skinFile, safeFile, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-                            com.lanye.dolladdon.util.logging.ModuleLogger.debug(
-                                com.lanye.dolladdon.util.logging.LogModuleConfig.MODULE_COMMAND,
-                                "文件已复制到哈希文件名（后备方案）: {} -> {}",
-                                skinFile.getFileName(), safeFileName
-                            );
-                        } catch (Exception ex) {
-                            com.lanye.dolladdon.util.logging.ModuleLogger.error(
-                                com.lanye.dolladdon.util.logging.LogModuleConfig.MODULE_COMMAND,
-                                "复制文件到哈希文件名失败（后备方案）: {} -> {}, 错误: {}",
-                                skinFile.getFileName(), safeFileName, ex.getMessage(), ex
-                            );
-                        }
-                    }
-                    // 更新 skinFile 为哈希文件名路径
-                    skinFile = safeFile;
-                    
+                    // 使用路径映射，不需要复制文件
                     textureLocation = ResourceLocation.fromNamespaceAndPath(
                         "player_doll", 
                         texturePath
                     );
                     final String finalSafeFileName = safeFileName;
-                    source.sendSuccess(() -> Component.literal("§e[玩偶皮肤] 提示: 使用哈希值作为纹理路径: " + finalSafeFileName), false);
+                    source.sendSuccess(() -> Component.literal("§e[玩偶皮肤] 提示: 使用路径映射作为纹理路径: " + finalSafeFileName), false);
                 }
                 
                 // 注册纹理
                 final ResourceLocation finalTextureLocation = textureLocation; // 创建 final 副本用于 lambda
+                // 使用原始文件路径注册纹理（不复制文件）
                 DynamicTextureManager.registerTexture(textureLocation, skinFile);
+                
+                // 如果使用了哈希文件名（包含特殊字符），注册路径映射
+                if (safeFileName != null) {
+                    DynamicTextureManager.registerPathMapping(finalFileName, textureLocation);
+                    com.lanye.dolladdon.util.logging.ModuleLogger.debug(
+                        com.lanye.dolladdon.util.logging.LogModuleConfig.MODULE_COMMAND,
+                        "已注册路径映射: {} -> {}",
+                        finalFileName, textureLocation
+                    );
+                }
+                
                 registeredTextureLocation = textureLocation; // 保存注册的纹理位置
                 source.sendSuccess(() -> Component.literal("§a[玩偶皮肤] ✓ 纹理已注册: " + finalTextureLocation), false);
             } catch (IllegalArgumentException e) {
