@@ -14,7 +14,9 @@
   ],
   "client": [
     "logging.BaseDollRendererMixin",
-    "logging.DynamicResourcePackMixin"
+    "logging.DynamicResourcePackMixin",
+    "logging.PlayerDollClientMixin",
+    "logging.DynamicTextureManagerMixin"
   ],
   "server": [],
   "injectors": {

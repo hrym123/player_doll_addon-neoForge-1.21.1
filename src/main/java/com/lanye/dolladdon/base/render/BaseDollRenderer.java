@@ -48,12 +48,16 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
      * @return 皮肤资源位置
      */
     protected ResourceLocation getSkinLocation(T entity) {
-        // 直接从 persistentData 读取（已从NBT设置，客户端可访问）
-        // persistentData 是客户端可访问的，通过NBT机制自动同步
-        String skinPath = null;
-        net.minecraft.nbt.CompoundTag nbt = entity.getPersistentData();
-        if (nbt.contains("SkinPath", net.minecraft.nbt.Tag.TAG_STRING)) {
-            skinPath = nbt.getString("SkinPath");
+        // 优先从实体的 getSkinPath() 方法读取（从 EntityDataAccessor 或 persistentData 获取）
+        // 如果为空，则从 persistentData 读取（向后兼容）
+        String skinPath = entity.getSkinPath();
+        
+        // 如果 getSkinPath() 返回 null，尝试从 persistentData 读取（向后兼容）
+        if (skinPath == null || skinPath.isEmpty()) {
+            net.minecraft.nbt.CompoundTag nbt = entity.getPersistentData();
+            if (nbt.contains("SkinPath", net.minecraft.nbt.Tag.TAG_STRING)) {
+                skinPath = nbt.getString("SkinPath");
+            }
         }
         
         if (skinPath != null && !skinPath.isEmpty()) {

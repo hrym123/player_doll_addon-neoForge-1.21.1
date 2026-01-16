@@ -154,3 +154,46 @@ idea {
     }
 }
 
+// 配置 JAR 输出目录到指定的 mods 目录
+def outputModsDir = file('F:/Repository/Software/Game/PCL/其他目录/测试专用目录/versions/玩家玩偶-neoForge-1.21.1/mods')
+
+// 在项目评估后配置，确保 NeoForge 插件配置完成后再应用
+afterEvaluate {
+    // 获取项目属性（在 afterEvaluate 中可以安全访问）
+    def archivesName = base.archivesName.get()
+    def modVersion = version.toString()
+    
+    // 配置 jar 任务
+    tasks.named('jar', Jar).configure {
+        // 设置输出目录
+        destinationDirectory.set(outputModsDir)
+        
+        // 确保输出目录存在
+        doFirst {
+            outputModsDir.mkdirs()
+        }
+        
+        // 输出信息
+        doLast {
+            println "[PlayerDoll] JAR 文件已输出到: ${archiveFile.get().asFile.absolutePath}"
+        }
+    }
+    
+    // 如果存在 reobfJar 任务（NeoForge 重混淆任务），也配置其输出
+    tasks.matching { it.name == 'reobfJar' }.configureEach {
+        doLast {
+            println "[PlayerDoll] 重混淆 JAR 文件位置: ${outputModsDir}/${archivesName}-${modVersion}.jar"
+        }
+    }
+    
+    // 配置 build 任务
+    tasks.named('build').configure {
+        doLast {
+            def jarFile = new File(outputModsDir, "${archivesName}-${modVersion}.jar")
+            if (jarFile.exists()) {
+                println "[PlayerDoll] 构建完成，JAR 文件位置: ${jarFile.absolutePath}"
+            }
+        }
+    }
+}
+

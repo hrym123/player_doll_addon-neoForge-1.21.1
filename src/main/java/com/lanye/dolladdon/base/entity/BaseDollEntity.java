@@ -206,9 +206,19 @@ public abstract class BaseDollEntity extends Entity {
     
     /**
      * 获取皮肤路径（用于渲染器）
+     * 在客户端优先从 EntityDataAccessor 读取（实时同步），
+     * 在服务器端从字段读取
      * @return 皮肤路径，如果未设置返回null
      */
     public String getSkinPath() {
+        // 客户端：优先从 EntityDataAccessor 读取（实时同步）
+        if (this.level().isClientSide) {
+            String syncedSkinPath = this.entityData.get(DATA_SKIN_PATH);
+            if (syncedSkinPath != null && !syncedSkinPath.isEmpty()) {
+                return syncedSkinPath;
+            }
+        }
+        // 服务器端或 EntityDataAccessor 为空时：从字段读取
         return this.skinPath;
     }
     
@@ -285,6 +295,15 @@ public abstract class BaseDollEntity extends Entity {
         if (this.level().isClientSide) {
             if (key == DATA_POSE_INDEX || key == DATA_ACTION_NAME || key == DATA_ACTION_TICK) {
                 updateClientPose();
+            }
+            // 当皮肤路径同步时，更新本地字段（用于向后兼容）
+            if (key == DATA_SKIN_PATH) {
+                String syncedSkinPath = this.entityData.get(DATA_SKIN_PATH);
+                if (syncedSkinPath != null && !syncedSkinPath.isEmpty()) {
+                    this.skinPath = syncedSkinPath;
+                    // 同时更新 persistentData（用于向后兼容）
+                    this.getPersistentData().putString("SkinPath", this.skinPath);
+                }
             }
         }
     }
