@@ -357,10 +357,8 @@ public class DollSkinCommand {
      */
     private static ItemStack createDollItemWithNBT(String playerName, java.util.UUID playerUUID, 
                                                    String fileName, boolean isAlexModel) {
-        // 根据模型类型选择玩偶
-        ItemStack dollItem = isAlexModel ? 
-            new ItemStack(ModItems.ALEX_DOLL.get(), 1) : 
-            new ItemStack(ModItems.STEVE_DOLL.get(), 1);
+        // 使用统一的 CUSTOM_TEXTURE_DOLL 物品，通过NBT存储皮肤路径和模型类型
+        ItemStack dollItem = new ItemStack(ModItems.CUSTOM_TEXTURE_DOLL.get(), 1);
         
         // 设置NBT数据（使用DataComponents）
         // 在1.21.1中，NBT数据存储在DataComponents.CUSTOM_DATA中
