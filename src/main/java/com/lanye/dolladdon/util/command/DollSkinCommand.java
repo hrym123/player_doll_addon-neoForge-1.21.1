@@ -411,6 +411,14 @@ public class DollSkinCommand {
             setMethod.invoke(builder, 
                 net.minecraft.core.component.DataComponents.CUSTOM_DATA, 
                 customData);
+            
+            // 设置物品自定义名称（显示玩家名称）
+            // 格式："[玩家名] 的玩偶"
+            Component customName = Component.literal(playerName + " 的玩偶");
+            setMethod.invoke(builder, 
+                net.minecraft.core.component.DataComponents.CUSTOM_NAME, 
+                customName);
+            
             dollItem.applyComponents(builder.build());
             
             // 验证 NBT 是否成功设置
@@ -447,6 +455,13 @@ public class DollSkinCommand {
                 java.lang.reflect.Method setMethod = ItemStack.class.getMethod("set", 
                     net.minecraft.core.component.DataComponentType.class, Object.class);
                 setMethod.invoke(dollItem, net.minecraft.core.component.DataComponents.CUSTOM_DATA, customData);
+                
+                // 设置物品自定义名称（显示玩家名称）
+                // 格式："[玩家名] 的玩偶"
+                Component customName = Component.literal(playerName + " 的玩偶");
+                setMethod.invoke(dollItem, 
+                    net.minecraft.core.component.DataComponents.CUSTOM_NAME, 
+                    customName);
                 
                 // 验证备用方法是否成功
                 var verifyCustomData = dollItem.get(net.minecraft.core.component.DataComponents.CUSTOM_DATA);
@@ -592,12 +607,12 @@ public class DollSkinCommand {
             String uuidShort = extractUuidFromFileName(fileName);
             java.util.UUID playerUUID = null;
             if (uuidShort != null && uuidShort.length() == 8) {
-                // 尝试从在线玩家中查找匹配的UUID
+                // 尝试从在线玩家中查找匹配的UUID（仅用于获取UUID，不改变playerName）
                 for (ServerPlayer player : source.getServer().getPlayerList().getPlayers()) {
                     String playerUuidShort = getUuidShort(player.getUUID());
                     if (playerUuidShort.equals(uuidShort)) {
                         playerUUID = player.getUUID();
-                        playerName = player.getName().getString(); // 使用在线玩家的实际名称
+                        // 注意：不更新playerName，保持使用从文件名提取的名称（与注册物品时一致）
                         break;
                     }
                 }
