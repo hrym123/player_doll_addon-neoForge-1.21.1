@@ -249,8 +249,66 @@ public class PlayerDoll {
                                     playerName = dollInfo.getDisplayName();
                                 }
                                 
+                                // 检查文件名是否包含特殊字符（与指令逻辑保持一致）
+                                // ResourceLocation 路径只允许 [a-z0-9/._-] 字符（注意：只允许小写字母，不允许大写字母）
+                                boolean containsNonAscii = fileName.chars().anyMatch(ch -> ch > 127 || (ch < 32 && ch != 9 && ch != 10 && ch != 13));
+                                boolean containsUpperCase = fileName.chars().anyMatch(ch -> ch >= 'A' && ch <= 'Z');
+                                boolean containsInvalidChars = fileName.chars().anyMatch(ch -> {
+                                    return !((ch >= 'a' && ch <= 'z') || 
+                                            (ch >= '0' && ch <= '9') || 
+                                            ch == '.' || ch == '_' || ch == '-');
+                                });
+                                
+                                String fileNameForSkinPath = fileName; // 默认使用原始文件名
+                                
+                                if (containsNonAscii || containsUpperCase || containsInvalidChars) {
+                                    // 如果包含特殊字符，检查是否已有路径映射
+                                    var mappedLocation = com.lanye.dolladdon.util.neoForge.DynamicTextureManager.getMappedResourceLocation(fileName);
+                                    if (mappedLocation != null) {
+                                        // 如果已有映射，使用映射的 ResourceLocation 路径
+                                        fileNameForSkinPath = mappedLocation.getPath().substring("png/".length());
+                                    } else {
+                                        // 如果没有映射，生成哈希文件名（与指令逻辑保持一致）
+                                        try {
+                                            java.security.MessageDigest md = java.security.MessageDigest.getInstance("MD5");
+                                            byte[] hashBytes = md.digest(fileName.getBytes("UTF-8"));
+                                            StringBuilder hashString = new StringBuilder();
+                                            for (byte b : hashBytes) {
+                                                hashString.append(String.format("%02x", b));
+                                            }
+                                            fileNameForSkinPath = "skin_" + hashString.substring(0, 16) + ".png";
+                                            
+                                            // 注册纹理和路径映射（如果文件存在）
+                                            java.nio.file.Path skinFile = dollInfo.getFilePath();
+                                            if (java.nio.file.Files.exists(skinFile) && java.nio.file.Files.isRegularFile(skinFile)) {
+                                                net.minecraft.resources.ResourceLocation textureLocation = net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(
+                                                    MODID,
+                                                    "png/" + fileNameForSkinPath
+                                                );
+                                                com.lanye.dolladdon.util.neoForge.DynamicTextureManager.registerTexture(textureLocation, skinFile);
+                                                com.lanye.dolladdon.util.neoForge.DynamicTextureManager.registerPathMapping(fileName, textureLocation);
+                                            }
+                                        } catch (Exception e) {
+                                            // 如果 MD5 失败，使用 hashCode（可能冲突但更简单）
+                                            int fileNameHash = fileName.hashCode();
+                                            fileNameForSkinPath = "skin_" + Integer.toHexString(Math.abs(fileNameHash)) + ".png";
+                                            
+                                            // 注册纹理和路径映射（如果文件存在）
+                                            java.nio.file.Path skinFile = dollInfo.getFilePath();
+                                            if (java.nio.file.Files.exists(skinFile) && java.nio.file.Files.isRegularFile(skinFile)) {
+                                                net.minecraft.resources.ResourceLocation textureLocation = net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(
+                                                    MODID,
+                                                    "png/" + fileNameForSkinPath
+                                                );
+                                                com.lanye.dolladdon.util.neoForge.DynamicTextureManager.registerTexture(textureLocation, skinFile);
+                                                com.lanye.dolladdon.util.neoForge.DynamicTextureManager.registerPathMapping(fileName, textureLocation);
+                                            }
+                                        }
+                                    }
+                                }
+                                
                                 // 构建正确的skinPath格式：player_doll:png/xxx.png
-                                String skinPath = "player_doll:png/" + fileName;
+                                String skinPath = "player_doll:png/" + fileNameForSkinPath;
                                 
                                 // 使用工厂类创建物品，确保包含PlayerName
                                 ItemStack stack = com.lanye.dolladdon.util.factory.DollItemFactory.createCustomTextureDoll(

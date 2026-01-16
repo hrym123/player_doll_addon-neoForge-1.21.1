@@ -1,97 +1,14 @@
 package com.lanye.dolladdon.mixin.logging;
 
 import com.lanye.dolladdon.PlayerDoll;
-import com.lanye.dolladdon.util.logging.LogModuleConfig;
-import com.lanye.dolladdon.util.logging.ModuleLogger;
-import net.neoforged.neoforge.event.entity.player.PlayerEvent;
-import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
  * 为 PlayerDoll 的事件处理方法添加日志的 Mixin
+ * 
+ * 注意：非关键日志已清理，事件处理过程日志过于频繁，仅在需要调试时启用
  */
 @Mixin(PlayerDoll.class)
 public class PlayerDollAddonEventMixin {
-    
-    /**
-     * 在 onEntityInteract 方法开始处注入日志
-     */
-    @Inject(
-        method = "onEntityInteract",
-        at = @At("HEAD"),
-        remap = false
-    )
-    private void onEntityInteractHead(PlayerInteractEvent.EntityInteract event, CallbackInfo ci) {
-        if (event.getTarget() != null) {
-            net.minecraft.world.item.ItemStack heldStack = event.getEntity().getItemInHand(event.getHand());
-            ModuleLogger.debug(
-                LogModuleConfig.MODULE_ENTITY_INTERACT,
-                "Player {} interacting with entity: type={}, ID={}, hand={}, server={}, entityClass={}, heldItem={}, eventCanceled={}",
-                event.getEntity().getName().getString(), 
-                event.getTarget().getType().toString(),
-                event.getTarget().getId(),
-                event.getHand(), 
-                !event.getLevel().isClientSide(),
-                event.getTarget().getClass().getName(),
-                heldStack != null && !heldStack.isEmpty() ? heldStack.getItem().toString() : "empty",
-                event.isCanceled()
-            );
-        }
-    }
-    
-    /**
-     * 在 onEntityInteract 方法返回前注入日志（记录返回值）
-     */
-    @Inject(
-        method = "onEntityInteract",
-        at = @At("RETURN"),
-        remap = false
-    )
-    private void onEntityInteractReturn(PlayerInteractEvent.EntityInteract event, CallbackInfo ci) {
-        if (event.getTarget() != null) {
-            ModuleLogger.debug(
-                LogModuleConfig.MODULE_ENTITY_INTERACT,
-                "onEntityInteract finished: player={}, server={}, eventCanceled={}, cancellationResult={}",
-                event.getEntity().getName().getString(),
-                !event.getLevel().isClientSide(),
-                event.isCanceled(),
-                event.getCancellationResult()
-            );
-        }
-    }
-    
-    /**
-     * 在 onPlayerLoggedIn 方法中注入日志
-     */
-    @Inject(
-        method = "onPlayerLoggedIn",
-        at = @At("HEAD"),
-        remap = false
-    )
-    private void onPlayerLoggedInHead(PlayerEvent.PlayerLoggedInEvent event, CallbackInfo ci) {
-        ModuleLogger.debug(
-            LogModuleConfig.MODULE_MAIN,
-            "Player {} logged in",
-            event.getEntity() != null ? event.getEntity().getName().getString() : "null"
-        );
-    }
-    
-    /**
-     * 在 onPlayerLoggedOut 方法中注入日志
-     */
-    @Inject(
-        method = "onPlayerLoggedOut",
-        at = @At("HEAD"),
-        remap = false
-    )
-    private void onPlayerLoggedOutHead(PlayerEvent.PlayerLoggedOutEvent event, CallbackInfo ci) {
-        ModuleLogger.debug(
-            LogModuleConfig.MODULE_MAIN,
-            "Player {} logged out",
-            event.getEntity() != null ? event.getEntity().getName().getString() : "null"
-        );
-    }
+    // 非关键日志已清理：事件处理过程日志过于频繁，仅在需要调试时启用
 }

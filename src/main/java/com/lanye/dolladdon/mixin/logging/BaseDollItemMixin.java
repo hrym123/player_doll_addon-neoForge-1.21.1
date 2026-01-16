@@ -19,6 +19,7 @@ public class BaseDollItemMixin {
     
     /**
      * 在 useOn 方法中，在调用 restoreFromNBT 前注入日志
+     * 仅保留警告日志，debug日志已清理
      */
     @Inject(
         method = "useOn(Lnet/minecraft/world/item/context/UseOnContext;)Lnet/minecraft/world/InteractionResult;",
@@ -37,21 +38,7 @@ public class BaseDollItemMixin {
         
         if (customData != null) {
             var dataTag = customData.copyTag();
-            if (dataTag != null && dataTag.contains("EntityData")) {
-                CompoundTag entityTag = dataTag.getCompound("EntityData");
-                String skinPath = entityTag.contains("SkinPath", net.minecraft.nbt.Tag.TAG_STRING) 
-                    ? entityTag.getString("SkinPath") : "null";
-                boolean isAlexModel = entityTag.contains("IsAlexModel", net.minecraft.nbt.Tag.TAG_BYTE) 
-                    ? entityTag.getBoolean("IsAlexModel") : false;
-                String playerName = entityTag.contains("PlayerName", net.minecraft.nbt.Tag.TAG_STRING) 
-                    ? entityTag.getString("PlayerName") : "null";
-                
-                ModuleLogger.debug(
-                    LogModuleConfig.MODULE_COMMAND,
-                    "从物品创建实体: 读取到EntityData - SkinPath={}, IsAlexModel={}, PlayerName={}",
-                    skinPath, isAlexModel, playerName
-                );
-            } else {
+            if (dataTag == null || !dataTag.contains("EntityData")) {
                 ModuleLogger.warn(
                     LogModuleConfig.MODULE_COMMAND,
                     "从物品创建实体: customData中没有EntityData标签"

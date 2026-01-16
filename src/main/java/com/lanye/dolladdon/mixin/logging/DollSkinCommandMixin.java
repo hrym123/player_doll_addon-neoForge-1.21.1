@@ -20,6 +20,7 @@ public class DollSkinCommandMixin {
     /**
      * 在 applyComponents 方法调用后注入日志
      * 检查是否设置了 customData 组件，并记录 EntityData 内容
+     * 仅保留警告日志，debug日志已清理
      */
     @Inject(
         method = "applyComponents(Lnet/minecraft/core/component/DataComponentPatch;)V",
@@ -31,46 +32,21 @@ public class DollSkinCommandMixin {
         // 检查是否是玩偶物品
         boolean isDollItem = stack.getItem() instanceof com.lanye.dolladdon.base.item.BaseDollItem;
         
-        // 只记录玩偶物品的日志（减少日志量）
+        // 只记录玩偶物品的警告日志（debug日志已清理）
         if (isDollItem) {
-            // 记录线程信息，帮助判断是在哪个线程执行的
-            String threadName = Thread.currentThread().getName();
-            
-            ModuleLogger.debug(
-                LogModuleConfig.MODULE_COMMAND,
-                "applyComponents调用: 玩偶物品 - item={}, thread={}",
-                stack.getItem().toString(), threadName
-            );
-            
             var customData = stack.get(net.minecraft.core.component.DataComponents.CUSTOM_DATA);
             if (customData != null) {
                 var dataTag = customData.copyTag();
-                if (dataTag != null && dataTag.contains("EntityData")) {
-                    CompoundTag entityTag = dataTag.getCompound("EntityData");
-                    String skinPath = entityTag.contains("SkinPath", net.minecraft.nbt.Tag.TAG_STRING) 
-                        ? entityTag.getString("SkinPath") : "null";
-                    boolean isAlexModel = entityTag.contains("IsAlexModel", net.minecraft.nbt.Tag.TAG_BYTE) 
-                        ? entityTag.getBoolean("IsAlexModel") : false;
-                    String playerName = entityTag.contains("PlayerName", net.minecraft.nbt.Tag.TAG_STRING) 
-                        ? entityTag.getString("PlayerName") : "null";
-                    
-                    ModuleLogger.debug(
-                        LogModuleConfig.MODULE_COMMAND,
-                        "applyComponents完成: 玩偶物品已设置customData - SkinPath={}, IsAlexModel={}, PlayerName={}, thread={}",
-                        skinPath, isAlexModel, playerName, threadName
-                    );
-                } else {
+                if (dataTag == null || !dataTag.contains("EntityData")) {
                     ModuleLogger.warn(
                         LogModuleConfig.MODULE_COMMAND,
-                        "applyComponents完成: 玩偶物品有customData但没有EntityData标签, thread={}",
-                        threadName
+                        "applyComponents完成: 玩偶物品有customData但没有EntityData标签"
                     );
                 }
             } else {
                 ModuleLogger.warn(
                     LogModuleConfig.MODULE_COMMAND,
-                    "applyComponents完成: 玩偶物品没有customData组件, thread={}",
-                    threadName
+                    "applyComponents完成: 玩偶物品没有customData组件"
                 );
             }
         }

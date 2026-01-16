@@ -92,6 +92,8 @@ public class DynamicTextureManager {
      * 扫描并注册 player_doll/png 目录下的所有 PNG 文件
      * 在游戏启动或资源重载时调用，确保所有纹理都被注册
      * 
+     * 对于包含特殊字符的文件名，使用哈希文件名注册（与指令逻辑保持一致）
+     * 
      * @param gameDir 游戏目录
      */
     public static void scanAndRegisterTextures(java.nio.file.Path gameDir) {
@@ -107,13 +109,54 @@ public class DynamicTextureManager {
                       .forEach(pngFile -> {
                           try {
                               String fileName = pngFile.getFileName().toString();
-                              ResourceLocation textureLocation = ResourceLocation.fromNamespaceAndPath(
-                                  PlayerDoll.MODID, 
-                                  "png/" + fileName
-                              );
                               
-                              // 注册纹理路径
-                              registerTexture(textureLocation, pngFile);
+                              // 检查文件名是否包含特殊字符（与指令逻辑保持一致）
+                              boolean containsNonAscii = fileName.chars().anyMatch(ch -> ch > 127 || (ch < 32 && ch != 9 && ch != 10 && ch != 13));
+                              boolean containsUpperCase = fileName.chars().anyMatch(ch -> ch >= 'A' && ch <= 'Z');
+                              boolean containsInvalidChars = fileName.chars().anyMatch(ch -> {
+                                  return !((ch >= 'a' && ch <= 'z') || 
+                                          (ch >= '0' && ch <= '9') || 
+                                          ch == '.' || ch == '_' || ch == '-');
+                              });
+                              
+                              ResourceLocation textureLocation;
+                              String safeFileName = null;
+                              
+                              if (containsNonAscii || containsUpperCase || containsInvalidChars) {
+                                  // 如果包含特殊字符，使用哈希文件名（与指令逻辑保持一致）
+                                  try {
+                                      java.security.MessageDigest md = java.security.MessageDigest.getInstance("MD5");
+                                      byte[] hashBytes = md.digest(fileName.getBytes("UTF-8"));
+                                      StringBuilder hashString = new StringBuilder();
+                                      for (byte b : hashBytes) {
+                                          hashString.append(String.format("%02x", b));
+                                      }
+                                      safeFileName = "skin_" + hashString.substring(0, 16) + ".png";
+                                  } catch (Exception e) {
+                                      int fileNameHash = fileName.hashCode();
+                                      safeFileName = "skin_" + Integer.toHexString(Math.abs(fileNameHash)) + ".png";
+                                  }
+                                  
+                                  textureLocation = ResourceLocation.fromNamespaceAndPath(
+                                      PlayerDoll.MODID, 
+                                      "png/" + safeFileName
+                                  );
+                                  
+                                  // 注册纹理路径（使用哈希文件名）
+                                  registerTexture(textureLocation, pngFile);
+                                  
+                                  // 注册路径映射（原始文件名 -> 哈希文件名）
+                                  registerPathMapping(fileName, textureLocation);
+                              } else {
+                                  // 如果文件名不包含特殊字符，直接使用文件名
+                                  textureLocation = ResourceLocation.fromNamespaceAndPath(
+                                      PlayerDoll.MODID, 
+                                      "png/" + fileName
+                                  );
+                                  
+                                  // 注册纹理路径
+                                  registerTexture(textureLocation, pngFile);
+                              }
                           } catch (Exception e) {
                               // Error logging handled by Mixin
                           }

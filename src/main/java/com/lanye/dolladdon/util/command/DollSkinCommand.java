@@ -473,6 +473,7 @@ public class DollSkinCommand {
             
             // 注册纹理到DynamicTextureManager
             ResourceLocation registeredTextureLocation = null;
+            String safeFileName = null; // 在 try 块外部声明，以便在后续代码中使用
             try {
                 // 验证文件是否存在且可读
                 if (!java.nio.file.Files.exists(skinFile)) {
@@ -509,7 +510,7 @@ public class DollSkinCommand {
                             ch == '.' || ch == '_' || ch == '-');
                 });
                 
-                String safeFileName = null;
+                // safeFileName 已在方法外部声明
                 if (containsNonAscii || containsUpperCase || containsInvalidChars) {
                     // 如果包含非 ASCII 字符或不允许的字符，使用文件名哈希值
                     // 使用 MD5 哈希值以确保唯一性和符合 ResourceLocation 规范
@@ -605,16 +606,22 @@ public class DollSkinCommand {
             }
             
             // 创建带NBT的玩偶物品
-            // 使用注册纹理时使用的路径（确保一致性）
-            final String nbtTexturePath = registeredTextureLocation != null 
-                ? registeredTextureLocation.toString() 
-                : "player_doll:png/" + finalFileName;
+            // 如果使用了哈希文件名（包含特殊字符），SkinPath 也应该使用哈希文件名，确保能正确读取
+            // 否则使用原始文件名（因为用户指定的文件名可能已经是标准格式）
+            final String fileNameForSkinPath;
+            if (safeFileName != null) {
+                // 使用哈希文件名（因为原始文件名包含特殊字符，无法用于 ResourceLocation）
+                fileNameForSkinPath = safeFileName;
+            } else {
+                // 使用原始文件名（不包含特殊字符，可以直接使用）
+                fileNameForSkinPath = finalFileName;
+            }
             
             try {
                 ItemStack dollItem = createDollItemWithNBT(
                     finalPlayerName, 
                     playerUUID, 
-                    nbtTexturePath,  // 使用注册纹理时使用的路径
+                    fileNameForSkinPath,  // 使用哈希文件名或原始文件名（不包含路径前缀，createDollItemWithNBT 会添加）
                     isAlexModel
                 );
                 
