@@ -644,19 +644,20 @@ public class DollSkinCommand {
                 }
                 
                 // 检查文件名是否包含非 ASCII 字符（ResourceLocation 不支持）
-                // ResourceLocation 路径只允许 [a-z0-9/_-] 字符
+                // ResourceLocation 路径只允许 [a-z0-9/._-] 字符（注意：只允许小写字母，不允许大写字母）
                 // URL 编码会引入 % 字符，也不被允许，所以直接使用哈希值
                 boolean containsNonAscii = finalFileName.chars().anyMatch(ch -> ch > 127 || (ch < 32 && ch != 9 && ch != 10 && ch != 13));
-                // 也检查是否包含不允许的字符（除了字母、数字、点、下划线、连字符）
+                // 检查是否包含大写字母（ResourceLocation 路径不允许大写字母）
+                boolean containsUpperCase = finalFileName.chars().anyMatch(ch -> ch >= 'A' && ch <= 'Z');
+                // 也检查是否包含不允许的字符（除了小写字母、数字、点、下划线、连字符）
                 boolean containsInvalidChars = finalFileName.chars().anyMatch(ch -> {
                     return !((ch >= 'a' && ch <= 'z') || 
-                            (ch >= 'A' && ch <= 'Z') || 
                             (ch >= '0' && ch <= '9') || 
                             ch == '.' || ch == '_' || ch == '-');
                 });
                 
                 String safeFileName = null;
-                if (containsNonAscii || containsInvalidChars) {
+                if (containsNonAscii || containsUpperCase || containsInvalidChars) {
                     // 如果包含非 ASCII 字符或不允许的字符，使用文件名哈希值
                     // 使用 MD5 哈希值以确保唯一性和符合 ResourceLocation 规范
                     try {

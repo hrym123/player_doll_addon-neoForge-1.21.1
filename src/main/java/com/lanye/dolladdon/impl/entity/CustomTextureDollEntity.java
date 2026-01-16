@@ -49,8 +49,18 @@ public class CustomTextureDollEntity extends BaseDollEntity {
                         net.minecraft.core.component.DataComponents.CUSTOM_DATA, 
                         customData);
                     
-                    // 注意：不设置 CUSTOM_NAME，名称由 CustomTextureDollItem.getName() 从NBT读取
-                    // DisplayName 已保存在 entityTag 中，会随 CUSTOM_DATA 一起保存到物品
+                    // 如果 persistentData 中有 DisplayName（可能是从 CUSTOM_NAME 同步的），
+                    // 将其设置到物品的 CUSTOM_NAME，这样玩家重命名的名称能够保留
+                    if (this.getPersistentData().contains("DisplayName", net.minecraft.nbt.Tag.TAG_STRING)) {
+                        String displayName = this.getPersistentData().getString("DisplayName");
+                        if (displayName != null && !displayName.isEmpty()) {
+                            // 设置 CUSTOM_NAME，这样 getName() 会优先读取它
+                            net.minecraft.network.chat.Component nameComponent = net.minecraft.network.chat.Component.literal(displayName);
+                            setMethod.invoke(builder, 
+                                net.minecraft.core.component.DataComponents.CUSTOM_NAME, 
+                                nameComponent);
+                        }
+                    }
                     
                     stack.applyComponents(builder.build());
                 } catch (Exception e) {
@@ -60,8 +70,16 @@ public class CustomTextureDollEntity extends BaseDollEntity {
                             net.minecraft.core.component.DataComponentType.class, Object.class);
                         setMethod.invoke(stack, net.minecraft.core.component.DataComponents.CUSTOM_DATA, customData);
                         
-                        // 注意：不设置 CUSTOM_NAME，名称由 CustomTextureDollItem.getName() 从NBT读取
-                        // DisplayName 已保存在 entityTag 中，会随 CUSTOM_DATA 一起保存到物品
+                        // 如果 persistentData 中有 DisplayName，也设置 CUSTOM_NAME
+                        if (this.getPersistentData().contains("DisplayName", net.minecraft.nbt.Tag.TAG_STRING)) {
+                            String displayName = this.getPersistentData().getString("DisplayName");
+                            if (displayName != null && !displayName.isEmpty()) {
+                                net.minecraft.network.chat.Component nameComponent = net.minecraft.network.chat.Component.literal(displayName);
+                                setMethod.invoke(stack, 
+                                    net.minecraft.core.component.DataComponents.CUSTOM_NAME, 
+                                    nameComponent);
+                            }
+                        }
                     } catch (Exception e2) {
                         // 如果都失败，返回没有NBT的物品
                     }

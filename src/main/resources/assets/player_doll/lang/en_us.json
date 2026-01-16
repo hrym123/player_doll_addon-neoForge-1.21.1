@@ -3,6 +3,8 @@
   "entity.player_doll.steve_doll": "Steve Doll",
   "item.player_doll.alex_doll": "Alex Doll",
   "entity.player_doll.alex_doll": "Alex Doll",
+  "item.player_doll.custom_texture_doll": "Custom Texture Doll",
+  "entity.player_doll.custom_texture_doll": "Custom Texture Doll",
   "item.player_doll.action_debug_stick": "Action Debug Stick",
   "item.player_doll.pose_debug_stick": "Pose Debug Stick",
   "itemGroup.player_doll.player_doll_tab": "Player Dolls"

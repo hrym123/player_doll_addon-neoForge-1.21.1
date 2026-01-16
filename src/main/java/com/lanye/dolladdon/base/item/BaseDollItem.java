@@ -73,6 +73,17 @@ public abstract class BaseDollItem extends Item {
             }
         }
         
+        // 如果物品有 CUSTOM_NAME（玩家通过铁砧重命名），将其同步到 NBT 的 DisplayName
+        // 这样实体破坏后，重命名的名称能够保留
+        var customName = stack.get(net.minecraft.core.component.DataComponents.CUSTOM_NAME);
+        if (customName != null) {
+            String renamedName = customName.getString();
+            if (renamedName != null && !renamedName.isEmpty()) {
+                // 保存到 persistentData，这样 addAdditionalSaveData 会将其保存到 NBT
+                dollEntity.getPersistentData().putString("DisplayName", renamedName);
+            }
+        }
+        
         // 检查是否可以生成
         if (!level.noCollision(dollEntity, dollEntity.getBoundingBox())) {
             return InteractionResult.FAIL;

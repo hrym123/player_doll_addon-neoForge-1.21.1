@@ -32,7 +32,13 @@ public class CustomTextureDollItem extends BaseDollItem {
     
     @Override
     public Component getName(ItemStack stack) {
-        // 从NBT读取显示名称
+        // 优先读取 CUSTOM_NAME（如果玩家通过铁砧重命名了物品）
+        var customName = stack.get(net.minecraft.core.component.DataComponents.CUSTOM_NAME);
+        if (customName != null) {
+            return customName;
+        }
+        
+        // 如果没有 CUSTOM_NAME，从NBT读取显示名称
         var customData = stack.get(net.minecraft.core.component.DataComponents.CUSTOM_DATA);
         if (customData != null) {
             var dataTag = customData.copyTag();
