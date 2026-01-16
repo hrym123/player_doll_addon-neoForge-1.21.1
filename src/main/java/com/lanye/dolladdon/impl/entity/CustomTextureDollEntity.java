@@ -48,6 +48,10 @@ public class CustomTextureDollEntity extends BaseDollEntity {
                     setMethod.invoke(builder, 
                         net.minecraft.core.component.DataComponents.CUSTOM_DATA, 
                         customData);
+                    
+                    // 注意：不设置 CUSTOM_NAME，名称由 CustomTextureDollItem.getName() 从NBT读取
+                    // DisplayName 已保存在 entityTag 中，会随 CUSTOM_DATA 一起保存到物品
+                    
                     stack.applyComponents(builder.build());
                 } catch (Exception e) {
                     // 如果失败，尝试备用方法
@@ -55,6 +59,9 @@ public class CustomTextureDollEntity extends BaseDollEntity {
                         java.lang.reflect.Method setMethod = ItemStack.class.getMethod("set", 
                             net.minecraft.core.component.DataComponentType.class, Object.class);
                         setMethod.invoke(stack, net.minecraft.core.component.DataComponents.CUSTOM_DATA, customData);
+                        
+                        // 注意：不设置 CUSTOM_NAME，名称由 CustomTextureDollItem.getName() 从NBT读取
+                        // DisplayName 已保存在 entityTag 中，会随 CUSTOM_DATA 一起保存到物品
                     } catch (Exception e2) {
                         // 如果都失败，返回没有NBT的物品
                     }

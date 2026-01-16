@@ -186,6 +186,14 @@ public abstract class BaseDollEntity extends Entity {
                 this.playerName = nbt.getString("PlayerName");
             }
             
+            // 读取DisplayName（如果存在）
+            if (nbt.contains("DisplayName", net.minecraft.nbt.Tag.TAG_STRING)) {
+                this.getPersistentData().putString("DisplayName", nbt.getString("DisplayName"));
+            } else if (this.playerName != null) {
+                // 如果没有DisplayName，从PlayerName生成
+                this.getPersistentData().putString("DisplayName", this.playerName + " 的玩偶");
+            }
+            
             // 同步到EntityData（用于客户端实时访问，确保同步）
             if (!this.level().isClientSide) {
                 this.entityData.set(DATA_SKIN_PATH, this.skinPath);
@@ -224,6 +232,13 @@ public abstract class BaseDollEntity extends Entity {
             tag.putBoolean("IsAlexModel", this.isAlexModel);
             if (this.playerName != null) {
                 tag.putString("PlayerName", this.playerName);
+                // 保存显示名称（如果NBT中有，使用NBT中的；否则从PlayerName生成）
+                if (this.getPersistentData().contains("DisplayName", net.minecraft.nbt.Tag.TAG_STRING)) {
+                    tag.putString("DisplayName", this.getPersistentData().getString("DisplayName"));
+                } else {
+                    // 从PlayerName生成DisplayName
+                    tag.putString("DisplayName", this.playerName + " 的玩偶");
+                }
             }
         }
         

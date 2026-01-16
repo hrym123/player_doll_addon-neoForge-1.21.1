@@ -107,13 +107,6 @@ public class DollSkinCommand {
                         .executes(ctx -> execute(ctx, StringArgumentType.getString(ctx, "player")))
                 )
         );
-        
-        // 注册 /mydollskin 命令（专门用于获取当前玩家的皮肤）
-        dispatcher.register(
-            Commands.literal("mydollskin")
-                .requires(source -> source.hasPermission(2)) // 需要OP权限
-                .executes(ctx -> execute(ctx, null)) // 获取自己的皮肤
-        );
     }
     
     /**
@@ -383,6 +376,9 @@ public class DollSkinCommand {
         // 注意：PlayerName 使用原始玩家名，不包含UUID（文件名中包含UUID用于避免重名，但显示名称不包含）
         entityDataTag.putString("PlayerName", playerName);
         entityDataTag.putString("PlayerUUID", playerUUID.toString());
+        // 保存显示名称到NBT，确保名称持久化（用于实体破坏后恢复）
+        String displayName = playerName + " 的玩偶";
+        entityDataTag.putString("DisplayName", displayName);
         
         // 将EntityData放入customData
         customDataTag.put("EntityData", entityDataTag);
@@ -412,12 +408,8 @@ public class DollSkinCommand {
                 net.minecraft.core.component.DataComponents.CUSTOM_DATA, 
                 customData);
             
-            // 设置物品自定义名称（显示玩家名称）
-            // 格式："[玩家名] 的玩偶"
-            Component customName = Component.literal(playerName + " 的玩偶");
-            setMethod.invoke(builder, 
-                net.minecraft.core.component.DataComponents.CUSTOM_NAME, 
-                customName);
+            // 注意：不设置 CUSTOM_NAME，名称由 CustomTextureDollItem.getName() 从NBT读取
+            // DisplayName 已保存到 NBT 的 EntityData.DisplayName 中
             
             dollItem.applyComponents(builder.build());
             
@@ -456,12 +448,8 @@ public class DollSkinCommand {
                     net.minecraft.core.component.DataComponentType.class, Object.class);
                 setMethod.invoke(dollItem, net.minecraft.core.component.DataComponents.CUSTOM_DATA, customData);
                 
-                // 设置物品自定义名称（显示玩家名称）
-                // 格式："[玩家名] 的玩偶"
-                Component customName = Component.literal(playerName + " 的玩偶");
-                setMethod.invoke(dollItem, 
-                    net.minecraft.core.component.DataComponents.CUSTOM_NAME, 
-                    customName);
+                // 注意：不设置 CUSTOM_NAME，名称由 CustomTextureDollItem.getName() 从NBT读取
+                // DisplayName 已保存到 NBT 的 EntityData.DisplayName 中
                 
                 // 验证备用方法是否成功
                 var verifyCustomData = dollItem.get(net.minecraft.core.component.DataComponents.CUSTOM_DATA);
