@@ -203,9 +203,10 @@ public class PlayerSkinDownloader {
             URL url = new URL(urlString);
             HttpURLConnection connection = (HttpURLConnection) url.openConnection();
             connection.setRequestMethod("GET");
-            connection.setConnectTimeout(3000); // 减少连接超时时间
-            connection.setReadTimeout(10000); // 读取超时时间稍长一些
+            connection.setConnectTimeout(2000); // 减少连接超时时间到2秒
+            connection.setReadTimeout(5000); // 减少读取超时时间到5秒
             connection.setRequestProperty("User-Agent", "Minecraft-PlayerDoll-Mod/1.0");
+            connection.setInstanceFollowRedirects(true); // 允许重定向
             
             int responseCode = connection.getResponseCode();
             if (responseCode != HttpURLConnection.HTTP_OK) {
@@ -284,9 +285,10 @@ public class PlayerSkinDownloader {
             URL url = new URL(urlString);
             HttpURLConnection connection = (HttpURLConnection) url.openConnection();
             connection.setRequestMethod("GET");
-            connection.setConnectTimeout(3000); // 减少连接超时时间
-            connection.setReadTimeout(15000); // 图像下载可能需要更长时间
+            connection.setConnectTimeout(2000); // 减少连接超时时间到2秒
+            connection.setReadTimeout(8000); // 减少读取超时时间到8秒（图像下载）
             connection.setRequestProperty("User-Agent", "Minecraft-PlayerDoll-Mod/1.0");
+            connection.setInstanceFollowRedirects(true); // 允许重定向
             
             int responseCode = connection.getResponseCode();
             if (responseCode != HttpURLConnection.HTTP_OK) {

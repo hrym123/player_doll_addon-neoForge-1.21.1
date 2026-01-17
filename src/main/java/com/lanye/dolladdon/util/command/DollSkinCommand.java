@@ -188,7 +188,14 @@ public class DollSkinCommand {
             // 异步下载并保存皮肤，避免阻塞服务器主线程
             source.sendSuccess(() -> Component.literal("§7[玩偶皮肤] 正在下载皮肤文件（异步执行，请稍候...）"), false);
             
-            // 使用服务器的工作线程池异步执行下载任务
+            // 使用独立的线程池异步执行下载任务，避免占用服务器线程池
+            // 创建专用的下载线程池（单线程，避免过多并发下载）
+            java.util.concurrent.ExecutorService downloadExecutor = java.util.concurrent.Executors.newSingleThreadExecutor(r -> {
+                Thread thread = new Thread(r, "PlayerDoll-SkinDownloader");
+                thread.setDaemon(true); // 设置为守护线程，不会阻止JVM退出
+                return thread;
+            });
+            
             // 注意：使用 final 变量以确保 lambda 表达式可以正确捕获
             java.util.concurrent.CompletableFuture.supplyAsync(() -> {
                 // 如果文件已存在，先备份原文件到备份目录
@@ -285,7 +292,7 @@ public class DollSkinCommand {
                     targetPath, 
                     true // 允许覆盖（已备份原文件）
                 );
-            }, source.getServer()).thenAcceptAsync(result -> {
+            }, downloadExecutor).thenAcceptAsync(result -> {
                 // 在主线程中发送结果消息
                 if (result.isSuccess()) {
                     source.sendSuccess(() -> Component.literal("§a[玩偶皮肤] ✓ 皮肤文件已保存: §e" + fileName), true);
@@ -410,7 +417,11 @@ public class DollSkinCommand {
                     source.sendFailure(Component.literal(errorMsg));
                     source.sendFailure(Component.literal("§7[玩偶皮肤] 提示: 请检查网络连接或玩家皮肤服务是否可用"));
                 }
-            }, source.getServer());
+            }, source.getServer()).whenComplete((result, throwable) -> {
+                // 任务完成后关闭线程池（如果不再需要）
+                // 注意：这里不关闭线程池，因为可能还有后续的下载任务
+                // 线程池会在JVM退出时自动关闭（因为是守护线程）
+            });
             
             // 立即返回，不等待下载完成
             return 1;
