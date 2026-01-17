@@ -28,8 +28,27 @@ public class CustomTextureDollItemRenderer extends BaseDollItemRenderer {
         // 这会导致无限递归！
         // getSkinLocation() 已经在基类中处理了从NBT读取皮肤路径的逻辑
         
-        // 如果 getSkinLocation() 返回 null（NBT中没有皮肤路径），这里返回默认纹理
-        // 使用Steve默认皮肤作为回退
-        return com.lanye.dolladdon.util.resource.PlayerSkinUtil.getSteveSkin();
+        // 从物品NBT读取模型类型，根据模型类型返回对应的默认纹理
+        boolean isAlex = false;
+        try {
+            var customData = stack.get(net.minecraft.core.component.DataComponents.CUSTOM_DATA);
+            if (customData != null) {
+                var dataTag = customData.copyTag();
+                if (dataTag != null && dataTag.contains("EntityData")) {
+                    net.minecraft.nbt.CompoundTag entityTag = dataTag.getCompound("EntityData");
+                    if (entityTag.contains("IsAlexModel", net.minecraft.nbt.Tag.TAG_BYTE)) {
+                        isAlex = entityTag.getBoolean("IsAlexModel");
+                    }
+                }
+            }
+        } catch (Exception e) {
+            // 忽略异常，使用默认值
+        }
+        
+        if (isAlex) {
+            return com.lanye.dolladdon.util.resource.PlayerSkinUtil.getAlexSkin();
+        } else {
+            return com.lanye.dolladdon.util.resource.PlayerSkinUtil.getSteveSkin();
+        }
     }
 }

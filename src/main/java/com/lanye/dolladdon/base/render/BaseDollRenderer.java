@@ -75,15 +75,54 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
                 return getDefaultTexture(entity);
             }
             
-            // 对于动态资源包中的纹理，即使textureExists返回false也尝试使用
-            // 因为动态资源包可能在某些情况下无法通过资源管理器检测到
-            // 但实际渲染时可能可以加载（通过DynamicResourcePack.getResource）
-            // 先检查是否是动态资源包路径（png/或textures/entity/开头的路径）
+            // 对于动态资源包中的纹理，需要检查文件是否实际存在
             if (texture.getPath().startsWith("png/") || texture.getPath().startsWith("textures/entity/")) {
-                // 对于动态资源包路径，直接返回，让渲染系统尝试加载
-                // 如果加载失败，Minecraft会自动回退到默认纹理或显示错误纹理
-                // 不检查textureExists，因为动态资源包可能无法通过资源管理器检测到
-                return texture;
+                // 优先通过 DynamicTextureManager 检查文件路径
+                java.nio.file.Path texturePath = com.lanye.dolladdon.util.neoForge.DynamicTextureManager.getTexturePath(texture);
+                if (texturePath != null && java.nio.file.Files.exists(texturePath) && java.nio.file.Files.isRegularFile(texturePath)) {
+                    // 文件存在，返回纹理位置
+                    return texture;
+                }
+                
+                // 如果 DynamicTextureManager 中没有，尝试从文件系统直接检查（向后兼容）
+                // 对于 png/ 路径，尝试从 player_doll/png 目录加载
+                if (texture.getPath().startsWith("png/")) {
+                    String fileName = texture.getPath().substring(4); // 移除 "png/" 前缀
+                    try {
+                        // 使用反射获取游戏目录（兼容开发环境和生产环境）
+                        java.nio.file.Path gameDir;
+                        try {
+                            Class<?> fmlPathsClass = Class.forName("net.neoforged.fml.loading.FMLPaths");
+                            java.lang.reflect.Method gameDirMethod = fmlPathsClass.getMethod("getGamePath");
+                            gameDir = (java.nio.file.Path) gameDirMethod.invoke(null);
+                        } catch (Exception e) {
+                            // 如果反射失败，尝试从 Minecraft 实例获取
+                            var minecraft = net.minecraft.client.Minecraft.getInstance();
+                            if (minecraft != null && minecraft.gameDirectory != null) {
+                                gameDir = minecraft.gameDirectory.toPath();
+                            } else {
+                                gameDir = java.nio.file.Paths.get(".").toAbsolutePath().normalize();
+                            }
+                        }
+                        
+                        java.nio.file.Path pngDir = gameDir.resolve("player_doll/png");
+                        java.nio.file.Path filePath = pngDir.resolve(fileName);
+                        if (java.nio.file.Files.exists(filePath) && java.nio.file.Files.isRegularFile(filePath)) {
+                            // 文件存在，返回纹理位置（DynamicResourcePack 会处理加载）
+                            return texture;
+                        }
+                    } catch (Exception e) {
+                        // 忽略异常，继续检查
+                    }
+                }
+                
+                // 如果都找不到，根据模型类型回退到对应的默认纹理
+                boolean isAlex = entity.isAlexModel();
+                if (isAlex) {
+                    return com.lanye.dolladdon.util.resource.PlayerSkinUtil.getAlexSkin();
+                } else {
+                    return com.lanye.dolladdon.util.resource.PlayerSkinUtil.getSteveSkin();
+                }
             }
             
             // 对于其他路径（如默认纹理），验证纹理是否存在
@@ -91,12 +130,22 @@ public abstract class BaseDollRenderer<T extends BaseDollEntity> extends EntityR
             if (exists) {
                 return texture;
             }
-            // 如果纹理不存在，回退到默认纹理
+            // 如果纹理不存在，根据模型类型回退到对应的默认纹理
+            boolean isAlex = entity.isAlexModel();
+            if (isAlex) {
+                return com.lanye.dolladdon.util.resource.PlayerSkinUtil.getAlexSkin();
+            } else {
+                return com.lanye.dolladdon.util.resource.PlayerSkinUtil.getSteveSkin();
+            }
         }
         
-        // 回退到默认纹理（由子类实现）
-        // Logging handled by Mixin
-        return getDefaultTexture(entity);
+        // 回退到默认纹理（根据模型类型）
+        boolean isAlex = entity.isAlexModel();
+        if (isAlex) {
+            return com.lanye.dolladdon.util.resource.PlayerSkinUtil.getAlexSkin();
+        } else {
+            return com.lanye.dolladdon.util.resource.PlayerSkinUtil.getSteveSkin();
+        }
     }
     
     /**

@@ -130,25 +130,42 @@ public abstract class BaseDollItemRenderer extends BlockEntityWithoutLevelRender
                             }
                         }
                         
-                        // 如果都找不到，回退到默认纹理
+                        // 如果都找不到，根据模型类型回退到对应的默认纹理
+                        boolean isAlex = getIsAlexModelFromNBT(stack);
                         com.lanye.dolladdon.util.logging.ModuleLogger.debug(
                             com.lanye.dolladdon.util.logging.LogModuleConfig.MODULE_RENDER,
-                            "getSkinLocation: 纹理未找到，使用默认纹理: {}",
-                            texture
+                            "getSkinLocation: 纹理未找到，根据模型类型回退到默认纹理: {} (isAlex: {})",
+                            texture, isAlex
                         );
-                        return getDefaultTexture(stack);
+                        if (isAlex) {
+                            return com.lanye.dolladdon.util.resource.PlayerSkinUtil.getAlexSkin();
+                        } else {
+                            return com.lanye.dolladdon.util.resource.PlayerSkinUtil.getSteveSkin();
+                        }
                     }
                     
                     // 对于其他路径（如默认纹理），验证纹理是否存在
                     if (textureExists(texture)) {
                         return texture;
                     }
+                    // 如果纹理不存在，根据模型类型回退到对应的默认纹理
+                    boolean isAlex = getIsAlexModelFromNBT(stack);
+                    if (isAlex) {
+                        return com.lanye.dolladdon.util.resource.PlayerSkinUtil.getAlexSkin();
+                    } else {
+                        return com.lanye.dolladdon.util.resource.PlayerSkinUtil.getSteveSkin();
+                    }
                 }
             }
         }
         
-        // 回退到默认纹理（由子类实现）
-        return getDefaultTexture(stack);
+        // 回退到默认纹理（根据模型类型）
+        boolean isAlex = getIsAlexModelFromNBT(stack);
+        if (isAlex) {
+            return com.lanye.dolladdon.util.resource.PlayerSkinUtil.getAlexSkin();
+        } else {
+            return com.lanye.dolladdon.util.resource.PlayerSkinUtil.getSteveSkin();
+        }
     }
     
     /**
@@ -157,6 +174,29 @@ public abstract class BaseDollItemRenderer extends BlockEntityWithoutLevelRender
      * @return 默认纹理位置
      */
     protected abstract ResourceLocation getDefaultTexture(ItemStack stack);
+    
+    /**
+     * 从物品NBT读取模型类型（IsAlexModel）
+     * @param stack 物品堆
+     * @return true表示Alex模型（细手臂），false表示Steve模型（粗手臂）
+     */
+    private boolean getIsAlexModelFromNBT(ItemStack stack) {
+        try {
+            var customData = stack.get(net.minecraft.core.component.DataComponents.CUSTOM_DATA);
+            if (customData != null) {
+                var dataTag = customData.copyTag();
+                if (dataTag != null && dataTag.contains("EntityData")) {
+                    net.minecraft.nbt.CompoundTag entityTag = dataTag.getCompound("EntityData");
+                    if (entityTag.contains("IsAlexModel", net.minecraft.nbt.Tag.TAG_BYTE)) {
+                        return entityTag.getBoolean("IsAlexModel");
+                    }
+                }
+            }
+        } catch (Exception e) {
+            // 忽略异常，返回默认值
+        }
+        return false; // 默认粗手臂（Steve模型）
+    }
     
     /**
      * 验证纹理是否存在

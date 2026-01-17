@@ -109,8 +109,12 @@ public class CustomTextureDollRenderer extends BaseDollRenderer<CustomTextureDol
         // 这会导致无限递归！
         // getSkinLocation() 已经在基类中处理了从NBT读取皮肤路径的逻辑
         
-        // 如果 getSkinLocation() 返回 null（NBT中没有皮肤路径），这里返回默认纹理
-        // 使用Steve默认皮肤作为回退
-        return com.lanye.dolladdon.util.resource.PlayerSkinUtil.getSteveSkin();
+        // 根据实体的模型类型返回对应的默认纹理
+        boolean isAlex = entity.isAlexModel();
+        if (isAlex) {
+            return com.lanye.dolladdon.util.resource.PlayerSkinUtil.getAlexSkin();
+        } else {
+            return com.lanye.dolladdon.util.resource.PlayerSkinUtil.getSteveSkin();
+        }
     }
 }
