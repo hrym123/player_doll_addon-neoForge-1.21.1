@@ -5,7 +5,7 @@
   "looping": false,
   "keyframes": [
     {
-      "tick": 5,
+      "tick": 10,
       "pose": "standing"
     },
     {
@@ -13,7 +13,7 @@
       "pose": "wave_up"
     },
     {
-      "tick": 5,
+      "tick": 10,
       "pose": "standing"
     }
   ]
