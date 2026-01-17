@@ -4,19 +4,15 @@ import com.lanye.dolladdon.client.ActionDebugStickHandler;
 import com.lanye.dolladdon.client.PoseDebugStickHandler;
 import com.lanye.dolladdon.compat.skinlayers3d.Doll3DSkinUtil;
 import com.lanye.dolladdon.compat.skinlayers3d.SkinLayersDetector;
-import com.lanye.dolladdon.dynamic.render.DynamicDollRenderer;
-import com.lanye.dolladdon.impl.entity.CustomTextureDollEntity;
 import com.lanye.dolladdon.impl.item.ActionDebugStick;
 import com.lanye.dolladdon.impl.item.PoseDebugStick;
 import com.lanye.dolladdon.impl.render.AlexDollRenderer;
 import com.lanye.dolladdon.impl.render.CustomTextureDollRenderer;
 import com.lanye.dolladdon.impl.render.SteveDollRenderer;
 import com.lanye.dolladdon.init.ModEntities;
-import com.lanye.dolladdon.util.neoForge.DynamicDollLoader;
 import com.lanye.dolladdon.util.neoForge.DynamicResourcePack;
 import com.lanye.dolladdon.util.pose.PoseActionManager;
 import com.lanye.dolladdon.util.resource.ExternalTextureLoader;
-import com.lanye.dolladdon.util.resource.PngTextureScanner;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.ResourceLocation;
@@ -28,7 +24,6 @@ import net.minecraft.server.packs.PackSelectionConfig;
 import net.minecraft.world.flag.FeatureFlagSet;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.event.AddPackFindersEvent;
@@ -76,27 +71,6 @@ public class PlayerDollClient {
         
         // 注册自定义纹理玩偶实体渲染器（统一渲染器，从NBT读取皮肤路径和模型类型）
         event.registerEntityRenderer(ModEntities.CUSTOM_TEXTURE_DOLL.get(), CustomTextureDollRenderer::new);
-        
-        // 注意：不再注册 DynamicDoll 渲染器，因为已经不再注册 DynamicDoll 实体
-        // 所有动态玩偶都使用统一的 CustomTextureDollEntity 和 CustomTextureDollRenderer
-        // 皮肤路径和模型类型通过NBT存储
-        /*
-        // 注册动态玩偶实体渲染器（已废弃）
-        var dollInfos = DynamicDollLoader.scanDirectory(PlayerDoll.PNG_DIR);
-        for (var dollInfo : dollInfos) {
-            var entityHolder = ModEntities.DYNAMIC_DOLLS.get(dollInfo.getFileName());
-            if (entityHolder != null) {
-                event.registerEntityRenderer(
-                    entityHolder.get(),
-                    context -> new DynamicDollRenderer(
-                        context,
-                        dollInfo.getTextureLocation(),
-                        dollInfo.isAlexModel()
-                    )
-                );
-            }
-        }
-        */
     }
     
     /**
@@ -154,8 +128,7 @@ public class PlayerDollClient {
                     packConsumer.accept(pack);
                 });
             } catch (Exception e) {
-                // Error logging handled by Mixin
-                e.printStackTrace();
+                // Error logging handled by error handler
             }
         }
     }

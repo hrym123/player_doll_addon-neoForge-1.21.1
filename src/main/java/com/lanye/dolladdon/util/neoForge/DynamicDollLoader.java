@@ -96,9 +96,35 @@ public class DynamicDollLoader {
             }
             
             // 扫描PNG文件
+            // 注意：Files.walk() 会递归遍历所有子目录，所以需要排除 backup 目录
             try (Stream<Path> paths = Files.walk(targetDir)) {
                 paths.filter(Files::isRegularFile)
                      .filter(path -> path.toString().toLowerCase().endsWith(".png"))
+                     .filter(path -> {
+                         // 排除 backup 目录下的文件（检查父目录名称）
+                         Path parent = path.getParent();
+                         if (parent != null) {
+                             String parentName = parent.getFileName().toString();
+                             if (parentName.equalsIgnoreCase("backup")) {
+                                 return false; // 在 backup 目录中，跳过
+                             }
+                         }
+                         
+                         // 确保文件在 targetDir 的直接子目录中（不是子目录的子目录）
+                         // 通过计算相对路径来判断
+                         try {
+                             Path relativePath = targetDir.relativize(path);
+                             // 如果相对路径包含路径分隔符，说明文件在子目录中
+                             if (relativePath.getNameCount() > 1) {
+                                 return false; // 文件在子目录中，跳过（只处理 targetDir 直接子文件）
+                             }
+                         } catch (IllegalArgumentException e) {
+                             // 如果无法计算相对路径，说明文件不在 targetDir 下，跳过
+                             return false;
+                         }
+                         
+                         return true;
+                     })
                      .forEach(path -> {
                          try {
                              DollInfo info = parseDollFile(path, targetDir);

@@ -106,10 +106,35 @@ public class DynamicTextureManager {
             try (var stream = java.nio.file.Files.list(pngDir)) {
                 stream.filter(java.nio.file.Files::isRegularFile)
                       .filter(path -> path.toString().toLowerCase().endsWith(".png"))
-                      // 排除 backup 目录下的文件（检查整个路径是否包含 backup）
+                      // 排除 backup 目录下的文件
+                      // 同时确保文件在 pngDir 的直接子目录中，不在子目录的子目录中
                       .filter(path -> {
-                          String pathStr = path.toString().replace('\\', '/');
-                          return !pathStr.toLowerCase().contains("/backup/");
+                          // 获取文件的父目录
+                          java.nio.file.Path parent = path.getParent();
+                          if (parent == null) {
+                              return false; // 没有父目录，跳过
+                          }
+                          
+                          // 检查父目录名称是否为 backup（不区分大小写）
+                          String parentName = parent.getFileName().toString();
+                          if (parentName.equalsIgnoreCase("backup")) {
+                              return false; // 在 backup 目录中，跳过
+                          }
+                          
+                          // 确保文件在 pngDir 的直接子目录中（不是子目录的子目录）
+                          // 通过比较父目录和 pngDir 来判断
+                          try {
+                              java.nio.file.Path relativePath = pngDir.relativize(path);
+                              // 如果相对路径包含路径分隔符，说明文件在子目录中
+                              if (relativePath.getNameCount() > 1) {
+                                  return false; // 文件在子目录中，跳过（只处理 pngDir 直接子文件）
+                              }
+                          } catch (IllegalArgumentException e) {
+                              // 如果无法计算相对路径，说明文件不在 pngDir 下，跳过
+                              return false;
+                          }
+                          
+                          return true;
                       })
                       .forEach(pngFile -> {
                           try {

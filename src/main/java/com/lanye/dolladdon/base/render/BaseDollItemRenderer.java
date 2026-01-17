@@ -56,7 +56,90 @@ public abstract class BaseDollItemRenderer extends BlockEntityWithoutLevelRender
                         return getDefaultTexture(stack);
                     }
                     
-                    // 验证纹理是否存在
+                    // 对于动态资源包路径（png/或textures/entity/开头），需要检查文件是否实际存在
+                    if (texture.getPath().startsWith("png/") || texture.getPath().startsWith("textures/entity/")) {
+                        com.lanye.dolladdon.util.logging.ModuleLogger.debug(
+                            com.lanye.dolladdon.util.logging.LogModuleConfig.MODULE_RENDER,
+                            "getSkinLocation: 查找纹理: {}",
+                            texture
+                        );
+                        
+                        // 优先通过 DynamicTextureManager 检查文件路径
+                        java.nio.file.Path texturePath = com.lanye.dolladdon.util.neoForge.DynamicTextureManager.getTexturePath(texture);
+                        if (texturePath != null && java.nio.file.Files.exists(texturePath) && java.nio.file.Files.isRegularFile(texturePath)) {
+                            // 文件存在，返回纹理位置
+                            com.lanye.dolladdon.util.logging.ModuleLogger.debug(
+                                com.lanye.dolladdon.util.logging.LogModuleConfig.MODULE_RENDER,
+                                "getSkinLocation: 通过DynamicTextureManager找到纹理: {} -> {}",
+                                texture, texturePath
+                            );
+                            return texture;
+                        } else {
+                            com.lanye.dolladdon.util.logging.ModuleLogger.debug(
+                                com.lanye.dolladdon.util.logging.LogModuleConfig.MODULE_RENDER,
+                                "getSkinLocation: DynamicTextureManager中未找到纹理: {} (路径: {})",
+                                texture, texturePath
+                            );
+                        }
+                        
+                        // 如果 DynamicTextureManager 中没有，尝试从文件系统直接检查（向后兼容）
+                        // 对于 png/ 路径，尝试从 player_doll/png 目录加载
+                        if (texture.getPath().startsWith("png/")) {
+                            String fileName = texture.getPath().substring(4); // 移除 "png/" 前缀
+                            try {
+                                // 使用反射获取游戏目录（兼容开发环境和生产环境）
+                                java.nio.file.Path gameDir;
+                                try {
+                                    Class<?> fmlPathsClass = Class.forName("net.neoforged.fml.loading.FMLPaths");
+                                    java.lang.reflect.Method gameDirMethod = fmlPathsClass.getMethod("getGamePath");
+                                    gameDir = (java.nio.file.Path) gameDirMethod.invoke(null);
+                                } catch (Exception e) {
+                                    // 如果反射失败，尝试从 Minecraft 实例获取
+                                    var minecraft = net.minecraft.client.Minecraft.getInstance();
+                                    if (minecraft != null && minecraft.gameDirectory != null) {
+                                        gameDir = minecraft.gameDirectory.toPath();
+                                    } else {
+                                        gameDir = java.nio.file.Paths.get(".").toAbsolutePath().normalize();
+                                    }
+                                }
+                                
+                                java.nio.file.Path pngDir = gameDir.resolve("player_doll/png");
+                                java.nio.file.Path filePath = pngDir.resolve(fileName);
+                                if (java.nio.file.Files.exists(filePath) && java.nio.file.Files.isRegularFile(filePath)) {
+                                    // 文件存在，返回纹理位置（DynamicResourcePack 会处理加载）
+                                    com.lanye.dolladdon.util.logging.ModuleLogger.debug(
+                                        com.lanye.dolladdon.util.logging.LogModuleConfig.MODULE_RENDER,
+                                        "getSkinLocation: 通过文件系统找到纹理: {} -> {}",
+                                        texture, filePath
+                                    );
+                                    return texture;
+                                } else {
+                                    com.lanye.dolladdon.util.logging.ModuleLogger.debug(
+                                        com.lanye.dolladdon.util.logging.LogModuleConfig.MODULE_RENDER,
+                                        "getSkinLocation: 文件系统中未找到纹理: {} (路径: {})",
+                                        texture, filePath
+                                    );
+                                }
+                            } catch (Exception e) {
+                                // 记录异常但不影响流程
+                                com.lanye.dolladdon.util.logging.ModuleLogger.warn(
+                                    com.lanye.dolladdon.util.logging.LogModuleConfig.MODULE_RENDER,
+                                    "getSkinLocation: 检查文件系统纹理时发生异常: {}",
+                                    e.getMessage()
+                                );
+                            }
+                        }
+                        
+                        // 如果都找不到，回退到默认纹理
+                        com.lanye.dolladdon.util.logging.ModuleLogger.debug(
+                            com.lanye.dolladdon.util.logging.LogModuleConfig.MODULE_RENDER,
+                            "getSkinLocation: 纹理未找到，使用默认纹理: {}",
+                            texture
+                        );
+                        return getDefaultTexture(stack);
+                    }
+                    
+                    // 对于其他路径（如默认纹理），验证纹理是否存在
                     if (textureExists(texture)) {
                         return texture;
                     }

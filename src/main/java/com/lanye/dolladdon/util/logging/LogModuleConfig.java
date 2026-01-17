@@ -69,27 +69,31 @@ public class LogModuleConfig {
     /** 工厂模块 - 玩偶物品工厂 */
     public static final String MODULE_FACTORY = "factory";
     
+    /** 资源包模块 - 动态资源包 */
+    public static final String MODULE_RESOURCE_PACK = "resource_pack";
+    
     // ==================== 默认日志级别配置 ====================
     // 注意：修改这里的级别即可控制对应模块的日志输出
     // 设置为 LogLevel.OFF 即可完全禁用该模块的日志
     
-    private static final LogLevel LEVEL_MAIN = LogLevel.WARN;  // 主模块日志级别
-    private static final LogLevel LEVEL_ENTITY = LogLevel.WARN;  // 实体基础模块日志级别
-    private static final LogLevel LEVEL_ENTITY_INTERACT = LogLevel.DEBUG;  // 实体交互模块日志级别，当前正在调试交互问题
-    private static final LogLevel LEVEL_ENTITY_POSE = LogLevel.WARN;  // 实体姿态模块日志级别
-    private static final LogLevel LEVEL_ENTITY_ACTION = LogLevel.DEBUG;  // 实体动作模块日志级别，当前正在调试动作问题
-    private static final LogLevel LEVEL_ENTITY_NBT = LogLevel.DEBUG;  // 实体NBT模块日志级别，当前正在调试皮肤问题
-    private static final LogLevel LEVEL_RENDER = LogLevel.DEBUG;  // 渲染模块日志级别，当前正在调试皮肤问题
-    private static final LogLevel LEVEL_3D_SKIN_LAYERS = LogLevel.WARN;  // 3D皮肤层模块日志级别
-    private static final LogLevel LEVEL_RESOURCE = LogLevel.DEBUG;  // 资源管理模块日志级别，当前正在调试皮肤问题
-    private static final LogLevel LEVEL_POSE_LOADER = LogLevel.WARN;  // 姿态加载器模块日志级别
-    private static final LogLevel LEVEL_ACTION_LOADER = LogLevel.WARN;  // 动作加载器模块日志级别，改为 OFF 可一键关闭所有动作加载日志
-    private static final LogLevel LEVEL_RESOURCE_GENERATOR = LogLevel.WARN;  // 资源生成器模块日志级别
-    private static final LogLevel LEVEL_TEXTURE_SCANNER = LogLevel.WARN;  // 纹理扫描器模块日志级别
-    private static final LogLevel LEVEL_DEBUG_STICK_ACTION = LogLevel.DEBUG;  // 动作调试棒模块日志级别，当前正在调试的模块
-    private static final LogLevel LEVEL_DEBUG_STICK_POSE = LogLevel.WARN;  // 姿态调试棒模块日志级别
-    private static final LogLevel LEVEL_COMMAND = LogLevel.DEBUG;  // 命令模块日志级别，当前正在调试皮肤问题
-    private static final LogLevel LEVEL_FACTORY = LogLevel.WARN;  // 工厂模块日志级别
+    private static final LogLevel LEVEL_MAIN = LogLevel.WARN;  // 主模块
+    private static final LogLevel LEVEL_ENTITY = LogLevel.WARN;  // 实体基础模块
+    private static final LogLevel LEVEL_ENTITY_INTERACT = LogLevel.WARN;  // 实体交互模块
+    private static final LogLevel LEVEL_ENTITY_POSE = LogLevel.WARN;  // 实体姿态模块
+    private static final LogLevel LEVEL_ENTITY_ACTION = LogLevel.WARN;  // 实体动作模块
+    private static final LogLevel LEVEL_ENTITY_NBT = LogLevel.DEBUG;  // 实体NBT模块，当前正在调试问题019
+    private static final LogLevel LEVEL_RENDER = LogLevel.DEBUG;  // 渲染模块，当前正在调试问题019
+    private static final LogLevel LEVEL_3D_SKIN_LAYERS = LogLevel.WARN;  // 3D皮肤层模块
+    private static final LogLevel LEVEL_RESOURCE = LogLevel.DEBUG;  // 资源管理模块，当前正在调试问题019
+    private static final LogLevel LEVEL_POSE_LOADER = LogLevel.WARN;  // 姿态加载器模块
+    private static final LogLevel LEVEL_ACTION_LOADER = LogLevel.WARN;  // 动作加载器模块，改为 OFF 可一键关闭所有动作加载日志
+    private static final LogLevel LEVEL_RESOURCE_GENERATOR = LogLevel.WARN;  // 资源生成器模块
+    private static final LogLevel LEVEL_TEXTURE_SCANNER = LogLevel.WARN;  // 纹理扫描器模块
+    private static final LogLevel LEVEL_DEBUG_STICK_ACTION = LogLevel.WARN;  // 动作调试棒模块
+    private static final LogLevel LEVEL_DEBUG_STICK_POSE = LogLevel.WARN;  // 姿态调试棒模块
+    private static final LogLevel LEVEL_COMMAND = LogLevel.DEBUG;  // 命令模块，当前正在调试问题019
+    private static final LogLevel LEVEL_FACTORY = LogLevel.WARN;  // 工厂模块
+    private static final LogLevel LEVEL_RESOURCE_PACK = LogLevel.DEBUG;  // 资源包模块，当前正在调试问题019
     
     // ==================== 日志模板配置 ====================
     
@@ -110,6 +114,7 @@ public class LogModuleConfig {
     private static final String TEMPLATE_DEBUG_STICK_POSE = "[姿态调试棒] {}";
     private static final String TEMPLATE_COMMAND = "[命令] {}";
     private static final String TEMPLATE_FACTORY = "[工厂] {}";
+    private static final String TEMPLATE_RESOURCE_PACK = "[资源包] {}";
     
     // ==================== 配置读取方法 ====================
     
@@ -137,6 +142,7 @@ public class LogModuleConfig {
             case MODULE_DEBUG_STICK_POSE -> LEVEL_DEBUG_STICK_POSE;
             case MODULE_COMMAND -> LEVEL_COMMAND;
             case MODULE_FACTORY -> LEVEL_FACTORY;
+            case MODULE_RESOURCE_PACK -> LEVEL_RESOURCE_PACK;
             default -> LogLevel.WARN;  // 默认返回 WARN
         };
     }
@@ -165,6 +171,7 @@ public class LogModuleConfig {
             case MODULE_DEBUG_STICK_POSE -> TEMPLATE_DEBUG_STICK_POSE;
             case MODULE_COMMAND -> TEMPLATE_COMMAND;
             case MODULE_FACTORY -> TEMPLATE_FACTORY;
+            case MODULE_RESOURCE_PACK -> TEMPLATE_RESOURCE_PACK;
             default -> "[{}] {}";  // 默认模板
         };
     }

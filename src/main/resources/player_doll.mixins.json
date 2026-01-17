@@ -9,15 +9,12 @@
     "logging.BaseDollEntityMixin",
     "logging.BaseDollItemMixin",
     "logging.DollSkinCommandMixin",
+    "logging.DynamicTextureManagerMixin",
     "logging.PlayerDollAddonMixin",
-    "logging.PlayerDollAddonEventMixin"
+    "logging.PlayerDollAddonEventMixin",
+    "logging.PngTextureScannerMixin"
   ],
-  "client": [
-    "logging.BaseDollRendererMixin",
-    "logging.DynamicResourcePackMixin",
-    "logging.PlayerDollClientMixin",
-    "logging.DynamicTextureManagerMixin"
-  ],
+  "client": [],
   "server": [],
   "injectors": {
     "defaultRequire": 1

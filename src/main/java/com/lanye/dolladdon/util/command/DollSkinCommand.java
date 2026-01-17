@@ -1,31 +1,25 @@
 package com.lanye.dolladdon.util.command;
 
-import com.lanye.dolladdon.PlayerDoll;
-import com.lanye.dolladdon.init.ModItems;
 import com.lanye.dolladdon.util.factory.DollItemFactory;
-import com.lanye.dolladdon.util.neoForge.DynamicDollLoader;
-import com.lanye.dolladdon.util.neoForge.DynamicModelGenerator;
 import com.lanye.dolladdon.util.neoForge.DynamicTextureManager;
 import com.lanye.dolladdon.util.resource.PlayerSkinDownloader;
 import com.lanye.dolladdon.util.resource.SkinFileNamingUtil;
-import net.minecraft.resources.ResourceLocation;
-import java.util.stream.Stream;
-import net.minecraft.world.item.ItemStack;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
 import com.mojang.brigadier.suggestion.Suggestions;
-import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import net.minecraft.commands.CommandBuildContext;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.item.ItemStack;
 
 import java.nio.file.Path;
-import java.util.concurrent.CompletableFuture;
+import java.util.stream.Stream;
 
 /**
  * 玩偶皮肤指令
@@ -198,6 +192,8 @@ public class DollSkinCommand {
             java.util.concurrent.CompletableFuture.supplyAsync(() -> {
                 // 如果文件已存在，先备份原文件到备份目录
                 if (fileExists && java.nio.file.Files.exists(targetPath)) {
+                    // 在 try 块外部声明变量，以便在 catch 块中访问
+                    Path backupPath = null;
                     try {
                         // 创建备份目录（如果不存在）
                         Path backupDir = pngDir.resolve("backup");
@@ -214,23 +210,71 @@ public class DollSkinCommand {
                         String timestamp = java.time.LocalDateTime.now().format(
                             java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")
                         );
-                        String backupFileName = fileName.substring(0, fileName.length() - 4) + "_backup_" + timestamp + ".png";
-                        Path backupPath = backupDir.resolve(backupFileName);
+                        
+                        // 安全地移除 .png 扩展名
+                        String baseFileName = fileName;
+                        if (baseFileName.toLowerCase().endsWith(".png")) {
+                            baseFileName = baseFileName.substring(0, baseFileName.length() - 4);
+                        }
+                        String backupFileName = baseFileName + "_backup_" + timestamp + ".png";
+                        backupPath = backupDir.resolve(backupFileName);
+                        
+                        // 如果备份文件已存在（虽然不太可能，因为使用了时间戳），添加序号
+                        int counter = 1;
+                        while (java.nio.file.Files.exists(backupPath)) {
+                            backupFileName = baseFileName + "_backup_" + timestamp + "_" + counter + ".png";
+                            backupPath = backupDir.resolve(backupFileName);
+                            counter++;
+                        }
                         
                         // 将原文件移动到备份目录
-                        java.nio.file.Files.move(targetPath, backupPath, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                        // 使用 copy + delete 而不是 move，因为 move 在某些情况下可能失败（如文件被占用）
+                        java.nio.file.Files.copy(targetPath, backupPath, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                        java.nio.file.Files.delete(targetPath);
                         
                         com.lanye.dolladdon.util.logging.ModuleLogger.debug(
                             com.lanye.dolladdon.util.logging.LogModuleConfig.MODULE_COMMAND,
                             "execute: 已备份原文件到备份目录: {} -> {}",
                             fileName, backupPath
                         );
-                    } catch (Exception e) {
+                    } catch (java.nio.file.FileAlreadyExistsException e) {
+                        // 备份文件已存在（虽然不太可能），记录警告但继续
                         com.lanye.dolladdon.util.logging.ModuleLogger.warn(
                             com.lanye.dolladdon.util.logging.LogModuleConfig.MODULE_COMMAND,
-                            "execute: 备份文件失败: {}",
+                            "execute: 备份文件已存在，跳过备份: {}",
+                            backupPath != null ? backupPath : "未知路径"
+                        );
+                    } catch (java.nio.file.NoSuchFileException e) {
+                        // 原文件不存在（可能已被删除），记录警告但继续
+                        com.lanye.dolladdon.util.logging.ModuleLogger.warn(
+                            com.lanye.dolladdon.util.logging.LogModuleConfig.MODULE_COMMAND,
+                            "execute: 原文件不存在，跳过备份: {}",
+                            targetPath
+                        );
+                    } catch (java.io.IOException e) {
+                        // IO错误（如文件被占用、权限问题等），记录错误
+                        com.lanye.dolladdon.util.logging.ModuleLogger.error(
+                            com.lanye.dolladdon.util.logging.LogModuleConfig.MODULE_COMMAND,
+                            "execute: 备份文件失败（IO错误）: {} -> {}，错误: {}",
+                            targetPath, backupPath != null ? backupPath : "未知路径", e.getMessage(), e
+                        );
+                        // 在主线程中发送错误消息给用户
+                        source.getServer().execute(() -> {
+                            source.sendFailure(Component.literal("§c[玩偶皮肤] 备份原文件失败: " + e.getMessage()));
+                            source.sendFailure(Component.literal("§7提示: 原文件可能被占用或权限不足，将尝试直接覆盖"));
+                        });
+                    } catch (Exception e) {
+                        // 其他未知错误
+                        com.lanye.dolladdon.util.logging.ModuleLogger.error(
+                            com.lanye.dolladdon.util.logging.LogModuleConfig.MODULE_COMMAND,
+                            "execute: 备份文件失败（未知错误）: {}",
                             e.getMessage(), e
                         );
+                        // 在主线程中发送错误消息给用户
+                        source.getServer().execute(() -> {
+                            source.sendFailure(Component.literal("§c[玩偶皮肤] 备份原文件失败: " + e.getMessage()));
+                            source.sendFailure(Component.literal("§7提示: 将尝试直接覆盖原文件"));
+                        });
                     }
                 }
                 
@@ -255,9 +299,20 @@ public class DollSkinCommand {
                             "png/" + fileName
                         );
                         DynamicTextureManager.registerTexture(textureLocation, targetPath);
+                        com.lanye.dolladdon.util.logging.ModuleLogger.debug(
+                            com.lanye.dolladdon.util.logging.LogModuleConfig.MODULE_COMMAND,
+                            "execute: 纹理已注册: {} -> {}",
+                            textureLocation, targetPath
+                        );
                         source.sendSuccess(() -> Component.literal("§a[玩偶皮肤] ✓ 纹理已注册到资源管理器"), false);
                     } catch (Exception e) {
-                        // 注册失败不影响主流程，纹理可能已经通过其他方式注册
+                        // 注册失败时记录错误，但不影响主流程
+                        com.lanye.dolladdon.util.logging.ModuleLogger.error(
+                            com.lanye.dolladdon.util.logging.LogModuleConfig.MODULE_COMMAND,
+                            "execute: 纹理注册失败: {} -> {}，错误: {}",
+                            "player_doll:png/" + fileName, targetPath, e.getMessage(), e
+                        );
+                        source.sendFailure(Component.literal("§c[玩偶皮肤] ⚠ 纹理注册失败，但文件已保存"));
                     }
                     
                     // 创建带NBT的玩偶物品并给予玩家
