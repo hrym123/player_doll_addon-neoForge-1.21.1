@@ -219,8 +219,8 @@ modrinth {
     // 游戏版本
     gameVersions = [getModProperty('minecraft_version', '1.21.1')]
     
-    // 加载器（NeoForge 使用 "neo_forge"）
-    loaders = ["neo_forge"]
+    // 加载器（NeoForge 使用 "neoforge"）
+    loaders = ["neoforge"]
     
     // 更新日志（支持 Markdown）
     // 可以从文件读取：changelog = file("CHANGELOG.md").text
