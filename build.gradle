@@ -266,8 +266,8 @@ modrinth {
     //     optional.project "modmenu"
     // }
     
-    // 可选：同步项目描述到 Modrinth（从 README.md 读取）
+    // 同步项目描述到 Modrinth（从 README.md 读取）
     // 运行 ./gradlew modrinthSyncBody 来同步项目描述
-    // syncBodyFrom = file("README.md").text
+    syncBodyFrom = file("README.md").text
 }
 
