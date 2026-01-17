@@ -1,3 +1,8 @@
+# Gradle 属性示例文件
+# 复制此文件为 gradle.properties 并填写您的实际值
+# 注意：gradle.properties 会被提交到版本控制，请勿在此文件中存储敏感信息（如 API Token）
+# 推荐使用环境变量 MODRINTH_TOKEN 来存储 Modrinth API Token
+
 # Sets default memory used for gradle commands. Can be overridden by user or command line properties.
 org.gradle.jvmargs=-Xmx2G
 org.gradle.daemon=true
@@ -42,6 +47,18 @@ mod_authors=蓝也（lan_ye）
 # The description of the mod. This is a simple multiline text string that is used for display purposes in the mod list.
 mod_description=KaleidoscopeDoll Addon - Create dolls with current player's skin.
 
-## Modrinth 发布配置
-# Modrinth 项目 ID
-modrinth_project_id=player-doll
+## Modrinth 发布配置（可选）
+# 警告：如果在此文件中存储 token，请确保 .gitignore 已排除 gradle.properties
+# 推荐使用环境变量 MODRINTH_TOKEN 而不是在此文件中存储 token
+
+# Modrinth 项目 ID（在 Modrinth 项目页面可以找到）
+# modrinth_project_id=your-project-id
+
+# Modrinth API Token（不推荐在此存储，请使用环境变量）
+# modrinth_token=your-token-here
+
+# Modrinth 版本类型：release、beta、alpha
+# modrinth_version_type=release
+
+# Modrinth 更新日志（或使用文件路径）
+# modrinth_changelog=更新日志内容

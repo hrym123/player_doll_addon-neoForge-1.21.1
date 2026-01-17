@@ -305,6 +305,12 @@ All Rights Reserved
 
 ---
 
+## 👤 作者信息
+
+**作者**: 蓝也（lan_ye）
+
+---
+
 ## 🔗 相关资源
 
 - [NeoForge 官方文档](https://docs.neoforged.net/)

@@ -3,6 +3,7 @@ plugins {
     id 'maven-publish'
     id 'net.neoforged.moddev' version '2.0.78'
     id 'idea'
+    id 'com.modrinth.minotaur' version '2.8.10'
 }
 
 tasks.named('wrapper', Wrapper).configure {
@@ -111,7 +112,7 @@ def generateModMetadata = tasks.register("generateModMetadata", ProcessResources
             mod_name               : getModProperty('mod_name', 'Player Doll'),
             mod_license            : getModProperty('mod_license', 'All Rights Reserved'),
             mod_version            : getModProperty('mod_version', '1.0.0'),
-            mod_authors            : getModProperty('mod_authors', 'YourNameHere'),
+            mod_authors            : getModProperty('mod_authors', '蓝也（lan_ye）'),
             mod_description        : getModProperty('mod_description', 'Player Doll')
     ]
     inputs.properties replaceProperties
@@ -195,5 +196,78 @@ afterEvaluate {
             }
         }
     }
+}
+
+// Modrinth 发布配置
+modrinth {
+    // 从环境变量或 gradle.properties 读取 token
+    token = System.getenv("MODRINTH_TOKEN") ?: project.findProperty("modrinth_token")
+    
+    // 项目 ID（需要在 Modrinth 上创建项目后获取）
+    // 访问 https://modrinth.com/mod/your-project-id 查看项目 ID
+    projectId = project.findProperty("modrinth_project_id") ?: "your-project-id"
+    
+    // 版本号（从 gradle.properties 读取）
+    versionNumber = "${mod_version}"
+    
+    // 版本类型：release（正式版）、beta（测试版）、alpha（开发版）
+    versionType = project.findProperty("modrinth_version_type") ?: "release"
+    
+    // 上传的文件（构建的 JAR）
+    uploadFile = jar
+    
+    // 游戏版本
+    gameVersions = [getModProperty('minecraft_version', '1.21.1')]
+    
+    // 加载器（NeoForge 使用 "neo_forge"）
+    loaders = ["neo_forge"]
+    
+    // 更新日志（支持 Markdown）
+    // 可以从文件读取：changelog = file("CHANGELOG.md").text
+    changelog = project.findProperty("modrinth_changelog") ?: """
+        ## 🎉 首次发布 v1.0.0
+        
+        Player Doll Addon 的第一个正式版本！
+        
+        ### ✨ 核心功能
+        - **默认玩偶**：提供 Steve（粗手臂）和 Alex（细手臂）的默认玩偶
+        - **动态加载**：从游戏目录自动扫描并注册自定义皮肤材质玩偶
+        - **右键放置**：使用玩偶物品右键方块可以在指定位置放置对应的玩偶实体
+        - **姿态系统**：支持自定义静态姿势配置（如站立、坐下、趴下等）
+        - **动作系统**：支持创建动态动画序列（如挥手、跳舞等），支持循环播放和关键帧插值
+        - **模型类型**：支持粗手臂（Steve）和细手臂（Alex）两种模型类型
+        
+        ### 📁 自定义皮肤支持
+        - 支持从 `player_doll/png/` 目录动态加载自定义皮肤
+        - 自动识别文件名前缀（S/A）来确定模型类型
+        - 支持热重载（F3+T 重新加载资源包）
+        
+        ### 🎮 配置系统
+        - 支持通过 JSON 文件配置姿态和动作
+        - 配置文件位于 `player_doll/poses/` 和 `player_doll/actions/` 目录
+        - 提供默认的姿态和动作示例
+        
+        ### 📋 技术信息
+        - **Minecraft 版本**: 1.21.1
+        - **NeoForge 版本**: 21.1.217
+        - **Java 版本**: 21
+        
+        ### 📖 使用说明
+        详细的使用说明和配置教程请查看模组 README 文件。
+        
+        ---
+        
+        **作者**: 蓝也（lan_ye）
+    """.stripIndent()
+    
+    // 可选：依赖关系
+    // dependencies {
+    //     required.project "fabric-api"
+    //     optional.project "modmenu"
+    // }
+    
+    // 可选：同步项目描述到 Modrinth（从 README.md 读取）
+    // 运行 ./gradlew modrinthSyncBody 来同步项目描述
+    // syncBodyFrom = file("README.md").text
 }
 

@@ -37,5 +37,9 @@ src/main/resources/assets/player_doll/models/item/zzz*
 .cursorignore
 .cursorrules
 
+# 敏感信息（如果使用 gradle.properties 存储 token，请取消下面的注释）
+# gradle.properties
+# 注意：推荐使用环境变量 MODRINTH_TOKEN 而不是在 gradle.properties 中存储 token
+
 
 
