@@ -11,3 +11,9 @@ plugins {
     id 'org.gradle.toolchains.foojay-resolver-convention' version '1.0.0'
 }
 
+rootProject.name = 'playerDoll-neoForge-1.21.1'
+
+// 包含兼容模块
+include 'player-doll-customskinloader-compat'
+project(':player-doll-customskinloader-compat').projectDir = file('../player-doll-customskinloader-compat')
+

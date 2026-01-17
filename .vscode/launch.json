@@ -1,0 +1,137 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "java",
+      "request": "launch",
+      "name": "Client",
+      "presentation": {
+        "group": "Mod Development - playerDoll-neoForge-1.21.1",
+        "order": 0
+      },
+      "projectName": "playerDoll-neoForge-1.21.1",
+      "mainClass": "net.neoforged.devlaunch.Main",
+      "args": [
+        "@F:\\Repository\\warehouse\\Lanye-mod\\development\\creative\\playerDoll-neoForge-1.21.1\\build\\moddev\\clientRunProgramArgs.txt"
+      ],
+      "vmArgs": [
+        "@F:\\Repository\\warehouse\\Lanye-mod\\development\\creative\\playerDoll-neoForge-1.21.1\\build\\moddev\\clientRunVmArgs.txt",
+        "-Dfml.modFolders\u003dplayer_doll%%F:\\Repository\\warehouse\\Lanye-mod\\development\\creative\\playerDoll-neoForge-1.21.1\\bin\\main"
+      ],
+      "cwd": "${workspaceFolder}\\run",
+      "env": {},
+      "console": "internalConsole",
+      "shortenCommandLine": "none"
+    },
+    {
+      "type": "java",
+      "request": "launch",
+      "name": "Data",
+      "presentation": {
+        "group": "Mod Development - playerDoll-neoForge-1.21.1",
+        "order": 1
+      },
+      "projectName": "playerDoll-neoForge-1.21.1",
+      "mainClass": "net.neoforged.devlaunch.Main",
+      "args": [
+        "@F:\\Repository\\warehouse\\Lanye-mod\\development\\creative\\playerDoll-neoForge-1.21.1\\build\\moddev\\dataRunProgramArgs.txt"
+      ],
+      "vmArgs": [
+        "@F:\\Repository\\warehouse\\Lanye-mod\\development\\creative\\playerDoll-neoForge-1.21.1\\build\\moddev\\dataRunVmArgs.txt",
+        "-Dfml.modFolders\u003dplayer_doll%%F:\\Repository\\warehouse\\Lanye-mod\\development\\creative\\playerDoll-neoForge-1.21.1\\bin\\main"
+      ],
+      "cwd": "${workspaceFolder}\\run",
+      "env": {},
+      "console": "internalConsole",
+      "shortenCommandLine": "none"
+    },
+    {
+      "type": "java",
+      "request": "launch",
+      "name": "GameTestServer",
+      "presentation": {
+        "group": "Mod Development - playerDoll-neoForge-1.21.1",
+        "order": 2
+      },
+      "projectName": "playerDoll-neoForge-1.21.1",
+      "mainClass": "net.neoforged.devlaunch.Main",
+      "args": [
+        "@F:\\Repository\\warehouse\\Lanye-mod\\development\\creative\\playerDoll-neoForge-1.21.1\\build\\moddev\\gameTestServerRunProgramArgs.txt"
+      ],
+      "vmArgs": [
+        "@F:\\Repository\\warehouse\\Lanye-mod\\development\\creative\\playerDoll-neoForge-1.21.1\\build\\moddev\\gameTestServerRunVmArgs.txt",
+        "-Dfml.modFolders\u003dplayer_doll%%F:\\Repository\\warehouse\\Lanye-mod\\development\\creative\\playerDoll-neoForge-1.21.1\\bin\\main"
+      ],
+      "cwd": "${workspaceFolder}\\run",
+      "env": {},
+      "console": "internalConsole",
+      "shortenCommandLine": "none"
+    },
+    {
+      "type": "java",
+      "request": "launch",
+      "name": "Server",
+      "presentation": {
+        "group": "Mod Development - playerDoll-neoForge-1.21.1",
+        "order": 3
+      },
+      "projectName": "playerDoll-neoForge-1.21.1",
+      "mainClass": "net.neoforged.devlaunch.Main",
+      "args": [
+        "@F:\\Repository\\warehouse\\Lanye-mod\\development\\creative\\playerDoll-neoForge-1.21.1\\build\\moddev\\serverRunProgramArgs.txt"
+      ],
+      "vmArgs": [
+        "@F:\\Repository\\warehouse\\Lanye-mod\\development\\creative\\playerDoll-neoForge-1.21.1\\build\\moddev\\serverRunVmArgs.txt",
+        "-Dfml.modFolders\u003dplayer_doll%%F:\\Repository\\warehouse\\Lanye-mod\\development\\creative\\playerDoll-neoForge-1.21.1\\bin\\main"
+      ],
+      "cwd": "${workspaceFolder}\\run",
+      "env": {},
+      "console": "internalConsole",
+      "shortenCommandLine": "none"
+    },
+    {
+      "type": "java",
+      "request": "launch",
+      "name": "player-doll-customskinloader-compat - Client",
+      "presentation": {
+        "group": "Mod Development - player-doll-customskinloader-compat",
+        "order": 0
+      },
+      "projectName": "player-doll-customskinloader-compat",
+      "mainClass": "net.neoforged.devlaunch.Main",
+      "args": [
+        "@F:\\Repository\\warehouse\\Lanye-mod\\development\\creative\\player-doll-customskinloader-compat\\build\\moddev\\clientRunProgramArgs.txt"
+      ],
+      "vmArgs": [
+        "@F:\\Repository\\warehouse\\Lanye-mod\\development\\creative\\player-doll-customskinloader-compat\\build\\moddev\\clientRunVmArgs.txt",
+        "-Dfml.modFolders\u003dplayer_doll_customskinloader_compat%%F:\\Repository\\warehouse\\Lanye-mod\\development\\creative\\player-doll-customskinloader-compat\\bin\\main"
+      ],
+      "cwd": "${workspaceFolder}\\..\\player-doll-customskinloader-compat\\run",
+      "env": {},
+      "console": "internalConsole",
+      "shortenCommandLine": "none"
+    },
+    {
+      "type": "java",
+      "request": "launch",
+      "name": "player-doll-customskinloader-compat - Server",
+      "presentation": {
+        "group": "Mod Development - player-doll-customskinloader-compat",
+        "order": 1
+      },
+      "projectName": "player-doll-customskinloader-compat",
+      "mainClass": "net.neoforged.devlaunch.Main",
+      "args": [
+        "@F:\\Repository\\warehouse\\Lanye-mod\\development\\creative\\player-doll-customskinloader-compat\\build\\moddev\\serverRunProgramArgs.txt"
+      ],
+      "vmArgs": [
+        "@F:\\Repository\\warehouse\\Lanye-mod\\development\\creative\\player-doll-customskinloader-compat\\build\\moddev\\serverRunVmArgs.txt",
+        "-Dfml.modFolders\u003dplayer_doll_customskinloader_compat%%F:\\Repository\\warehouse\\Lanye-mod\\development\\creative\\player-doll-customskinloader-compat\\bin\\main"
+      ],
+      "cwd": "${workspaceFolder}\\..\\player-doll-customskinloader-compat\\run",
+      "env": {},
+      "console": "internalConsole",
+      "shortenCommandLine": "none"
+    }
+  ]
+}
