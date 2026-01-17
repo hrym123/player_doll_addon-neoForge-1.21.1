@@ -4,6 +4,8 @@ import com.lanye.dolladdon.PlayerDoll;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -21,369 +23,139 @@ public class DefaultFileInitializer {
      */
     public static void initializeDefaultFiles(Path gameDir) {
         try {
-            // 创建目录
+            // 创建 player_doll 目录
             Path playerDollDir = gameDir.resolve("player_doll");
-            Path posesDir = gameDir.resolve(PlayerDoll.POSES_DIR);
-            Path actionsDir = gameDir.resolve(PlayerDoll.ACTIONS_DIR);
+            Files.createDirectories(playerDollDir);
             
-            Files.createDirectories(posesDir);
-            Files.createDirectories(actionsDir);
-            
-            // 生成 README.md 文档
-            generateReadme(playerDollDir);
-            
-            // 从资源包复制姿态文件
-            copyIfNotExists(posesDir.resolve("standing.json"), "assets/player_doll/defaults/poses/standing.json");
-            copyIfNotExists(posesDir.resolve("wave_up.json"), "assets/player_doll/defaults/poses/wave_up.json");
-            
-            // 从资源包复制动作文件
-            copyIfNotExists(actionsDir.resolve("dance.json"), "assets/player_doll/defaults/actions/dance.json");
-            copyIfNotExists(actionsDir.resolve("sit.json"), "assets/player_doll/defaults/actions/sit.json");
-            copyIfNotExists(actionsDir.resolve("wave.json"), "assets/player_doll/defaults/actions/wave.json");
+            // 从资源包复制整个 defaults 目录到 player_doll 目录
+            copyDirectoryTreeFromResources(playerDollDir, "assets/player_doll/defaults");
         } catch (Exception e) {
             // Error logging handled by Mixin
         }
     }
     
     /**
-     * 生成 README.md 文档
-     * @param playerDollDir player_doll 目录路径
+     * 从资源包递归复制整个目录树到文件系统
+     * 
+     * 注意：由于 Java ClassLoader 的限制，无法直接列出资源目录
+     * 所以这个方法会：
+     * 1. 尝试从文件系统读取（开发环境）：使用 Files.walk() 递归遍历目录
+     * 2. 如果资源在 JAR 包中（生产环境）：使用 Files.walk() 遍历文件系统路径（如果可用）
+     * 
+     * @param targetBaseDir 目标基础目录路径（如 player_doll 目录）
+     * @param resourceBasePath 资源包中的基础路径（相对于类路径，如 "assets/player_doll/defaults"）
      */
-    private static void generateReadme(Path playerDollDir) {
+    private static void copyDirectoryTreeFromResources(Path targetBaseDir, String resourceBasePath) {
         try {
-            Path readmePath = playerDollDir.resolve("README.md");
+            // 确保目标基础目录存在
+            Files.createDirectories(targetBaseDir);
             
-            // 如果 README.md 已存在，跳过
-            if (Files.exists(readmePath)) {
-                return;
+            // 尝试方法1：从文件系统读取（开发环境）
+            URL resourceUrl = DefaultFileInitializer.class.getClassLoader().getResource(resourceBasePath);
+            if (resourceUrl != null && "file".equals(resourceUrl.getProtocol())) {
+                try {
+                    // 资源在文件系统中（开发环境）
+                    Path resourceSourceDir = Path.of(resourceUrl.toURI());
+                    if (Files.exists(resourceSourceDir) && Files.isDirectory(resourceSourceDir)) {
+                        // 递归遍历目录树并复制所有文件
+                        try (var stream = Files.walk(resourceSourceDir)) {
+                            stream.filter(Files::isRegularFile)
+                                  .forEach(sourceFile -> {
+                                      try {
+                                          // 计算相对路径
+                                          Path relativePath = resourceSourceDir.relativize(sourceFile);
+                                          
+                                          // 构建目标文件路径
+                                          Path targetFile = targetBaseDir.resolve(relativePath);
+                                          
+                                          // 确保目标文件的父目录存在
+                                          Files.createDirectories(targetFile.getParent());
+                                          
+                                          // 构建资源文件路径
+                                          String resourceFilePath = resourceBasePath + "/" + relativePath.toString().replace("\\", "/");
+                                          
+                                          // 复制文件（如果不存在）
+                                          copyIfNotExists(targetFile, resourceFilePath);
+                                      } catch (Exception e) {
+                                          // Error logging handled by Mixin
+                                      }
+                                  });
+                        }
+                        return; // 成功从文件系统复制，返回
+                    }
+                } catch (Exception e) {
+                    // 无法从文件系统读取，继续尝试其他方法
+                }
             }
             
-            String readmeContent = generateReadmeContent();
-            Files.writeString(readmePath, readmeContent, StandardCharsets.UTF_8);
-        } catch (IOException e) {
+            // 尝试方法2：从 JAR 包读取（生产环境）
+            // 由于 ClassLoader 无法直接列出 JAR 中的资源目录，我们使用递归尝试方法
+            // 尝试复制已知的文件和目录结构
+            copyFromJarRecursive(targetBaseDir, resourceBasePath, "");
+            
+        } catch (Exception e) {
             // Error logging handled by Mixin
         }
     }
     
     /**
-     * 生成 README.md 内容
-     * @return README.md 文件内容
+     * 从 JAR 包递归复制资源（通过尝试读取资源来确定文件是否存在）
+     * 
+     * @param targetBaseDir 目标基础目录
+     * @param resourceBasePath 资源基础路径
+     * @param relativePath 相对路径（用于递归）
      */
-    private static String generateReadmeContent() {
-        return """ 
-            # Player Doll 配置指南
-
-            欢迎使用 Player Doll！本目录用于存放玩偶相关的配置文件。
-
-            ## 目录结构
-
-            ```
-            player_doll/
-            ├── png/              # 自定义玩偶皮肤材质目录
-            ├── poses/            # 姿态配置文件目录
-            ├── actions/          # 动作配置文件目录
-            └── README.md         # 本说明文档
-            ```
-
-            ## 1. 配置自定义玩偶皮肤
-
-            ### 步骤
-
-            1. **准备皮肤材质文件**
-               - 将玩家皮肤 PNG 文件放入 `png/` 目录
-               - 文件必须是标准的 Minecraft 玩家皮肤格式（64x64 或 64x32 像素）
-
-            2. **文件命名规则**
-               - 文件名必须以 `S` 或 `A` 开头，表示模型类型：
-                 - `S` = 粗手臂模型（Steve 模型）
-                 - `A` = 细手臂模型（Alex 模型）
-               - 第一个字符后的部分将作为玩偶的显示名称
-               - 名称处理规则：
-                 - 单个下划线 `_` 会被替换为空格
-                 - 双下划线 `__` 会被替换为单个下划线 `_`
-
-            3. **命名示例**
-
-            | 文件名 | 模型类型 | 显示名称 | 说明 |
-            |--------|---------|---------|------|
-            | `SMy_Character.png` | 粗手臂 | `My Character` | 单下划线变为空格 |
-            | `A123_ABC__qwe.png` | 细手臂 | `123 ABC_qwe` | 单下划线变空格，双下划线变单下划线 |
-            | `SHero_Doll.png` | 粗手臂 | `Hero Doll` | 单下划线变为空格 |
-
-            4. **使用**
-               - 启动游戏或重新加载资源包（F3+T）
-               - 模组会自动扫描 `png/` 目录并注册所有 PNG 文件
-               - 在创造模式物品栏的"玩家玩偶"标签页中找到新注册的玩偶物品
-
-            ## 2. 配置姿态（Poses）
-
-            姿态定义了玩偶的静态姿势，保存在 `poses/` 目录下。
-
-            ### 姿态文件格式
-
-            每个姿态文件是一个 JSON 文件，例如 `standing.json`：
-
-            ```json
-            {
-              "name": "standing",
-              "displayName": "站立",
-              "head": [0, 0, 0],
-              "hat": [0, 0, 0],
-              "body": [0, 0, 0],
-              "rightArm": [0, 0, 0],
-              "leftArm": [0, 0, 0],
-              "rightLeg": [0, 0, 0],
-              "leftLeg": [0, 0, 0]
+    private static void copyFromJarRecursive(Path targetBaseDir, String resourceBasePath, String relativePath) {
+        try {
+            // 构建当前路径
+            String currentResourcePath = resourceBasePath + (relativePath.isEmpty() ? "" : "/" + relativePath);
+            
+            // 首先尝试作为文件复制
+            Path targetFile = targetBaseDir.resolve(relativePath.isEmpty() ? "" : relativePath);
+            if (targetFile.getParent() != null) {
+                Files.createDirectories(targetFile.getParent());
             }
-            ```
-
-            ### 字段说明
-
-            - **name**: 姿态名称（必需，用于在代码中引用）
-            - **displayName**: 显示名称（可选，用于 UI 显示）
-            - **head**: [x, y, z] 头部旋转角度（度数）
-            - **hat**: [x, y, z] 帽子/头发外层旋转角度（度数）
-            - **body**: [x, y, z] 身体旋转角度（度数）
-            - **rightArm**: [x, y, z] 右臂旋转角度（度数）
-            - **leftArm**: [x, y, z] 左臂旋转角度（度数）
-            - **rightLeg**: [x, y, z] 右腿旋转角度（度数）
-            - **leftLeg**: [x, y, z] 左腿旋转角度（度数）
-
-            ### 角度单位
-
-            所有角度使用**度数**为单位（360度制）。模组会自动将度数转换为弧度使用。
-
-            常用角度值：
-            - 0 度：无旋转
-            - 45 度：四分之一圆
-            - 90 度：直角
-            - 180 度：半圆
-            - -90 度：反向直角
-
-            ### 姿态示例
-
-            **站立姿态（standing.json）**:
-            ```json
-            {
-              "name": "standing",
-              "displayName": "站立",
-              "head": [0, 0, 0],
-              "hat": [0, 0, 0],
-              "body": [0, 0, 0],
-              "rightArm": [0, 0, 0],
-              "leftArm": [0, 0, 0],
-              "rightLeg": [0, 0, 0],
-              "leftLeg": [0, 0, 0]
-            }
-            ```
-
-            **坐下姿态（sitting.json）**:
-            ```json
-            {
-              "name": "sitting",
-              "displayName": "坐下",
-              "head": [0, 0, 0],
-              "hat": [0, 0, 0],
-              "body": [5, 0, 0],
-              "rightArm": [-40, 0, 0],
-              "leftArm": [-40, 0, 0],
-              "rightLeg": [90, 0, 0],
-              "leftLeg": [90, 0, 0]
-            }
-            ```
-
-            **趴下姿态（lying.json）**:
-            ```json
-            {
-              "name": "lying",
-              "displayName": "趴下",
-              "head": [0, 0, 0],
-              "hat": [0, 0, 0],
-              "body": [-90, 0, 0],
-              "rightArm": [90, 0, 0],
-              "leftArm": [90, 0, 0],
-              "rightLeg": [0, 0, 0],
-              "leftLeg": [0, 0, 0]
-            }
-            ```
-
-            ## 3. 配置动作（Actions）
-
-            动作定义了玩偶的动态动画序列，保存在 `actions/` 目录下。动作由多个关键帧组成，关键帧之间会自动插值。
-
-            ### 动作文件格式
-
-            每个动作文件是一个 JSON 文件，例如 `dance.json`：
-
-            ```json
-            {
-              "name": "dance",
-              "looping": true,
-              "keyframes": [
-                {
-                  "tick": 0,
-                  "pose": {
-                    "name": "dance_pose_1",
-                    "rightArm": [-90, 0, 0],
-                    "leftArm": [90, 0, 0]
-                  }
-                },
-                {
-                  "tick": 10,
-                  "pose": {
-                    "name": "dance_pose_2",
-                    "rightArm": [90, 0, 0],
-                    "leftArm": [-90, 0, 0]
-                  }
+            copyIfNotExists(targetFile, currentResourcePath);
+            
+            // 然后尝试作为目录处理（尝试常见的子文件和子目录）
+            // 由于无法列出目录，我们使用已知的文件列表或尝试常见的文件名
+            
+            // 尝试复制已知的文件（基于 defaults 目录结构）
+            String[] knownFiles = {
+                "README.md",
+                "actions/dance.json",
+                "actions/run.json",
+                "actions/sit.json",
+                "actions/wave.json",
+                "poses/crouching.json",
+                "poses/lying.json",
+                "poses/running.json",
+                "poses/sitting.json",
+                "poses/spread_arms.json",
+                "poses/spread_legs.json",
+                "poses/standing.json",
+                "poses/wave_up.json"
+            };
+            
+            for (String knownFile : knownFiles) {
+                try {
+                    String fileResourcePath = resourceBasePath + "/" + knownFile;
+                    Path fileTargetPath = targetBaseDir.resolve(knownFile);
+                    
+                    // 确保父目录存在
+                    if (fileTargetPath.getParent() != null) {
+                        Files.createDirectories(fileTargetPath.getParent());
+                    }
+                    
+                    // 尝试复制文件
+                    copyIfNotExists(fileTargetPath, fileResourcePath);
+                } catch (Exception e) {
+                    // 忽略单个文件的错误，继续处理其他文件
                 }
-              ]
             }
-            ```
-
-            ### 字段说明
-
-            - **name**: 动作名称（可选，用于标识）
-            - **looping**: 是否循环播放（true/false）
-              - `true`: 动作会循环播放
-              - `false`: 动作播放一次后停止
-            - **keyframes**: 关键帧数组
-              - **tick**: 关键帧的时间点（游戏 tick，1 tick = 0.05 秒）
-              - **pose**: 该关键帧的姿态
-                - 可以是字符串：引用已定义的姿态文件（如 `"standing"`）
-                - 可以是对象：内联定义姿态（只需指定需要改变的部分）
-
-            ### 姿态引用 vs 内联定义
-
-            **引用已定义的姿态**:
-            ```json
-            {
-              "tick": 0,
-              "pose": "standing"
-            }
-            ```
-
-            **内联定义姿态**（只指定需要改变的部分）:
-            ```json
-            {
-              "tick": 10,
-              "pose": {
-                "rightArm": [-90, 0, 0],
-                "leftArm": [90, 0, 0]
-              }
-            }
-            ```
-
-            使用内联定义时，未指定的身体部位会使用前一个关键帧的值或默认值。
-
-            ### 动作示例
-
-            **挥手动作（wave.json）**:
-            ```json
-            {
-              "name": "wave",
-              "looping": false,
-              "keyframes": [
-                {"tick": 0, "pose": "standing"},
-                {
-                  "tick": 5,
-                  "pose": {
-                    "rightArm": [-90, 0, 0]
-                  }
-                },
-                {"tick": 10, "pose": "standing"}
-              ]
-            }
-            ```
-
-            **跳舞动作（dance.json）**:
-            ```json
-            {
-              "name": "dance",
-              "looping": true,
-              "keyframes": [
-                {
-                  "tick": 0,
-                  "pose": {
-                    "rightArm": [-90, 0, 0],
-                    "leftArm": [90, 0, 0]
-                  }
-                },
-                {
-                  "tick": 10,
-                  "pose": {
-                    "rightArm": [90, 0, 0],
-                    "leftArm": [-90, 0, 0]
-                  }
-                }
-              ]
-            }
-            ```
-
-            **坐下动作（sit.json）**:
-            ```json
-            {
-              "name": "sit",
-              "looping": false,
-              "keyframes": [
-                {"tick": 0, "pose": "standing"},
-                {
-                  "tick": 5,
-                  "pose": {
-                    "rightLeg": [90, 0, 0],
-                    "leftLeg": [90, 0, 0]
-                  }
-                }
-              ]
-            }
-            ```
-
-            ## 4. 常见角度参考
-
-            ### 手臂角度
-
-            - **自然下垂**: `[0, 0, 0]`
-            - **向前 40 度**: `[-40, 0, 0]`
-            - **向上 90 度**: `[-90, 0, 0]`
-            - **水平向右 90 度**: `[0, 90, 0]`
-            - **水平向左 90 度**: `[0, -90, 0]`
-
-            ### 腿部角度
-
-            - **伸直**: `[0, 0, 0]`
-            - **弯曲 90 度**: `[90, 0, 0]`
-
-            ### 身体角度
-
-            - **直立**: `[0, 0, 0]`
-            - **向前倾斜 5 度**: `[5, 0, 0]`
-            - **向前倾斜 90 度（趴下）**: `[-90, 0, 0]`
-
-            ## 5. 使用提示
-
-            1. **重新加载资源**: 修改配置文件后，按 `F3+T` 重新加载资源包，无需重启游戏
-            2. **关键帧插值**: 系统会自动在关键帧之间进行线性插值，使动作更流畅
-            3. **循环动作**: 设置 `looping: true` 可以让动作循环播放
-            4. **姿态复用**: 可以在动作中引用已定义的姿态文件，避免重复定义
-            5. **部分姿态**: 在内联定义姿态时，只需指定需要改变的部分
-            6. **时间控制**: 使用 `tick` 值控制动作的节奏，1 tick = 0.05 秒（20 tick = 1 秒）
-
-            ## 6. 注意事项
-
-            - 所有角度单位都是**度数**（360度制），模组会自动转换为弧度使用
-            - JSON 文件必须使用 UTF-8 编码
-            - 姿态文件中的 `hat` 通常与 `head` 保持相同的旋转值
-            - 如果修改了默认文件，建议先备份
-            - 皮肤文件必须是有效的 PNG 格式，且符合 Minecraft 皮肤规范
-            - 负数角度表示反向旋转（例如 `-90` 表示反向 90 度）
-
-            ## 7. 获取帮助
-
-            如有问题或需要更多帮助，请查看模组的 GitHub 仓库或相关文档。
-
-            ---
-
-            *本文档由 Player Doll 模组自动生成*
-            """;
+        } catch (Exception e) {
+            // Error logging handled by Mixin
+        }
     }
     
     /**
@@ -413,4 +185,3 @@ public class DefaultFileInitializer {
         }
     }
 }
-
