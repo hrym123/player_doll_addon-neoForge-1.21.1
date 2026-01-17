@@ -2,6 +2,7 @@ package com.lanye.dolladdon.util.command;
 
 import com.lanye.dolladdon.util.factory.DollItemFactory;
 import com.lanye.dolladdon.util.neoForge.DynamicTextureManager;
+import net.minecraft.resources.ResourceLocation;
 import com.lanye.dolladdon.util.resource.PlayerSkinDownloader;
 import com.lanye.dolladdon.util.resource.SkinFileNamingUtil;
 import com.mojang.brigadier.CommandDispatcher;
@@ -293,17 +294,69 @@ public class DollSkinCommand {
                     }
                     
                     // 注册纹理到DynamicTextureManager（确保纹理可以被访问）
+                    // 检查文件名是否符合ResourceLocation规范（只能包含 [a-z0-9/._-]）
+                    // 如果不符合，使用哈希文件名（与DynamicTextureManager.scanAndRegisterTextures()逻辑保持一致）
                     try {
-                        ResourceLocation textureLocation = ResourceLocation.fromNamespaceAndPath(
-                            "player_doll", 
-                            "png/" + fileName
-                        );
-                        DynamicTextureManager.registerTexture(textureLocation, targetPath);
-                        com.lanye.dolladdon.util.logging.ModuleLogger.debug(
-                            com.lanye.dolladdon.util.logging.LogModuleConfig.MODULE_COMMAND,
-                            "execute: 纹理已注册: {} -> {}",
-                            textureLocation, targetPath
-                        );
+                        // 检查文件名是否包含特殊字符
+                        boolean containsNonAscii = fileName.chars().anyMatch(ch -> ch > 127 || (ch < 32 && ch != 9 && ch != 10 && ch != 13));
+                        boolean containsUpperCase = fileName.chars().anyMatch(ch -> ch >= 'A' && ch <= 'Z');
+                        boolean containsInvalidChars = fileName.chars().anyMatch(ch -> {
+                            return !((ch >= 'a' && ch <= 'z') || 
+                                    (ch >= '0' && ch <= '9') || 
+                                    ch == '.' || ch == '_' || ch == '-');
+                        });
+                        
+                        ResourceLocation textureLocation;
+                        String safeFileName = null;
+                        
+                        if (containsNonAscii || containsUpperCase || containsInvalidChars) {
+                            // 如果包含特殊字符，使用哈希文件名
+                            try {
+                                java.security.MessageDigest md = java.security.MessageDigest.getInstance("MD5");
+                                byte[] hashBytes = md.digest(fileName.getBytes("UTF-8"));
+                                StringBuilder hashString = new StringBuilder();
+                                for (byte b : hashBytes) {
+                                    hashString.append(String.format("%02x", b));
+                                }
+                                safeFileName = "skin_" + hashString.substring(0, 16) + ".png";
+                            } catch (Exception e) {
+                                int fileNameHash = fileName.hashCode();
+                                safeFileName = "skin_" + Integer.toHexString(Math.abs(fileNameHash)) + ".png";
+                            }
+                            
+                            textureLocation = ResourceLocation.fromNamespaceAndPath(
+                                "player_doll", 
+                                "png/" + safeFileName
+                            );
+                            
+                            // 注册纹理路径（使用哈希文件名）
+                            DynamicTextureManager.registerTexture(textureLocation, targetPath);
+                            
+                            // 注册路径映射（原始文件名 -> 哈希文件名）
+                            DynamicTextureManager.registerPathMapping(fileName, textureLocation);
+                            
+                            com.lanye.dolladdon.util.logging.ModuleLogger.debug(
+                                com.lanye.dolladdon.util.logging.LogModuleConfig.MODULE_COMMAND,
+                                "execute: 纹理已注册（使用哈希文件名）: {} -> {} (原始文件名: {})",
+                                textureLocation, targetPath, fileName
+                            );
+                        } else {
+                            // 如果文件名不包含特殊字符，直接使用文件名
+                            textureLocation = ResourceLocation.fromNamespaceAndPath(
+                                "player_doll", 
+                                "png/" + fileName
+                            );
+                            
+                            // 注册纹理路径
+                            DynamicTextureManager.registerTexture(textureLocation, targetPath);
+                            
+                            com.lanye.dolladdon.util.logging.ModuleLogger.debug(
+                                com.lanye.dolladdon.util.logging.LogModuleConfig.MODULE_COMMAND,
+                                "execute: 纹理已注册: {} -> {}",
+                                textureLocation, targetPath
+                            );
+                        }
+                        
                         source.sendSuccess(() -> Component.literal("§a[玩偶皮肤] ✓ 纹理已注册到资源管理器"), false);
                     } catch (Exception e) {
                         // 注册失败时记录错误，但不影响主流程
@@ -382,9 +435,28 @@ public class DollSkinCommand {
      */
     private static ItemStack createDollItemWithNBT(String playerName, java.util.UUID playerUUID, 
                                                    String fileName, boolean isAlexModel) {
+        String skinPath;
+        
         // 如果 fileName 已经是完整的 ResourceLocation 格式（包含 :），直接使用
-        // 否则添加前缀
-        String skinPath = fileName.contains(":") ? fileName : "player_doll:png/" + fileName;
+        if (fileName.contains(":")) {
+            skinPath = fileName;
+        } else {
+            // 检查是否有路径映射（原始文件名 -> 哈希文件名）
+            // 这发生在文件名包含特殊字符时，DynamicTextureManager会创建路径映射
+            ResourceLocation mappedLocation = DynamicTextureManager.getMappedResourceLocation(fileName);
+            if (mappedLocation != null) {
+                // 使用映射的ResourceLocation（哈希文件名）
+                skinPath = mappedLocation.toString();
+                com.lanye.dolladdon.util.logging.ModuleLogger.debug(
+                    com.lanye.dolladdon.util.logging.LogModuleConfig.MODULE_COMMAND,
+                    "createDollItemWithNBT: 使用路径映射的ResourceLocation: {} -> {} (原始文件名: {})",
+                    fileName, skinPath, fileName
+                );
+            } else {
+                // 没有路径映射，直接使用文件名（文件名应该符合ResourceLocation规范）
+                skinPath = "player_doll:png/" + fileName;
+            }
+        }
         
         // 使用工厂类创建物品，确保NBT结构标准化
         // 注意：playerUUID 仅用于生成文件名，不保存到物品NBT中

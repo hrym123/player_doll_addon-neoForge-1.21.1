@@ -81,19 +81,19 @@ public class LogModuleConfig {
     private static final LogLevel LEVEL_ENTITY_INTERACT = LogLevel.WARN;  // 实体交互模块
     private static final LogLevel LEVEL_ENTITY_POSE = LogLevel.WARN;  // 实体姿态模块
     private static final LogLevel LEVEL_ENTITY_ACTION = LogLevel.WARN;  // 实体动作模块
-    private static final LogLevel LEVEL_ENTITY_NBT = LogLevel.DEBUG;  // 实体NBT模块，当前正在调试问题019
-    private static final LogLevel LEVEL_RENDER = LogLevel.DEBUG;  // 渲染模块，当前正在调试问题019
+    private static final LogLevel LEVEL_ENTITY_NBT = LogLevel.WARN;  // 实体NBT模块
+    private static final LogLevel LEVEL_RENDER = LogLevel.WARN;  // 渲染模块
     private static final LogLevel LEVEL_3D_SKIN_LAYERS = LogLevel.WARN;  // 3D皮肤层模块
-    private static final LogLevel LEVEL_RESOURCE = LogLevel.DEBUG;  // 资源管理模块，当前正在调试问题019
+    private static final LogLevel LEVEL_RESOURCE = LogLevel.WARN;  // 资源管理模块
     private static final LogLevel LEVEL_POSE_LOADER = LogLevel.WARN;  // 姿态加载器模块
     private static final LogLevel LEVEL_ACTION_LOADER = LogLevel.WARN;  // 动作加载器模块，改为 OFF 可一键关闭所有动作加载日志
     private static final LogLevel LEVEL_RESOURCE_GENERATOR = LogLevel.WARN;  // 资源生成器模块
     private static final LogLevel LEVEL_TEXTURE_SCANNER = LogLevel.WARN;  // 纹理扫描器模块
     private static final LogLevel LEVEL_DEBUG_STICK_ACTION = LogLevel.WARN;  // 动作调试棒模块
     private static final LogLevel LEVEL_DEBUG_STICK_POSE = LogLevel.WARN;  // 姿态调试棒模块
-    private static final LogLevel LEVEL_COMMAND = LogLevel.DEBUG;  // 命令模块，当前正在调试问题019
+    private static final LogLevel LEVEL_COMMAND = LogLevel.WARN;  // 命令模块
     private static final LogLevel LEVEL_FACTORY = LogLevel.WARN;  // 工厂模块
-    private static final LogLevel LEVEL_RESOURCE_PACK = LogLevel.DEBUG;  // 资源包模块，当前正在调试问题019
+    private static final LogLevel LEVEL_RESOURCE_PACK = LogLevel.WARN;  // 资源包模块
     
     // ==================== 日志模板配置 ====================
     
