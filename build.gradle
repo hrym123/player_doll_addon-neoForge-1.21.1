@@ -110,7 +110,7 @@ def generateModMetadata = tasks.register("generateModMetadata", ProcessResources
             loader_version_range   : getModProperty('loader_version_range', '[1,)'),
             mod_id                 : getModProperty('mod_id', 'player_doll'),
             mod_name               : getModProperty('mod_name', 'Player Doll'),
-            mod_license            : getModProperty('mod_license', 'All Rights Reserved'),
+            mod_license            : getModProperty('mod_license', 'MIT'),
             mod_version            : getModProperty('mod_version', '1.0.0'),
             mod_authors            : getModProperty('mod_authors', '蓝也（lan_ye）'),
             mod_description        : getModProperty('mod_description', 'Player Doll')
